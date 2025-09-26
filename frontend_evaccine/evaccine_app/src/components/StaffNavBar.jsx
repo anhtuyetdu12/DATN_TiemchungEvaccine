@@ -46,17 +46,17 @@ export default function StaffNavBar({ user, setUser }) {
           </p>
           <div className="tw-flex tw-items-center tw-gap-x-4">
             <span className="tw-text-[12px] tw-font-medium tw-text-[#2e95ef] tw-flex tw-items-center">
-              <i className="fa fa-phone tw-text-[#222fc4] tw-mr-2 "></i> +1800
+              <i className="fa fa-phone tw-text-[#2e95ef] tw-mr-2 "></i> +1800
               6926
             </span>
             <span className="tw-text-[12px] tw-font-medium tw-text-[#2e95ef] tw-border-x tw-border-[#f2f2f2] tw-px-4 tw-flex tw-items-center">
-              <i className="fa fa-calendar-plus-o tw-text-[#222fc4] tw-mr-2 "></i>
+              <i className="fa fa-calendar-plus-o tw-text-[#2e95ef] tw-mr-2 "></i>
               7:00 AM - 10:00 PM (Mon-Fri)
             </span>
             <span className="tw-text-[12px] tw-font-medium tw-text-[#2e95ef] tw-flex tw-items-center">
-              <i className="fa fa-envelope-o tw-text-[#222fc4] tw-mr-2 "></i>
-              <a href="mailto:evaccine@gmail.com" className="hover:tw-underline">
-                evaccine@gmail.com
+              <i className="fa fa-envelope-o tw-text-[#2e95ef] tw-mr-2 "></i>
+              <a href="mailto:tiemchung.evaccine@gmail.com" className="hover:tw-underline">
+                tiemchung.evaccine@gmail.com
               </a>
             </span>
           </div>

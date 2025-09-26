@@ -75,7 +75,7 @@ export default function Login({ setUser }) {
 
       // --- redirect theo role ---
       if (userData.role === "customer") {
-        navigate("/user/home");
+        navigate("/");
       } else if (userData.role === "staff") {
         navigate("/staff/home");
       } else {

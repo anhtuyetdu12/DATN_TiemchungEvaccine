@@ -5,12 +5,7 @@ export default function Footer() {
       <section id="google-map">
         <iframe
           src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d62714.211241851844!2d108.14778530488053!3d16.047165923582854!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x314219c792f2b4b5%3A0x20ee9e97e4c77ec2!2zxJDDoCBO4bqhbmc!5e0!3m2!1svi!2s!4v1690000000000"
-          width="100%"
-          height="350"
-          style={{ border: 0 }}
-          allowFullScreen={true}
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
+          width="100%" height="350" style={{ border: 0 }} allowFullScreen={true} loading="lazy"  referrerPolicy="no-referrer-when-downgrade"
           title="Google Map of Da Nang, Vietnam"
         />
       </section>
@@ -27,35 +22,23 @@ export default function Footer() {
               </h4>
               <ul>
                 <li className="tw-mb-[10px]">
-                  <a
-                    href="#!"
-                    className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff] tw-transition-colors"
-                  >
+                  <a href="#!" className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff] tw-transition-colors">
                     Giới thiệu Tiêm Chủng E-Vaccine
                   </a>
                 </li>
                 <li className="tw-mb-[10px]">
-                  <a
-                    href="#!"
-                    className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff] tw-transition-colors"
-                  >
+                  <a href="#!" className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff] tw-transition-colors" >
                     Quy chế hoạt động website/ứng dụng thương mại điện tử bán
                     hàng
                   </a>
                 </li>
                 <li className="tw-mb-[10px]">
-                  <a
-                    href="#!"
-                    className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff] tw-transition-colors"
-                  >
+                  <a href="#!" className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff] tw-transition-colors" >
                     Chính sách nội dung
                   </a>
                 </li>
                 <li className="tw-mb-[10px]">
-                  <a
-                    href="#!"
-                    className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff] tw-transition-colors"
-                  >
+                  <a href="#!" className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff] tw-transition-colors" >
                     Chính sách bảo mật dữ liệu cá nhân khách hàng
                   </a>
                 </li>
@@ -69,34 +52,22 @@ export default function Footer() {
               </h4>
               <ul>
                 <li className="tw-mb-[10px]">
-                  <a
-                    href="#!"
-                    className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff]"
-                  >
+                  <a href="#!" className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff]" >
                     Danh mục vắc xin
                   </a>
                 </li>
                 <li className="tw-mb-[10px]">
-                  <a
-                    href="#!"
-                    className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff]"
-                  >
+                  <a  href="#!"  className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff]" >
                     Kiến thức tiêm chủng
                   </a>
                 </li>
                 <li className="tw-mb-[10px]">
-                  <a
-                    href="#!"
-                    className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff]"
-                  >
+                  <a href="#!" className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff]" >
                     Đội ngũ bác sĩ, chuyên gia
                   </a>
                 </li>
                 <li className="tw-mb-[10px]">
-                  <a
-                    href="#!"
-                    className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff]"
-                  >
+                  <a href="#!" className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff]" >
                     Lịch sử tiêm chủng
                   </a>
                 </li>
@@ -110,26 +81,17 @@ export default function Footer() {
               </h4>
               <ul>
                 <li className="tw-mb-[10px]">
-                  <a
-                    href="#!"
-                    className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff]"
-                  >
+                  <a  href="#!" className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff]" >
                     Khuyến mãi
                   </a>
                 </li>
                 <li className="tw-mb-[10px]">
-                  <a
-                    href="#!"
-                    className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff]"
-                  >
+                  <a href="#!" className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff]" >
                     Tôi nên tiêm gì?
                   </a>
                 </li>
                 <li className="tw-mb-[10px]">
-                  <a
-                    href="#!"
-                    className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff]"
-                  >
+                  <a href="#!" className="tw-text-[#555] tw-text-[14px] tw-font-medium hover:tw-text-[#0866ff]">
                     Tiêm chủng đi nước ngoài
                   </a>
                 </li>
@@ -148,11 +110,8 @@ export default function Footer() {
                 </li>
                 <li className="tw-flex tw-items-center tw-mb-[10px] tw-text-[#555] tw-text-[14px] tw-font-medium">
                   <i className="fa fa-envelope tw-text-[#1624b7] tw-mr-[10px] tw-min-w-[20px] tw-text-center"></i>
-                  <a
-                    href="mailto:evaccine@gmail.com"
-                    className="hover:tw-text-[#0866ff]"
-                  >
-                    evaccine@gmail.com
+                  <a href="mailto:tiemchung.evaccine@gmail.com" className="hover:tw-text-[#0866ff]">
+                    tiemchung.evaccine@gmail.com
                   </a>
                 </li>
                 <li className="tw-flex tw-items-center tw-mb-[10px] tw-text-[#555] tw-text-[14px] tw-font-medium">
@@ -165,36 +124,20 @@ export default function Footer() {
                 KẾT NỐI VỚI CHÚNG TÔI
               </h4>
               <div className="tw-flex tw-gap-[15px] tw-mt-[10px]">
-                <a
-                  href="https://facebook.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="tw-w-[30px] tw-h-[30px] tw-rounded-full tw-bg-[#0866ff] tw-text-white tw-flex tw-items-center tw-justify-center tw-text-[18px] hover:tw-bg-white hover:tw-text-[#0866ff] hover:tw-border hover:tw-border-[#0866ff] tw-transition-all"
-                >
+                <a href="https://facebook.com" target="_blank" rel="noopener noreferrer"
+                  className="tw-w-[30px] tw-h-[30px] tw-rounded-full tw-bg-[#0866ff] tw-text-white tw-flex tw-items-center tw-justify-center tw-text-[18px] hover:tw-bg-white hover:tw-text-[#0866ff] hover:tw-border hover:tw-border-[#0866ff] tw-transition-all" >
                   <i className="fab fa-facebook-f"></i>
                 </a>
-                <a
-                  href="https://tiktok.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="tw-w-[30px] tw-h-[30px] tw-rounded-full tw-bg-[#0866ff] tw-text-white tw-flex tw-items-center tw-justify-center tw-text-[18px] hover:tw-bg-white hover:tw-text-[#0866ff] hover:tw-border hover:tw-border-[#0866ff] tw-transition-all"
-                >
+                <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer"
+                  className="tw-w-[30px] tw-h-[30px] tw-rounded-full tw-bg-[#0866ff] tw-text-white tw-flex tw-items-center tw-justify-center tw-text-[18px] hover:tw-bg-white hover:tw-text-[#0866ff] hover:tw-border hover:tw-border-[#0866ff] tw-transition-all" >
                   <i className="fab fa-tiktok"></i>
                 </a>
-                <a
-                  href="https://www.instagram.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="tw-w-[30px] tw-h-[30px] tw-rounded-full tw-bg-[#0866ff] tw-text-white tw-flex tw-items-center tw-justify-center tw-text-[18px] hover:tw-bg-white hover:tw-text-[#0866ff] hover:tw-border hover:tw-border-[#0866ff] tw-transition-all"
-                >
+                <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer"
+                  className="tw-w-[30px] tw-h-[30px] tw-rounded-full tw-bg-[#0866ff] tw-text-white tw-flex tw-items-center tw-justify-center tw-text-[18px] hover:tw-bg-white hover:tw-text-[#0866ff] hover:tw-border hover:tw-border-[#0866ff] tw-transition-all" >
                   <i className="fa-brands fa-instagram"></i>
                 </a>
-                <a
-                  href="https://youtube.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="tw-w-[30px] tw-h-[30px] tw-rounded-full tw-bg-[#0866ff] tw-text-white tw-flex tw-items-center tw-justify-center tw-text-[18px] hover:tw-bg-white hover:tw-text-[#0866ff] hover:tw-border hover:tw-border-[#0866ff] tw-transition-all"
-                >
+                <a href="https://youtube.com" target="_blank" rel="noopener noreferrer"
+                  className="tw-w-[30px] tw-h-[30px] tw-rounded-full tw-bg-[#0866ff] tw-text-white tw-flex tw-items-center tw-justify-center tw-text-[18px] hover:tw-bg-white hover:tw-text-[#0866ff] hover:tw-border hover:tw-border-[#0866ff] tw-transition-all" >
                   <i className="fab fa-youtube"></i>
                 </a>
               </div>
@@ -204,7 +147,7 @@ export default function Footer() {
           {/* Footer Bottom */}
           <div className="tw-mt-[20px] tw-pt-[15px] tw-border-t tw-border-[#ddd] tw-text-center tw-text-[12px] tw-text-[#888a8c]">
             <p className="tw-m-0 tw-text-[#888a8c] tw-text-[12px] tw-font-medium">
-              Bản quyền ©2016 thuộc về{" "}
+              Bản quyền ©2025 thuộc về{" "}
               <strong className="tw-uppercase tw-text-[#888a8c] tw-text-[12px]">
                 công ty cổ phần vacxin việt nam
               </strong>

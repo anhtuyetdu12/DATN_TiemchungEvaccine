@@ -109,35 +109,21 @@ export default function VaccineForm({ vaccine, onSave, onCancel }) {
         </button> */}
         <div className="tw-flex tw-items-center tw-gap-2">
             {/* Nút trừ */}
-            <button
-                type="button"
-                onClick={() =>
-                setFormData((prev) => ({ ...prev, quantity: Math.max(prev.quantity - 1, 0) }))
-                }
-                className="tw-bg-gray-200 hover:tw-bg-gray-300 tw-text-gray-800 tw-px-3 tw-py-2 tw-rounded-l-lg tw-border tw-border-gray-300"
-            >
+            <button type="button"  onClick={() => setFormData((prev) => ({ ...prev, quantity: Math.max(prev.quantity - 1, 0) })) }
+                className="tw-bg-gray-200 hover:tw-bg-gray-300 tw-text-gray-800 tw-px-4 tw-py-2 tw-rounded-lg tw-border tw-border-gray-300">
                 <i className="fa-solid fa-minus"></i>
             </button>
 
             {/* Input số lượng */}
-            <input  type="number"
-                name="quantity"
-                value={formData.quantity}
-                onChange={handleChange}
-                className="tw-border-t tw-border-b tw-border-gray-300 tw-px-3 tw-py-2 tw-w-24 tw-text-center focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-            />
+            <input  type="text"  name="quantity" value={formData.quantity} onChange={handleChange}
+                className="tw-border tw-border-gray-300 tw-px-3 tw-py-2 tw-w-24 tw-text-center focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
 
             {/* Nút cộng */}
-            <button
-                type="button"
-                onClick={() =>
-                setFormData((prev) => ({ ...prev, quantity: prev.quantity + 1 }))
-                }
-                className="tw-bg-gray-200 hover:tw-bg-gray-300 tw-text-gray-800 tw-px-3 tw-py-2 tw-rounded-r-lg tw-border tw-border-gray-300"
-            >
+            <button type="button" onClick={() =>  setFormData((prev) => ({ ...prev, quantity: prev.quantity + 1 })) }
+                className="tw-bg-gray-200 hover:tw-bg-gray-300 tw-text-gray-800 tw-px-4 tw-py-2 tw-rounded-lg tw-border tw-border-gray-300" >
                 <i className="fa-solid fa-plus"></i>
             </button>
-            </div>
+          </div>
       </div>
 
       {/* Đơn vị dropdown */}

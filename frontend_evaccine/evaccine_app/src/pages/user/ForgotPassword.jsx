@@ -14,9 +14,9 @@ export default function ForgotPassword() {
         identifier,
       });
       toast.success("Đã gửi email đặt lại mật khẩu, vui lòng kiểm tra hộp thư");
-      navigate(`/reset-password?identifier=${encodeURIComponent(identifier)}`);
+      // navigate(`/reset-password?identifier=${encodeURIComponent(identifier)}`);
     } catch (err) {
-      toast.error(err.response?.data?.message || err.response?.data?.error || "Có lỗi xảy ra");
+      toast.error( err.response?.data?.detail || err.response?.data?.message || err.response?.data?.error || "Có lỗi xảy ra");
     }
   };
 
@@ -30,7 +30,7 @@ export default function ForgotPassword() {
         <div className="tw-flex tw-items-center tw-justify-center ">
         <form  onSubmit={handleSubmit}  className="tw-relative tw-w-full tw-max-w-7xl  tw-bg-gradient-to-br tw-from-blue-50 tw-to-blue-100 tw-p-8 
                     tw-rounded-2xl tw-shadow-xl tw-space-y-6" >
-           <button  onClick={handleClose} className="tw-absolute tw-top-4 tw-right-4 tw-text-gray-500 hover:tw-text-red-500 
+           <button type="button"  onClick={handleClose} className="tw-absolute tw-top-4 tw-right-4 tw-text-gray-500 hover:tw-text-red-500 
                   tw-text-3xl tw-font-bold tw-w-14 tw-h-14 tw-flex tw-items-center tw-justify-center tw-rounded-full hover:tw-bg-gray-100" >
                     <i className="fa-solid fa-xmark"></i>
             </button>
