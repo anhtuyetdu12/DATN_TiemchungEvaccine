@@ -56,9 +56,7 @@ export default function StaffAppointments() {
     const [detail, setDetail] = useState(null);
     const [confirmAction, setConfirmAction] = useState(null);
 
-    const perPage = 10;
-
-
+   
     const [search, setSearch] = useState("");
     const filteredAppointments = appointments.filter((item) => {
         const matchesStatus = filter === "all" || item.status === filter;
@@ -68,8 +66,11 @@ export default function StaffAppointments() {
         return matchesStatus && matchesSearch;
     });
 
+    // phân trang
+    const perPage = 10;
     const totalPages = Math.max(1, Math.ceil(filteredAppointments.length / perPage));
     const currentData = filteredAppointments.slice((page - 1) * perPage, page * perPage);
+    if (page > totalPages) setPage(totalPages);
 
     // Fake export
     const handleExport = (type) => {
@@ -105,8 +106,7 @@ export default function StaffAppointments() {
         setConfirmAction(null);
     };
 
-    // ensure current page is valid when filteredAppointments shrinks
-    if (page > totalPages) setPage(totalPages);
+    
     
     // dropdown
     const [openStatus, setOpenStatus] = useState(false);
@@ -248,22 +248,26 @@ export default function StaffAppointments() {
                   </td>
                   <td className="tw-p-2 tw-space-x-4">
                     <button onClick={() => handleConfirm("confirm", item)}
-                      className="tw-bg-green-100 tw-text-green-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-green-200 "  >
+                      className="tw-bg-green-100 tw-text-green-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-green-200 tw-border tw-border-transparent 
+                                      hover:tw-border-green-600"  >
                       <i className="fa-solid fa-check-to-slot tw-mr-2"></i>
                       Xác nhận
                     </button>
                     <button onClick={() => handleConfirm("cancel", item)}
-                      className="tw-bg-red-100 tw-text-red-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-red-200" >
+                      className="tw-bg-red-100 tw-text-red-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-red-200 tw-border tw-border-transparent 
+                                      hover:tw-border-red-600" >
                       <i className="fa-solid fa-trash tw-mr-2"></i>
                       Hủy
                     </button>
                     <button onClick={() => setDetail(item)}
-                      className="tw-border tw-bg-blue-100 tw-text-blue-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-blue-200" >
+                      className=" tw-bg-blue-100 tw-text-blue-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-blue-200 tw-border tw-border-transparent 
+                                      hover:tw-border-blue-600" >
                       <i className="fa-solid fa-eye tw-mr-2"></i>
                       Xem
                     </button>
                     <a  href="/staff/notifications"
-                      className="tw-bg-orange-100 tw-text-orange-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-orange-200 hover:tw-text-orange-600" >
+                      className="tw-bg-orange-100 tw-text-orange-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-orange-200 hover:tw-text-orange-600 tw-border tw-border-transparent 
+                                      hover:tw-border-orange-600" >
                       <i className="fa-solid fa-bell tw-mr-2"></i>
                       Gửi thông báo
                     </a>
@@ -274,38 +278,38 @@ export default function StaffAppointments() {
           </table>
 
           {/* phân trang */}
-            {appointments.length > perPage && (
-            <div className="tw-flex tw-justify-center tw-items-center tw-gap-2 tw-py-4">
-                {/* nút lùi */}
-                <button  onClick={() => setPage((prev) => Math.max(1, prev - 1))}  disabled={page === 1}
-                    className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50" >
-                    <i className="fa-solid fa-angles-left"></i>
-                </button>
+          {appointments.length > perPage && (
+          <div className="tw-flex tw-justify-center tw-items-center tw-gap-2 tw-py-4">
+              {/* nút lùi */}
+              <button  onClick={() => setPage((prev) => Math.max(1, prev - 1))}  disabled={page === 1}
+                  className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50" >
+                  <i className="fa-solid fa-angles-left"></i>
+              </button>
 
-                {/* số trang */}
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .slice(
-                    Math.max(0, page - 2),
-                    Math.min(totalPages, page + 1) + 1
-                )
-                .map((num) => (
-                    <button  key={num}  onClick={() => setPage(num)}
-                        className={`tw-px-4 tw-py-1 tw-rounded ${
-                            num === page ? "tw-bg-blue-500 tw-text-white"
-                            : "tw-bg-gray-100 hover:tw-bg-gray-200"
-                        }`} >  
-                        {num}
-                    </button>
-                ))}
+              {/* số trang */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .slice(
+                  Math.max(0, page - 2),
+                  Math.min(totalPages, page + 1) + 1
+              )
+              .map((num) => (
+                  <button  key={num}  onClick={() => setPage(num)}
+                      className={`tw-px-4 tw-py-1 tw-rounded ${
+                          num === page ? "tw-bg-blue-500 tw-text-white"
+                          : "tw-bg-gray-100 hover:tw-bg-gray-200"
+                      }`} >  
+                      {num}
+                  </button>
+              ))}
 
-                {/* nút tiến */}
-                <button onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-                    disabled={page === totalPages}
-                    className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50" >
-                    <i className="fa-solid fa-angles-right"></i>
-                </button>
-            </div>
-            )}
+              {/* nút tiến */}
+              <button onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={page === totalPages}
+                  className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50" >
+                  <i className="fa-solid fa-angles-right"></i>
+              </button>
+          </div>
+          )}
         </div>
       )}
 

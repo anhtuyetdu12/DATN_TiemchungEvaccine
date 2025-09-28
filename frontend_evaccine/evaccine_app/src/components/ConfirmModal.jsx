@@ -15,16 +15,12 @@ export default function ConfirmModal({ confirmAction, onCancel, onConfirm }) {
           hẹn của <b>{confirmAction.item.name}</b> không?
         </p>
         <div className="tw-flex tw-justify-end tw-gap-2 tw-mt-4">
-          <button
-            onClick={onCancel}
-            className="tw-bg-red-600 tw-text-white tw-px-4 tw-py-2 tw-rounded hover:tw-bg-red-500"
-          >
+          <button onClick={onCancel}
+            className="tw-bg-red-600 tw-text-white tw-px-4 tw-py-2 tw-rounded hover:tw-bg-red-500" >
             Hủy
           </button>
-          <button
-            onClick={onConfirm}
-            className="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded hover:tw-bg-blue-700"
-          >
+          <button onClick={onConfirm}
+            className="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded hover:tw-bg-blue-500" >
             Đồng ý
           </button>
         </div>

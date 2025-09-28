@@ -251,17 +251,20 @@ export default function StaffHome() {
                 <td className="tw-px-4 tw-py-3 tw-flex tw-items-center tw-gap-3">
                   <button
                     onClick={() => handleConfirm(a)}
-                    className="tw-bg-green-100 tw-text-green-600 tw-p-2 tw-px-3 tw-rounded-full hover:tw-bg-green-200 tw-transition" >
+                    className="tw-bg-green-100 tw-text-green-600 tw-p-2 tw-px-3 tw-rounded-full hover:tw-bg-green-200 tw-transition tw-border tw-border-transparent 
+                                      hover:tw-border-green-600" >
                     <i className="fa-solid fa-check-to-slot"></i>
                     <span className="tw-ml-2">Xác nhận</span>
                   </button>
                   <button onClick={() => handleCancel(a)}
-                    className="tw-bg-red-100 tw-text-red-600 tw-p-2 tw-px-3 tw-rounded-full hover:tw-bg-red-200 tw-transition" >
+                    className="tw-bg-red-100 tw-text-red-600 tw-p-2 tw-px-3 tw-rounded-full hover:tw-bg-red-200 tw-transition tw-border tw-border-transparent 
+                                      hover:tw-border-red-600" >
                     <i className="fa-solid fa-trash"></i>
                     <span className="tw-ml-2">Hủy</span>
                   </button>
                   <button onClick={() => handleView(a)}
-                    className="tw-bg-blue-100 tw-text-blue-600 tw-p-2 tw-px-3 tw-rounded-full hover:tw-bg-blue-200 tw-transition"  >
+                    className="tw-bg-blue-100 tw-text-blue-600 tw-p-2 tw-px-3 tw-rounded-full hover:tw-bg-blue-200 tw-transition tw-border tw-border-transparent 
+                                      hover:tw-border-blue-600"  >
                     <i className="fa-solid fa-eye"></i>
                     <span className="tw-ml-2">Xem</span>
                   </button>

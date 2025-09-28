@@ -15,8 +15,7 @@ export default function AppointmentDetailModal({ detail, onClose }) {
             onClick={onClose}
             className="tw-absolute tw-right-0 tw-top-0 tw-flex tw-items-center tw-justify-center 
                       tw-w-10 tw-h-10 tw-rounded-full tw-text-red-500 hover:tw-bg-gray-200 
-                      hover:tw-text-red-600 transition-colors"
-          >
+                      hover:tw-text-red-600 transition-colors" >
             <i className="fa-solid fa-xmark tw-text-2xl"></i>
           </button>
         </div>
