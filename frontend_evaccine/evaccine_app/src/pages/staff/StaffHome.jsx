@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
-import AppointmentDetailModal from "../../components/AppointmentDetailModal";
+import AppointmentDetailModal from "./modal/AppointmentDetailModal";
 import ConfirmModal from "../../components/ConfirmModal";
 import { toast } from "react-toastify";
 
@@ -167,12 +167,21 @@ export default function StaffHome() {
       {/* Bộ lọc + tìm kiếm */}
       <div className="tw-flex tw-flex-col md:tw-flex-row tw-justify-between tw-mb-4 tw-gap-4">
             {/* Input có icon */}
-            <div className="tw-relative md:tw-w-1/3 tw-w-full">
+            <div className="tw-flex tw-gap-2 tw-w-full md:tw-w-1/3">
+              <div className="tw-relative tw-flex-1">
                 <i className="fa-brands fa-searchengin tw-absolute tw-left-3 tw-top-1/2 -tw-translate-y-1/2 tw-text-gray-400"></i>
-                <input type="text" placeholder="Tìm theo tên khách hàng..."
-                className="tw-border tw-rounded-lg tw-pl-10 tw-pr-4 tw-py-2 tw-w-full focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                value={search}  onChange={(e) => setSearch(e.target.value)} />
+                <input type="text"  placeholder="Tìm theo tên khách hàng..."
+                  className="tw-border tw-rounded-lg tw-pl-10 tw-pr-4 tw-py-2 tw-w-full focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
+                  value={search}  onChange={(e) => setSearch(e.target.value)} />
+              </div>
+
+              <button className="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-full tw-font-medium hover:tw-bg-blue-700 tw-shadow"
+                onClick={() => console.log("Tìm kiếm:", search)} >
+                <i className="fa-solid fa-magnifying-glass tw-mr-2"></i>
+                Tìm kiếm
+              </button>
             </div>
+
 
             {/* Dropdown lọc trạng thái */}
             <div className="tw-relative tw-w-full md:tw-w-1/4 tw-bg-white ">

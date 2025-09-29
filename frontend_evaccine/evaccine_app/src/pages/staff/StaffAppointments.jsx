@@ -1,5 +1,5 @@
 import { useState } from "react";
-import AppointmentDetailModal from "../../components/AppointmentDetailModal";
+import AppointmentDetailModal from "./modal/AppointmentDetailModal";
 import ConfirmModal from "../../components/ConfirmModal";
 import {  toast } from "react-toastify";
 
@@ -121,71 +121,86 @@ export default function StaffAppointments() {
   return (
     <div className="tw-p-6 tw-space-y-6 tw-pt-[150px] tw-pb-[50px] tw-bg-cyan-50">
         <div className="tw-flex tw-items-center tw-justify-center tw-gap-3">
-        <i className="fa-solid fa-calendar-check tw-mb-4 tw-text-5xl tw-bg-gradient-to-r tw-from-purple-500 tw-via-blue-500 tw-to-pink-500 tw-bg-clip-text tw-text-transparent"></i>
-        <h1 className="tw-text-[30px] tw-pb-5 tw-ml-3 tw-font-bold tw-bg-gradient-to-r tw-from-purple-500 tw-via-blue-500 tw-to-pink-500 tw-bg-clip-text tw-text-transparent">
-            Quản lý lịch hẹn
-        </h1>
+          <i className="fa-solid fa-calendar-check tw-mb-4 tw-text-5xl tw-bg-gradient-to-r tw-from-purple-500 tw-via-blue-500 tw-to-pink-500 tw-bg-clip-text tw-text-transparent"></i>
+          <h1 className="tw-text-[30px] tw-pb-5 tw-ml-3 tw-font-bold tw-bg-gradient-to-r tw-from-purple-500 tw-via-blue-500 tw-to-pink-500 tw-bg-clip-text tw-text-transparent">
+              Quản lý lịch hẹn
+          </h1>
         </div>
 
-        {/* Bộ lọc */}
-        <div className="tw-bg-white tw-rounded-xl tw-shadow-md tw-p-4 tw-space-y-6 tw-py-10 ">
-            {/* Hàng trên: bộ lọc */}
-            <div className="tw-grid md:tw-grid-cols-3 tw-gap-6 tw-px-10">
-                <input  type="text"  placeholder="Nhập thông tin tìm kiếm..."
-                    className="tw-border tw-rounded-lg tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"  />
-                {/* Dropdown trạng thái kiểu FilterBox */}
-                <div className="tw-relative">
-                  <button  type="button" onClick={() => setOpenStatus(!openStatus)}
-                    className="tw-w-full tw-flex tw-justify-between tw-items-center 
-                                tw-border tw-border-gray-300 tw-rounded-lg tw-px-3 tw-py-2 tw-text-gray-700 
-                                hover:tw-border-[#56b6f7] hover:tw-ring-1 hover:tw-ring-[#56b6f7]
-                                focus:tw-outline-none focus:tw-border-[#1999ee] focus:tw-ring-2 focus:tw-ring-[#1999ee]/40" >
-                    <span>{statusOptions.find(o => o.value === filterDraft)?.label || 'Tất cả trạng thái'}</span>
-                    <i className={`fa-solid ${openStatus ? "fa-angle-up" : "fa-angle-down"}`}></i>
-                  </button>
+       
+      <div className="tw-bg-white tw-rounded-xl tw-shadow-md tw-p-4 tw-space-y-6 tw-py-10">
+        {/* Khối cha chứa cả bộ lọc và nút */}
+        <div className="tw-flex tw-flex-col md:tw-flex-row md:tw-items-center md:tw-justify-between tw-gap-6 tw-px-10">
+          
+          {/* BÊN TRÁI: Bộ lọc */}
+          <div className="tw-grid md:tw-grid-cols-3 tw-gap-6 tw-flex-1">  
+            <input
+              type="text"
+              placeholder="Nhập thông tin tìm kiếm..."
+              className="tw-border tw-rounded-lg tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
+            />
 
-                  {openStatus && (
-                    <div className="tw-absolute tw-top-full tw-mt-2 tw-left-1/2 -tw-translate-x-1/2
-                                  tw-w-[95%] tw-bg-white tw-z-10 tw-text-xl tw-space-y-0.5
-                                  tw-border tw-border-gray-300 tw-rounded-lg tw-shadow-lg tw-py-2" >
-                      {statusOptions.map((item, i) => (
-                        <div  key={i} onClick={() => {
-                            setFilterDraft(item.value);
-                            setFilter(item.value); // filter luôn danh sách
-                            setOpenStatus(false);
-                          }}
-                          className={`tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-cursor-pointer 
-                                ${filterDraft === item.value
-                                  ? "tw-bg-[#e6f7fa]"
-                                  : "hover:tw-bg-[#e6f7fa]"}`} >
-                          <span>{item.label}</span>
-                          {filterDraft === item.value && (
-                            <i className="fa-solid fa-check tw-text-[#1999ee]"></i>
-                          )}
-                        </div>
-                      ))}
+            {/* Dropdown trạng thái */}
+            <div className="tw-relative">
+              <button
+                type="button"
+                onClick={() => setOpenStatus(!openStatus)}
+                className="tw-w-full tw-flex tw-justify-between tw-items-center 
+                            tw-border tw-border-gray-300 tw-rounded-lg tw-px-3 tw-py-2 tw-text-gray-700 
+                            hover:tw-border-[#56b6f7] hover:tw-ring-1 hover:tw-ring-[#56b6f7]
+                            focus:tw-outline-none focus:tw-border-[#1999ee] focus:tw-ring-2 focus:tw-ring-[#1999ee]/40">
+                <span>
+                  {statusOptions.find(o => o.value === filterDraft)?.label || 'Tất cả trạng thái'}
+                </span>
+                <i className={`fa-solid ${openStatus ? "fa-angle-up" : "fa-angle-down"}`}></i>
+              </button>
+
+              {openStatus && (
+                <div className="tw-absolute tw-top-full tw-mt-2 tw-left-1/2 -tw-translate-x-1/2
+                                tw-w-[95%] tw-bg-white tw-z-10 tw-text-xl tw-space-y-0.5
+                                tw-border tw-border-gray-300 tw-rounded-lg tw-shadow-lg tw-py-2">
+                  {statusOptions.map((item, i) => (
+                    <div
+                      key={i}
+                      onClick={() => {
+                        setFilterDraft(item.value);
+                        setFilter(item.value);
+                        setOpenStatus(false);
+                      }}
+                      className={`tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-cursor-pointer 
+                                    ${filterDraft === item.value
+                          ? "tw-bg-[#e6f7fa]"
+                          : "hover:tw-bg-[#e6f7fa]"}`}>
+                      <span>{item.label}</span>
+                      {filterDraft === item.value && (
+                        <i className="fa-solid fa-check tw-text-[#1999ee]"></i>
+                      )}
                     </div>
-                  )}
+                  ))}
                 </div>
-
-                <input  type="date"  className="tw-border tw-rounded-lg tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"  />
-                
+              )}
             </div>
 
-            {/* Hàng dưới: nút chức năng */}
-            <div className="tw-flex tw-justify-between tw-items-center tw-px-10">
-                <div className="tw-flex tw-gap-3">
-                    <button  onClick={handleReset}
-                        className="tw-bg-red-600 tw-text-white tw-px-6 tw-py-2 tw-rounded-full tw-font-medium hover:tw-bg-red-500 tw-shadow" >
-                        Reset
-                    </button>
-                    <button className="tw-bg-blue-600 tw-text-white tw-px-6 tw-py-2 tw-rounded-full tw-font-medium hover:tw-bg-blue-500 tw-shadow">
-                        <i className="fa-solid fa-filter tw-mr-2"></i>
-                        Lọc
-                    </button>
-                </div>
+            <input
+              type="date"
+              className="tw-border tw-rounded-lg tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
+            />
+          </div>
 
-                <div className="tw-flex tw-gap-3">
+          {/* BÊN PHẢI: Nút chức năng */}
+          <div className="tw-flex tw-gap-3">
+            <button
+              onClick={handleReset}
+              className="tw-bg-red-600 tw-text-white tw-px-6 tw-py-2 tw-rounded-full tw-font-medium hover:tw-bg-red-500 tw-shadow">
+              Reset
+            </button>
+            <button className="tw-bg-blue-600 tw-text-white tw-px-6 tw-py-2 tw-rounded-full tw-font-medium hover:tw-bg-blue-500 tw-shadow">
+              <i className="fa-solid fa-filter tw-mr-2"></i>
+              Lọc
+            </button>
+          </div>
+
+          <div className="tw-flex tw-gap-3">
                 <button onClick={() => handleExport("Excel")}
                     className="tw-bg-green-600 tw-text-white tw-px-6 tw-py-2 tw-rounded-full tw-font-medium hover:tw-bg-green-500 tw-shadow" >
                     Xuất Excel
@@ -195,8 +210,8 @@ export default function StaffAppointments() {
                     Xuất PDF
                 </button>
                 </div>
-            </div>
         </div>
+      </div>
 
 
       {/* Empty state */}
