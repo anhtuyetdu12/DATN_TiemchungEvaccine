@@ -59,8 +59,8 @@ export default function AddUserForm({ onSave, onClose }) {
 
   return (
     <div className="tw-fixed tw-inset-0 tw-bg-black/40 tw-flex tw-items-center tw-justify-center tw-mt-[100px]">
-      <div className="tw-bg-white tw-rounded-2xl tw-w-[400px] tw-p-6 tw-space-y-3">
-        <h2 className="tw-text-[20px] tw-text-[#1999ee] tw-font-bold tw-mb-2">Thêm thành viên</h2>
+      <div className="tw-bg-white tw-rounded-2xl tw-w-[400px] tw-p-6 tw-space-y-3 tw-text-left">
+        <h2 className="tw-text-[20px] tw-text-[#1999ee] tw-font-bold tw-mb-2 tw-text-center">Thêm thành viên</h2>
 
         <input
           className="tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-text-gray-700 
@@ -82,14 +82,12 @@ export default function AddUserForm({ onSave, onClose }) {
 
         {/* Dropdown chọn mối quan hệ */}
         <div className="tw-relative">
-          <button
-            type="button"
-            onClick={toggleRelationship}
+           <p className="tw-mb-2 tw-text-2xl  tw-font-medium tw-text-gray-700 tw-text-left tw-px-3">Mối quan hệ</p>
+          <button type="button" onClick={toggleRelationship}
             className="tw-w-full tw-flex tw-justify-between tw-items-center 
               tw-border tw-border-gray-300 tw-rounded-lg tw-px-3 tw-py-2 tw-text-gray-700 
               hover:tw-border-[#56b6f7] hover:tw-ring-1 hover:tw-ring-[#56b6f7]
-              focus:tw-outline-none focus:tw-border-[#1999ee] focus:tw-ring-2 focus:tw-ring-[#1999ee]/40"
-          >
+              focus:tw-outline-none focus:tw-border-[#1999ee] focus:tw-ring-2 focus:tw-ring-[#1999ee]/40" >
             <span>{relationship || "Mối quan hệ"}</span>
             <i className={`fa-solid ${openRelationship ? "fa-angle-up" : "fa-angle-down"}`}></i>
           </button>
@@ -118,7 +116,7 @@ export default function AddUserForm({ onSave, onClose }) {
 
         {/* Giới tính */}
         <div className="tw-w-full ">
-          <p className="tw-mb-2 tw-text-2xl tw-text-gray-700 tw-text-left tw-px-3">Giới tính</p>
+          <p className="tw-mb-2 tw-text-2xl  tw-font-medium tw-text-gray-700 tw-text-left tw-px-3">Giới tính</p>
           <div className="tw-grid tw-grid-cols-3 tw-gap-3">
             {options.map((opt) => (
               <button
@@ -140,15 +138,14 @@ export default function AddUserForm({ onSave, onClose }) {
         </div>
 
         {/* Input ngày sinh */}
-        <input
-          type="date"
-          max={today}
-          className="tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-text-gray-700 
-            hover:tw-border-[#56b6f7] hover:tw-ring-1 hover:tw-ring-[#56b6f7]
-            focus:tw-outline-none focus:tw-border-[#1999ee] focus:tw-ring-2 focus:tw-ring-[#1999ee]/40"
-          value={dob}
-          onChange={(e) => setDob(e.target.value)}
-        />
+        <div className="tw-w-full tw-text-left">
+          <label  htmlFor="dob"  className="tw-block tw-mb-1 tw-font-medium tw-text-gray-700" > Ngày sinh </label>
+          <input id="dob" type="date" max={today}
+            className="tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-text-gray-700 
+              hover:tw-border-[#56b6f7] hover:tw-ring-1 hover:tw-ring-[#56b6f7]
+              focus:tw-outline-none focus:tw-border-[#1999ee] focus:tw-ring-2 focus:tw-ring-[#1999ee]/40"
+            value={dob} onChange={(e) => setDob(e.target.value)} />
+        </div>
 
         <input
           className="tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-text-gray-700 
@@ -160,17 +157,14 @@ export default function AddUserForm({ onSave, onClose }) {
         />
 
         <div className="tw-flex tw-justify-end tw-gap-3 tw-pt-2">
-          <button
-            className="tw-px-4 tw-py-2 tw-rounded-lg tw-bg-gray-200 hover:tw-bg-red-600 hover:tw-text-white"
-            onClick={onClose}
-          >
+          <button className="tw-px-4 tw-py-2 tw-rounded-lg tw-bg-red-600 tw-text-white hover:tw-bg-red-500 hover:tw-text-white
+              hover:tw-shadow-lg  hover:tw-scale-105  tw-transition-all tw-duration-300"
+            onClick={onClose} >
             Hủy
           </button>
-          <button
-            className="tw-px-4 tw-py-2 tw-rounded-lg tw-bg-[#1999ee] tw-text-white hover:tw-bg-[#68bdf7] 
+          <button className="tw-px-4 tw-py-2 tw-rounded-lg tw-bg-[#1999ee] tw-text-white hover:tw-bg-[#68bdf7] 
               hover:tw-shadow-lg  hover:tw-scale-105  tw-transition-all tw-duration-300"
-            onClick={handleSubmit}
-          >
+            onClick={handleSubmit}  >
             Xác nhận
           </button>
         </div>

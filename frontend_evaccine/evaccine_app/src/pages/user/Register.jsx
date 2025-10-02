@@ -5,7 +5,7 @@ import { EyeIcon, EyeOffIcon } from "lucide-react";
 import axios from "axios";  
 import { toast } from "react-toastify";
 
-export default function Register() {
+export default function Register({ onClose }) {
   const navigate = useNavigate();
 
   const [fullName, setFullName] = useState("");
@@ -107,7 +107,8 @@ export default function Register() {
 
   // Hàm đóng form → quay về trang chủ
   const handleClose = () => {
-    navigate("/login"); 
+    onClose?.(); // nếu có truyền props onClose thì gọi
+    navigate("/login"); // sau khi đóng sẽ về trang login
   };
 
   return (

@@ -20,8 +20,7 @@ class CustomUserAdmin(UserAdmin):
     list_filter = ('role', 'status')
     search_fields = ('email', 'full_name')
     ordering = ('email',)
-    
-    inlines = (MedicalStaffInline,) 
+
 
     # Thêm / sửa các field khi thêm user mới
     add_fieldsets = (

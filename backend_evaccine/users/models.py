@@ -28,6 +28,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     last_login = models.DateTimeField(blank=True, null=True)
     status = models.CharField(max_length=20, default='active', choices=[('active','active'),('inactive','inactive')])
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     # Dành cho Django auth
     is_staff = models.BooleanField(default=False)
@@ -40,6 +41,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+    class Meta:
+        ordering = ['-created_at']   # mặc định sắp xếp user mới nhất trước
 
 # class Department(models.Model):
 #     name = models.CharField(max_length=100, unique=True)

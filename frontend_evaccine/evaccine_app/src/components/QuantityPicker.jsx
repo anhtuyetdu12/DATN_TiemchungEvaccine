@@ -11,25 +11,36 @@ export default function QuantityPicker() {
     }
   };
 
-  const increment = () => {
-    setFormData((prev) => ({ ...prev, quantity: prev.quantity + 1 }));
-  };
+  const MAX_QUANTITY = 5;
 
-  const decrement = () => {
-    setFormData((prev) => ({ ...prev, quantity: Math.max(prev.quantity - 1, 0) }));
-  };
+const increment = () => {
+  setFormData((prev) => ({
+    ...prev,
+    quantity: Math.min(prev.quantity + 1, MAX_QUANTITY),
+  }));
+};
+
+const decrement = () => {
+  setFormData((prev) => ({
+    ...prev,
+    quantity: Math.max(prev.quantity - 1, 0), 
+  }));
+};
 
   return (
     <div>
       <div className="tw-flex tw-items-center tw-gap-2">
         {/* Nút trừ */}
         <button
-          type="button"
-          onClick={decrement}
-          className="tw-bg-blue-200 hover:tw-bg-blue-300 tw-text-gray-800 tw-px-4 tw-py-2 tw-rounded-lg tw-border tw-border-blue-300"
-        >
-          <i className="fa-solid fa-minus"></i>
-        </button>
+            type="button"
+            onClick={decrement}
+            disabled={formData.quantity <= 0}
+            className={`tw-bg-blue-200 hover:tw-bg-blue-300 tw-text-gray-800 tw-px-4 tw-py-2 tw-rounded-lg tw-border tw-border-blue-300 
+              ${formData.quantity <= 0 ? "tw-opacity-50 tw-cursor-not-allowed" : ""}`}
+          >
+            <i className="fa-solid fa-minus"></i>
+          </button>
+
 
         {/* Input số lượng */}
         <input
@@ -42,12 +53,14 @@ export default function QuantityPicker() {
 
         {/* Nút cộng */}
         <button
-          type="button"
-          onClick={increment}
-          className="tw-bg-blue-200 hover:tw-bg-blue-300 tw-text-gray-800 tw-px-4 tw-py-2 tw-rounded-lg tw-border tw-border-blue-300"
-        >
-          <i className="fa-solid fa-plus"></i>
-        </button>
+            type="button"
+            onClick={increment}
+            disabled={formData.quantity >= MAX_QUANTITY}
+            className={`tw-bg-blue-200 hover:tw-bg-blue-300 tw-text-gray-800 tw-px-4 tw-py-2 tw-rounded-lg tw-border tw-border-blue-300 
+              ${formData.quantity >= MAX_QUANTITY ? "tw-opacity-50 tw-cursor-not-allowed" : ""}`}
+          >
+            <i className="fa-solid fa-plus"></i>
+          </button>
       </div>
     </div>
   );

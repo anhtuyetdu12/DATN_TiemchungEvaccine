@@ -11,16 +11,45 @@ export default function StaffReports() {
 
   // Dummy data
   const vaccines = [
-    { name: "Pfizer", stock: 15, expiry: "2025-10-20" },
-    { name: "Moderna", stock: 5, expiry: "2025-09-30" },
-    { name: "VNVC", stock: 0, expiry: "2025-11-01" },
+    { name: "Pfizer", stock: 15, expiry: "2025-10-20", used: 120 },
+    { name: "Moderna", stock: 5, expiry: "2025-09-30", used: 45 },
+    { name: "VNVC", stock: 0, expiry: "2025-11-01", used: 10 },
   ];
+  // Tìm vaccine dùng nhiều nhất & ít nhất
+  const maxUsedVaccine = vaccines.reduce((prev, curr) =>
+    curr.used > prev.used ? curr : prev
+  );
+  const minUsedVaccine = vaccines.reduce((prev, curr) =>
+    curr.used < prev.used ? curr : prev
+  );
 
   const customers = [
-    { name: "Nguyen Van A", phone: "0123456789", status: "Đã tiêm" },
-    { name: "Tran Thi B", phone: "0987654321", status: "Chưa tiêm" },
-    { name: "Le Van C", phone: "0912345678", status: "Lịch hôm nay" },
+    { name: "Nguyen Van A", phone: "0123456789", status: "Đã tiêm", date: "2025-09-05" },
+    { name: "Tran Thi B", phone: "0987654321", status: "Đã tiêm", date: "2025-09-12" },
+    { name: "Le Van C", phone: "0912345678", status: "Đã tiêm", date: "2025-08-20" },
+    { name: "Pham Thi D", phone: "0934567890", status: "Đã tiêm", date: "2025-08-10" },
   ];
+
+  // Gom nhóm theo tháng
+  const customersByMonth = customers.reduce((acc, c) => {
+    if (c.status === "Đã tiêm") {
+      const month = new Date(c.date).toLocaleDateString("vi-VN", { month: "2-digit", year: "numeric" });
+      acc[month] = (acc[month] || 0) + 10;
+    }
+    return acc;
+  }, {});
+
+  // Dữ liệu cho Chart.js
+  const chartCustomersData = {
+    labels: Object.keys(customersByMonth),
+    datasets: [
+      {
+        label: "Số lượt người tiêm",
+        data: Object.values(customersByMonth),
+        backgroundColor: "#10b981",
+      },
+    ],
+  };
 
   const chartBarData = {
     labels: ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"],
@@ -48,7 +77,7 @@ export default function StaffReports() {
   };
 
   const chartLineData = {
-    labels: ["Tuần 1", "Tuần 2", "Tuần 3", "Tuần 4"],
+    labels: ["Tháng 6/2025", "Tháng 7/2025", "Tháng 8/2025", "Tháng 9/2025"],
     datasets: [
       {
         label: "Số mũi tiêm trong tháng",
@@ -89,6 +118,20 @@ export default function StaffReports() {
             </div>
           </div>
 
+          {/* Thêm hiển thị loại vaccine dùng nhiều/ít nhất */}
+          <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-4">
+            <div className="tw-bg-purple-100 tw-p-4 tw-rounded-lg">
+              <h2 className="tw-text-xl tw-font-semibold">Vaccine được dùng nhiều nhất</h2>
+              <p className="tw-text-2xl tw-font-bold">{maxUsedVaccine.name}</p>
+              <p className="tw-text-gray-700">Đã tiêm: {maxUsedVaccine.used} liều</p>
+            </div>
+            <div className="tw-bg-orange-100 tw-p-4 tw-rounded-lg">
+              <h2 className="tw-text-xl tw-font-semibold">Vaccine được dùng ít nhất</h2>
+              <p className="tw-text-2xl tw-font-bold">{minUsedVaccine.name}</p>
+              <p className="tw-text-gray-700">Đã tiêm: {minUsedVaccine.used} liều</p>
+            </div>
+          </div>
+
           {/* Tabs */}
           <div>
             <div className="tw-flex tw-space-x-4 tw-border-b tw-border-gray-200">
@@ -116,13 +159,13 @@ export default function StaffReports() {
               {activeTab === "overview" && (
                 <div className="tw-space-y-6">
                     {/* Flex container cho 2 biểu đồ */}
-                    <div className="tw-flex tw-flex-col md:tw-flex-row tw-gap-6 md:tw-justify-between">
+                    <div className="tw-flex tw-flex-col md:tw-flex-row tw-gap-6 md:tw-justify-between tw-mb-20">
                         <div className="tw-flex-1 tw-min-w-0">
                             <h3 className="tw-text-lg tw-font-semibold tw-mb-2">Biểu đồ lịch tiêm tuần này</h3>
                             <Bar data={chartBarData} />
                         </div>
-                        <div className="tw-flex-1 tw-min-w-0 tw-flex tw-justify-end">
-                            <h3 className="tw-text-lg tw-font-semibold tw-mb-2">Tỷ lệ vaccine theo trạng thái kho</h3>
+                        <div className="tw-flex-1 tw-min-w-0 tw-flex tw-flex-col tw-items-center">
+                            <h3 className="tw-text-lg tw-font-semibold tw-mb-4">Tỷ lệ vaccine theo trạng thái kho</h3>
                              <div className="tw-h-[400px] tw-w-[400px]">
                                 <Pie data={chartPieData} options={{ maintainAspectRatio: false }} />
                             </div>
@@ -132,15 +175,17 @@ export default function StaffReports() {
                     {/* Biểu đồ Line vẫn nằm bên dưới */}
                     <div className="tw-flex tw-flex-col md:tw-flex-row tw-gap-6 md:tw-justify-between">
                         <div className="tw-flex-1 tw-min-w-0">
-                            <h3 className="tw-text-lg tw-font-semibold tw-mb-2">Xu hướng tiêm trong tháng</h3>
+                            <h3 className="tw-text-lg tw-font-semibold tw-mb-4">Xu hướng tiêm trong tháng</h3>
                             <Line data={chartLineData} />
                         </div>
-                        <div className="tw-flex-1 tw-min-w-0 tw-flex tw-justify-end">
-                            <h3 className="tw-text-lg tw-font-semibold tw-mb-2">Tỷ lệ vaccine theo trạng thái kho</h3>
+                         {/* Biểu đồ số lượt tiêm theo tháng */}
+                        <div className="tw-flex-1 tw-min-w-0 tw-flex tw-flex-col tw-items-center">
+                            <h3 className="tw-text-lg tw-font-semibold tw-mb-2">Số lượt tiêm theo tháng</h3>
                             <div className="tw-h-[400px] tw-w-[400px]">
-                                <Pie data={chartPieData} options={{ maintainAspectRatio: false }} />
+                                <Bar data={chartCustomersData} options={{ maintainAspectRatio: false }} />
                             </div>
                         </div>
+                    
                     </div>
                     
                 </div>
@@ -180,31 +225,61 @@ export default function StaffReports() {
               )}
 
               {activeTab === "customers" && (
-                <div className="tw-overflow-x-auto">
-                  <table className="tw-min-w-full tw-border tw-border-gray-200 tw-rounded-lg">
-                    <thead className="tw-bg-gray-50">
-                      <tr>
-                        <th className="tw-px-4 tw-py-2 tw-border">Tên khách hàng</th>
-                        <th className="tw-px-4 tw-py-2 tw-border">SĐT</th>
-                        <th className="tw-px-4 tw-py-2 tw-border">Trạng thái</th>
-                        <th className="tw-px-4 tw-py-2 tw-border">Chi tiết</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {customers.map((c, idx) => (
-                        <tr key={idx} className="tw-text-center">
-                          <td className="tw-px-4 tw-py-2 tw-border">{c.name}</td>
-                          <td className="tw-px-4 tw-py-2 tw-border">{c.phone}</td>
-                          <td className="tw-px-4 tw-py-2 tw-border">{c.status}</td>
-                          <td className="tw-px-4 tw-py-2 tw-border">
-                            <button className="tw-bg-blue-500 tw-text-white tw-px-2 tw-py-1 tw-rounded">
-                              Xem chi tiết
-                            </button>
-                          </td>
+                <div>
+                  <div className="tw-overflow-x-auto">
+                    <table className="tw-min-w-full tw-border tw-border-gray-200 tw-rounded-lg">
+                      <thead className="tw-bg-gray-50">
+                        <tr>
+                          <th className="tw-px-4 tw-py-2 tw-border">Tên khách hàng</th>
+                          <th className="tw-px-4 tw-py-2 tw-border">SĐT</th>
+                          <th className="tw-px-4 tw-py-2 tw-border">Trạng thái</th>
+                          <th className="tw-px-4 tw-py-2 tw-border">Chi tiết</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {customers.map((c, idx) => (
+                          <tr key={idx} className="tw-text-center">
+                            <td className="tw-px-4 tw-py-2 tw-border">{c.name}</td>
+                            <td className="tw-px-4 tw-py-2 tw-border">{c.phone}</td>
+                            <td className="tw-px-4 tw-py-2 tw-border">{c.status}</td>
+                            <td className="tw-px-4 tw-py-2 tw-border">
+                              <button className="tw-bg-blue-500 tw-text-white tw-px-2 tw-py-1 tw-rounded">
+                                Xem chi tiết
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="tw-space-y-6">
+                    {/* Bảng thống kê khách hàng theo tháng */}
+                    <div className="tw-overflow-x-auto">
+                      <table className="tw-min-w-full tw-border tw-border-gray-200 tw-rounded-lg">
+                        <thead className="tw-bg-gray-50">
+                          <tr>
+                            <th className="tw-px-4 tw-py-2 tw-border">Tháng</th>
+                            <th className="tw-px-4 tw-py-2 tw-border">Số lượt tiêm</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.entries(customersByMonth).map(([month, count], idx) => (
+                            <tr key={idx} className="tw-text-center">
+                              <td className="tw-px-4 tw-py-2 tw-border">{month}</td>
+                              <td className="tw-px-4 tw-py-2 tw-border">{count}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Biểu đồ số lượt tiêm theo tháng */}
+                    <div className="tw-bg-white tw-p-4 tw-rounded-lg tw-shadow">
+                      <h3 className="tw-text-lg tw-font-semibold tw-mb-2">Số lượt tiêm theo tháng</h3>
+                      <Bar data={chartCustomersData} />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

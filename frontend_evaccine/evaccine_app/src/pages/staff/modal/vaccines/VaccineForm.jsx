@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import Dropdown from "./Dropdown";
-import QuantityPicker from "./QuantityPicker";
+import Dropdown from "../../../../components/Dropdown";
+import QuantityPicker from "../../../../components/QuantityPicker";
 
 export default function VaccineForm({ vaccine, onSave, onCancel }) {
   const typeOptions = ["Trẻ em", "Người lớn", "Người già", "Phụ nữ mang thai"];

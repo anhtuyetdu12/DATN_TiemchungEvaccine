@@ -156,4 +156,3 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'tiemchung.evaccine@gmail.com'      # email gửi
 EMAIL_HOST_PASSWORD = 'ysvy tont sltm hjre'  # app password
 
-

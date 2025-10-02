@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import DetailCustomerModal from "./modal/DetailCustomerModal";
+import EditCustomerModal from "./modal/customer/EditCustomerModal";
 import Pagination from "../../components/Pagination"
+import ViewCustomerDetailModal from "./modal/customer/ViewCustomerDetailModal"
+import AddCustomerModal from "./modal/customer/AddCustomerModal";
+import DeleteCustomerModal from "./modal/customer/DeleteCustomerModal";
 
 export default function StaffCustomers() {
   // --- Mock data generator (replace by API in real app) ---
@@ -19,10 +22,11 @@ export default function StaffCustomers() {
       status: i % 6 === 0 ? "inactive" : "active",
       category: i % 2 === 0 ? "Người lớn" : "Trẻ em",
       doses: Math.min((i % 6), 5), 
+      gender: ["Nam", "Nữ", "Khác"][i % 3],
       appointments: [
         {
           id: `ap-${i}-1`,
-          date: new Date(Date.now() + (i % 5) * 86400000).toISOString(),
+          date: new Date(Date.now() + ((i % 2 === 0 ? -1 : 1) * (i % 5) * 86400000)).toISOString(),
           vaccine: i % 2 === 0 ? "Vắc xin A" : "Vắc xin B",
           center: i % 3 === 0 ? "Trung tâm A" : "Trạm Y tế B",
           status: i % 4 === 0 ? "cancelled" : i % 3 === 0 ? "done" : "pending",
@@ -35,35 +39,47 @@ export default function StaffCustomers() {
     }));
 
       // --- Hàm tính trạng thái ---
+    const STATUS = {
+      NOT_VACCINATED: "Chưa tiêm",
+      DONE: "Đã tiêm",
+      LATE: "Trễ hẹn",
+      CANCELED: "Hủy đăng ký",
+    };
     const getAppointmentStatus = (appt) => {
       const today = new Date();
       const apptDate = new Date(appt.date);
-      if (appt.status === "cancelled") return "Trễ hẹn";
-      if (appt.status === "done" && apptDate < today) return "Hoàn thành";
-      if (appt.status === "pending" && apptDate.toDateString() === today.toDateString()) return "Chờ tiêm";
-      if (appt.status === "pending" && apptDate < today) return "Trễ hẹn";
-      return "Chờ tiêm";
+
+      if (appt.status === "cancelled") return STATUS.CANCELED;
+      if (appt.status === "done" && apptDate < today) return STATUS.DONE;
+      if (appt.status === "pending" && apptDate.toDateString() === today.toDateString())
+        return STATUS.NOT_VACCINATED;
+      if (appt.status === "pending" && apptDate < today) return STATUS.LATE;
+      return STATUS.NOT_VACCINATED;
     };
+
     // Hàm trả về class màu dựa theo trạng thái
     const getStatusClass = (status) => {
       switch (status) {
-        case "Hoàn thành":
-          return "tw-bg-green-100 tw-text-green-600 tw-rounded-full  ";
-        case "Trễ hẹn":
-          return "tw-bg-red-100 tw-text-red-600 tw-rounded-full  ";
-        case "Chờ tiêm":
-          return "tw-bg-yellow-100 tw-text-yellow-700 tw-rounded-full  ";
+        case STATUS.DONE:
+          return "tw-bg-green-100 tw-text-green-600 tw-rounded-full";
+        case STATUS.LATE:
+          return "tw-bg-purple-100 tw-text-purple-600 tw-rounded-full";
+        case STATUS.NOT_VACCINATED:
+          return "tw-bg-yellow-100 tw-text-yellow-700 tw-rounded-full";
+        case STATUS.CANCELED:
+          return "tw-bg-red-200 tw-text-red-600 tw-rounded-full";
         default:
           return "";
       }
     };
 
-  const [customers, setCustomers] = useState(genCustomers);
+
+
+  const [customers, setCustomers] = useState(genCustomers());
 
   // --- UI state ---
-  const [search, setSearch] = useState("");
-  const [centerFilter, setCenterFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [searchInput, setSearchInput] = useState(""); // ô nhập
+  const [search, setSearch] = useState(""); // chỉ set khi bấm tìm kiếm
   const [showModal, setShowModal] = useState(false);
   const [activeTab, setActiveTab] = useState('history'); // history | appointments | insurance
   const [page, setPage] = useState(1);
@@ -71,40 +87,40 @@ export default function StaffCustomers() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   // nút xem sửa xóa
   const [detail, setDetail] = useState(null);
-  const [confirmAction, setConfirmAction] = useState(null);
-    const handleConfirm = (action, item) => {
-      setConfirmAction({ action, item });
-  };
+  // State cho modal xác nhận hủy
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState(null);
 
+  //add customer
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  const handleAddCustomer = (newCust) => {
+    setCustomers((prev) => [newCust, ...prev]);
+  }
   // temporary forms inside modal
   const [newAppointment, setNewAppointment] = useState({ date: "", vaccine: "", center: "" });
   const [newVaccineRecord, setNewVaccineRecord] = useState({ date: "", vaccine: "", batch: "", note: "" });
 
   // --- Derived lists ---
-  const centers = useMemo(() => {
-    return [...new Set(customers.map((c) => c.center))];
-  }, [customers]);
 
   const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return customers.filter((c) => {
-      if (centerFilter && c.center !== centerFilter) return false;
-      if (statusFilter && c.status !== statusFilter) return false;
-      if (!term) return true;
-      return (
-        c.name.toLowerCase().includes(term) ||
-        (c.phone || "").includes(term) ||
-        (c.email || "").includes(term) ||
-        (c.code || "").toLowerCase().includes(term)
-      );
-    });
-  }, [customers, search, centerFilter, statusFilter]);
+  const term = search.trim().toLowerCase();
+  return customers.filter((c) => {
+    if (!term) return true;
+    return (
+      c.name.toLowerCase().includes(term) ||
+      (c.phone || "").includes(term) ||
+      (c.email || "").includes(term) ||
+      (c.code || "").toLowerCase().includes(term)
+    );
+  });
+}, [customers, search]);
 
   //=== phân trang ===
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
-  }, [totalPages]);
+  }, [totalPages, page]);
 
   const pageData = filtered.slice((page - 1) * perPage, page * perPage);
 
@@ -116,6 +132,22 @@ export default function StaffCustomers() {
           ? {
               ...c,
               appointments: c.appointments.map((a) => (a.id === apptId ? { ...a, status: "confirmed" } : a)),
+            }
+          : c
+      )
+    );
+  };
+
+  // hủy đăng kí
+  const handleCancelRegistration = (custId, apptId) => {
+    setCustomers((prev) =>
+      prev.map((c) =>
+        c.id === custId
+          ? {
+              ...c,
+              appointments: c.appointments.map((a) =>
+                a.id === apptId ? { ...a, status: "cancelled" } : a
+              ),
             }
           : c
       )
@@ -152,21 +184,21 @@ export default function StaffCustomers() {
           {/* Thanh tìm kiếm + nút thêm mới */}
            <div className="tw-flex tw-justify-between tw-items-center tw-mb-16 tw-gap-4">
                 <div className="tw-flex tw-items-center tw-gap-2 tw-w-1/2">
-                    <input type="text"  placeholder="Tìm kiếm theo tên hoặc nhà sản xuất..."
-                   
-                    className="tw-border tw-border-gray-300 tw-px-4 tw-py-2 tw-rounded-lg tw-shadow-sm tw-flex-1 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
-                    <button 
+                    <input  type="text"  placeholder="Tìm kiếm theo tên, mã KH, email, SĐT..."
+                         value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
+                        className="tw-border tw-border-gray-300 tw-px-4 tw-py-2 tw-rounded-lg tw-shadow-sm tw-flex-1 
+                                  focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
+                      />
+                    <button   onClick={() => setSearch(searchInput)} 
                         className="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-full tw-font-medium hover:tw-bg-blue-700 tw-shadow"  >
                         <i className="fa-solid fa-magnifying-glass tw-mr-2"></i>
                         Tìm kiếm
                     </button>
                 </div>
 
-            <button
-              className="tw-bg-indigo-600 tw-text-white tw-px-6 tw-py-2 tw-rounded-full tw-font-medium hover:tw-bg-indigo-500 tw-shadow"
-              onClick={() => alert("Mở form thêm khách hàng mới")}
-            >
-              + Thêm khách hàng
+            <button className="tw-bg-pink-600 tw-text-white tw-px-6 tw-py-2 tw-rounded-full tw-font-medium hover:tw-bg-pink-500 tw-shadow"
+               onClick={() => setShowAddModal(true)} >
+              <i className="fa-solid fa-plus tw-mr-2"></i> Thêm khách hàng
             </button>
           </div>
 
@@ -177,6 +209,7 @@ export default function StaffCustomers() {
                 <tr>
                   <th className="tw-px-4 tw-py-4 tw-text-center">Mã KH</th>
                   <th className="tw-px-4 tw-py-4 tw-text-center">Họ tên</th>
+                  <th className="tw-px-4 tw-py-4 tw-text-center">Giới tính</th>
                   <th className="tw-px-4 tw-py-4 tw-text-center">Ngày sinh</th>
                   <th className="tw-px-4 tw-py-4 tw-text-center">Điện thoại</th>
                   <th className="tw-px-4 tw-py-4 tw-text-center">Địa chỉ</th>
@@ -198,6 +231,7 @@ export default function StaffCustomers() {
                     <tr key={c.id} className="tw-border-b hover:tw-bg-pink-50">
                       <td className="tw-px-4 tw-py-2">{c.code || "-"}</td>
                       <td className="tw-px-4 tw-py-2 tw-text-left tw-pl-20">{c.name || "-"}</td>
+                      <td className="tw-px-4 tw-py-2">{c.gender || "-"}</td>
                       <td className="tw-px-4 tw-py-2">{c.dob ? new Date(c.dob).toLocaleDateString("vi-VN") : "-"}</td>
                       <td className="tw-px-4 tw-py-2">{c.phone || c.email || "-"}</td>
                       <td className="tw-px-4 tw-py-2">{c.address || "-"}</td>
@@ -206,7 +240,7 @@ export default function StaffCustomers() {
                       <td className="tw-px-4 tw-py-2">{c.country || "-"}</td>
                       <td>{c.category || "-"}</td>
                       <td>{c.doses != null ? c.doses : "-"}</td>
-                      <td>{appt?.price != null ? appt.price.toLocaleString("vi-VN") + " VNĐ" : "-"}
+                      <td>{appt?.price != null ? appt.price.toLocaleString("vi-VN") : "-"}
                       </td>
                       <td>
                         <span className={`${getStatusClass(statusText)} tw-inline-block tw-px-3 tw-py-2`}>
@@ -224,12 +258,13 @@ export default function StaffCustomers() {
                             <i className="fa-solid fa-pencil tw-mr-2"></i>
                             Sửa
                           </button>
-                          <button onClick={() => handleConfirm("cancel", c)}
-                            className="tw-bg-red-100 tw-text-red-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-red-200 tw-border tw-border-transparent 
-                                            hover:tw-border-red-600" >
-                            <i className="fa-solid fa-trash tw-mr-2"></i>
-                            Xóa
-                          </button>
+                          <button onClick={() => {
+                                setCustomerToDelete(c);
+                                setShowDeleteModal(true);
+                              }}
+                              className="tw-bg-red-100 tw-text-red-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-red-200 tw-border tw-border-transparent hover:tw-border-red-600" >
+                              <i className="fa-solid fa-ban tw-mr-2"></i> Hủy
+                            </button>
                           <button onClick={() => setDetail(c)}
                             className=" tw-bg-blue-100 tw-text-blue-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-blue-200 tw-border tw-border-transparent 
                                             hover:tw-border-blue-600" >
@@ -247,8 +282,7 @@ export default function StaffCustomers() {
             <Pagination page={page}  totalItems={filtered.length}  perPage={perPage}  onPageChange={(p) => setPage(p)}/>
           </div>
 
-         <DetailCustomerModal
-            show={showModal}  onClose={() => setShowModal(false)}  
+         <EditCustomerModal show={showModal}  onClose={() => setShowModal(false)}  
             activeTab={activeTab} setActiveTab={setActiveTab}
             newAppointment={newAppointment} setNewAppointment={setNewAppointment}
             newVaccineRecord={newVaccineRecord} setNewVaccineRecord={setNewVaccineRecord}
@@ -256,6 +290,21 @@ export default function StaffCustomers() {
             recordVaccine={recordVaccine}  customer={selectedCustomer}
             setCustomers={setCustomers}  setSelectedCustomer={setSelectedCustomer}
           />
+
+          <ViewCustomerDetailModal   customer={detail}  onClose={() => setDetail(null)}  />
+
+         <DeleteCustomerModal  show={showDeleteModal} customer={customerToDelete}
+            onClose={() => setShowDeleteModal(false)}  onConfirm={() => {
+              if (customerToDelete) {
+                handleCancelRegistration(customerToDelete.id, customerToDelete.appointments[0].id); 
+                setCustomerToDelete(null);
+              } setShowDeleteModal(false);
+            }}
+          />
+
+
+          <AddCustomerModal show={showAddModal} onClose={() => setShowAddModal(false)}
+            onAdd={handleAddCustomer} nextId={customers.length + 1} />
         </div>
       </div>
 

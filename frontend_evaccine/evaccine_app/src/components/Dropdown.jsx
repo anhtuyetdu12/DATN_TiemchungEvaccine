@@ -15,7 +15,7 @@ export default function Dropdown({ label, value, options, onChange, className = 
       <button type="button"
         onClick={() => setOpen(!open)}
         className="tw-w-full tw-flex tw-justify-between tw-items-center 
-                   tw-border tw-border-gray-300 tw-rounded-lg tw-px-4 tw-py-2 tw-text-gray-700 
+                   tw-border tw-border-gray-300 tw-rounded-lg tw-px-4 tw-py-3 tw-text-gray-700 
                    hover:tw-border-[#56b6f7] hover:tw-ring-1 hover:tw-ring-[#56b6f7]
                    focus:tw-outline-none focus:tw-border-[#1999ee] focus:tw-ring-2 focus:tw-ring-[#1999ee]/40" >
         <span className="tw-truncate">
@@ -29,7 +29,7 @@ export default function Dropdown({ label, value, options, onChange, className = 
       {/* Danh sách dropdown */}
       {open && (
         <div className="tw-absolute tw-top-full tw-mt-2 tw-left-1/2 -tw-translate-x-1/2
-                     tw-w-full tw-bg-white tw-z-10 tw-text-xl
+                     tw-w-full tw-bg-white tw-z-10 tw-text-xl 
                      tw-border tw-border-gray-300 tw-rounded-lg tw-shadow-lg tw-py-2
                      tw-max-h-40 tw-overflow-y-auto 
                      [&::-webkit-scrollbar]:tw-hidden tw-scrollbar-none" >

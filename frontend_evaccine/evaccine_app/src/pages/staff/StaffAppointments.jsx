@@ -332,10 +332,17 @@ export default function StaffAppointments() {
       <AppointmentDetailModal detail={detail} onClose={() => setDetail(null)} />
 
       {/* Modal confirm */}
-      <ConfirmModal
-        confirmAction={confirmAction}
-        onCancel={() => setConfirmAction(null)}
-        onConfirm={doAction}
+      <ConfirmModal show={!!confirmAction} title="Xác nhận hành động"
+        message={
+          confirmAction && (
+            <> {confirmAction.action === "confirm" && (
+                <>Bạn có chắc muốn <b>xác nhận</b> lịch hẹn của <b>{confirmAction.item.name}</b> không?</>
+              )}
+              {confirmAction.action === "cancel" && (
+                <>Bạn có chắc muốn <b>hủy</b> lịch hẹn của <b>{confirmAction.item.name}</b> không?</>
+              )} </>
+          )
+        } onCancel={() => setConfirmAction(null)} onConfirm={doAction}
       />
 
 

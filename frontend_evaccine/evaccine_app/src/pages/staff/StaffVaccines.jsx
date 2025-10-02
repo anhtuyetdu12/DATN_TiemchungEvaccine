@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
-import VaccineForm from "../../components/VaccineForm"
+import VaccineForm from "./modal/vaccines/VaccineForm"
 import Dropdown from "../../components/Dropdown";
-import QuantityPicker from "../../components/QuantityPicker";
+// import QuantityPicker from "../../components/QuantityPicker";
+import TransactionVaccineModal from "./modal/vaccines/TransactionVaccineModal";
 import Pagination from "../../components/Pagination";
 import {  toast } from "react-toastify";
+import ViewStockVCModal from "./modal/vaccines/ViewStockVCModal";
+import ViewExpiryVCModal from "./modal/vaccines/ViewExpiryVCModal";
+import ConfirmModal from "../../components/ConfirmModal";
 
 
 // mẫu nhà cung cấp (có address & contact)
@@ -532,29 +536,18 @@ export default function StaffVaccines() {
             )}
         
             {/* Modal xác nhận xoá */}
-            {confirmAction && (
-              <div className="tw-fixed tw-inset-0 tw-bg-black tw-bg-opacity-50 tw-flex tw-justify-center tw-items-center">
-                <div className="tw-bg-white tw-p-6 tw-rounded-xl tw-w-[400px] tw-shadow-xl tw-relative">
-                  <h2 className="tw-text-3xl tw-font-semibold tw-mb-4 tw-text-blue-600"> Xác nhận xóa </h2>
-                  <p className="tw-mb-6 tw-text-gray-600">
-                    Bạn có chắc muốn xóa vắc xin “<b>{confirmAction.item.name}</b>” không?
-                  </p>
-                  <div className="tw-flex tw-justify-end tw-space-x-3">
-                    <button  onClick={() => setConfirmAction(null)}
-                      className="tw-bg-red-600 tw-text-white tw-px-4 tw-py-2 tw-rounded hover:tw-bg-red-500" >
-                      Hủy
-                    </button>
-                    <button onClick={() => {
-                        setVaccines((prev) =>
-                          prev.filter((v) => v.id !== confirmAction.item.id)
-                        ); setConfirmAction(null);
-                      }} className="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded hover:tw-bg-blue-500" >
-                      Đồng ý
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+            <ConfirmModal show={!!confirmAction} title="Xác nhận xóa"
+              message={
+                confirmAction && (
+                  <>Bạn có chắc muốn xóa vắc xin “<b>{confirmAction.item.name}</b>” không?</>
+                )
+              } onCancel={() => setConfirmAction(null)}
+              onConfirm={() => {
+                setVaccines((prev) => prev.filter((v) => v.id !== confirmAction.item.id));
+                setConfirmAction(null);
+              }}
+            />
+
 
         </div>
       )}
@@ -653,231 +646,20 @@ export default function StaffVaccines() {
               <Pagination  page={page}  totalItems={filteredStock.length} perPage={perPage} onPageChange={setPage} />
 
           </div>
-          
-         {/* Modal nhập/xuất/điều chỉnh */}
-          {showStockModal && (
-            <div className="tw-fixed tw-inset-0 tw-bg-black/50 tw-flex tw-justify-center tw-items-center tw-pt-[100px]">
-              <div className="tw-bg-white tw-rounded-xl tw-p-6 tw-w-[550px] tw-text-left">
-                <h2 className="tw-text-3xl tw-font-bold tw-text-blue-600  tw-text-center">
-                  Quản lý giao dịch vắc xin
-                </h2>
+        
 
-                {/* Chọn vắc xin (Dropdown) */}
-                <Dropdown label="Chọn vắc xin" value={stockForm.vaccineId}
-                  options={vaccines.map((v) => ({ value: v.id, label: v.name }))}
-                  onChange={(val) => setStockForm({ ...stockForm, vaccineId: val })}
-                />
-
-                {/* Loại giao dịch + Số lượng */}
-                <div className="tw-grid tw-grid-cols-2 tw-gap-24 ">
-                    <Dropdown label="Loại giao dịch" value={stockForm.type}
-                      options={[
-                        { value: "nhập", label: "nhập" },
-                        { value: "xuất", label: "xuất" },
-                        { value: "điều chỉnh", label: "điều chỉnh" },
-                      ]} onChange={(val) => setStockForm({ ...stockForm, type: val })} className="tw-w-full" 
-                    />
-
-                   <div>
-                      <label className="tw-block tw-mb-2 tw-text-gray-700 tw-font-medium">Số lượng</label>
-                      <QuantityPicker
-                        value={stockForm.quantity}
-                        onChange={(value) => setStockForm({ ...stockForm, quantity: value })}
-                      />
-                    </div>                   
-                </div>
-                {/* Mã vaccine + Số lô */}
-                <div className="tw-grid tw-grid-cols-2 tw-gap-4">
-                  <div>
-                    <label className="tw-block tw-mb-2 tw-text-gray-700 tw-font-medium">Mã vaccine</label>
-                    <input
-                      type="text"
-                      className="tw-w-full tw-border tw-rounded tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                      value={stockForm.vaccineCode || ""}
-                      onChange={(e) => setStockForm({ ...stockForm, vaccineCode: e.target.value })}
-                    />
-                  </div>
-                  {stockForm.type === "nhập" && (
-                    <div>
-                      <label className="tw-block tw-mb-2 tw-text-gray-700 tw-font-medium">Số lô</label>
-                      <input
-                        type="text"
-                        className="tw-w-full tw-border tw-rounded tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                        value={stockForm.batchNumber || ""}
-                        onChange={(e) => setStockForm({ ...stockForm, batchNumber: e.target.value })}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Hạn sử dụng + Đơn vị */}
-                {stockForm.type === "nhập" && (
-                  <div className="tw-grid tw-grid-cols-2 tw-gap-4 tw-mt-2">
-                    <div>
-                      <label className="tw-block tw-mb-2 tw-text-gray-700 tw-font-medium">Hạn sử dụng</label>
-                       <input type="date" className="tw-w-full tw-border tw-rounded tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                        value={stockForm.expiryDate || ""} min={new Date().toISOString().split("T")[0]}
-                        onChange={(e) => setStockForm({ ...stockForm, expiryDate: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="tw-block tw-mb-2 tw-text-gray-700 tw-font-medium">Đơn vị</label>
-                      <input type="text" placeholder="Ví dụ: liều, lọ…"
-                        className="tw-w-full tw-border tw-rounded tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                        value={stockForm.unit || ""}  onChange={(e) => setStockForm({ ...stockForm, unit: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className="tw-flex tw-gap-4 tw-mt-2">
-                    {/* Đơn giá */}
-                    <div className="tw-flex-1">
-                      <label className="tw-block tw-mb-2 tw-text-gray-700 tw-font-medium">Đơn giá (VNĐ)</label>
-                      <input 
-                        type="number" 
-                        min="0" 
-                        className="tw-w-full tw-border tw-rounded tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                        value={stockForm.unitPrice || ""}
-                        onChange={(e) => setStockForm({ ...stockForm, unitPrice: Number(e.target.value) })}
-                      />
-                    </div>
-
-                    {/* Nhà cung cấp */}
-                    {stockForm.type === "nhập" && (
-                      <Dropdown
-                        label="Nhà cung cấp" value={stockForm.source}
-                        options={suppliers.map((s) => ({ value: s.value, label: s.label }))}
-                        onChange={(val) => {
-                          const selected = suppliers.find((s) => s.value === val);
-                          setStockForm({
-                            ...stockForm,
-                            source: val, // lưu value
-                            supplierAddress: selected?.address || "",
-                            supplierContact: selected?.contact || "",
-                          });
-                        }}
-                        className="tw-flex-1"
-                      />
-                    )}
-
-
-                    {stockForm.type === "xuất" && (
-                      <div className="tw-flex-1">
-                        <label className="tw-block tw-mb-2 tw-text-gray-700 tw-font-medium">Nơi nhận</label>
-                        <input type="text"
-                          className="tw-w-full tw-border tw-rounded tw-px-3 tw-py-2 tw-mb-3 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                          value={stockForm.source}
-                          onChange={(e) => setStockForm({ ...stockForm, source: e.target.value })}
-                        />
-                      </div>
-                    )}
-                  </div>
-                
-
-                {/* Địa chỉ + Liên hệ (cùng một hàng) */}
-                {(stockForm.type === "nhập" || stockForm.type === "xuất") && (
-                  <div className="tw-grid tw-grid-cols-2 tw-gap-4 tw-mt-2">
-                    <div>
-                      <label className="tw-block tw-mb-2 tw-text-gray-700 tw-font-medium">Địa chỉ</label>
-                      <input type="text"
-                        className="tw-w-full tw-border tw-rounded tw-px-3 tw-py-2 tw-mb-3 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                        value={stockForm.supplierAddress}
-                        onChange={(e) =>
-                          setStockForm({ ...stockForm, supplierAddress: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="tw-block tw-mb-2 tw-text-gray-700 tw-font-medium">Liên hệ</label>
-                      <input type="text"
-                        className="tw-w-full tw-border tw-rounded tw-px-3 tw-py-2 tw-mb-3 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                        value={stockForm.supplierContact}
-                        onChange={(e) =>
-                          setStockForm({ ...stockForm, supplierContact: e.target.value })
-                        }
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Ghi chú */}
-                <label className="tw-block tw-mb-2 tw-text-gray-700 tw-font-medium">Ghi chú</label>
-                <textarea  className="tw-w-full tw-border tw-rounded tw-px-3 tw-py-2 tw-mb-3 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                  value={stockForm.note}  onChange={(e) => setStockForm({ ...stockForm, note: e.target.value })} />
-
-                {/* Buttons */}
-                <div className="tw-flex tw-justify-end tw-gap-2">
-                  <button  onClick={() => setShowStockModal(false)} className="tw-bg-red-600 tw-text-white tw-rounded-full tw-px-6 tw-py-2" >
-                    Hủy
-                  </button>
-                  <button onClick={handleSaveStock} className="tw-bg-blue-600 tw-text-white tw-rounded-full tw-px-6 tw-py-2" >
-                    Lưu
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-
+            <TransactionVaccineModal
+              show={showStockModal}
+              onClose={() => setShowStockModal(false)}
+              onSave={handleSaveStock}
+              stockForm={stockForm}
+              setStockForm={setStockForm}
+              vaccines={vaccines}
+              suppliers={suppliers}
+            />
 
           {/* modal xem chi tiết */}
-          {currentVaccine && (
-            <div className="tw-fixed tw-inset-0 tw-bg-black/50 tw-flex tw-items-center tw-justify-center tw-pt-[90px]">
-              <div className="tw-bg-white tw-rounded-2xl tw-shadow-xl tw-p-8 tw-w-[550px] tw-animate-fadeIn">
-                <div className="tw-relative tw-flex tw-items-center tw-justify-center tw-mb-6">
-                  <h2 className="tw-text-3xl tw-font-bold tw-text-blue-600">
-                    <i className="fa-solid fa-file-import tw-mr-3"></i>Chi tiết nhập / xuất
-                  </h2>
-                  <button onClick={() => setCurrentVaccine(null)}
-                    className="tw-absolute tw-right-0 tw-top-0 tw-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 
-                    tw-rounded-full tw-text-red-500 hover:tw-bg-gray-200 hover:tw-text-red-600 transition-colors" >
-                    <i className="fa-solid fa-xmark tw-text-2xl"></i>
-                  </button>
-                </div>
-
-                <div className="tw-grid tw-grid-cols-2 tw-gap-y-3 tw-text-gray-700 tw-text-left tw-px-10 tw-pb-8 tw-ml-12 " >
-                  <div className="tw-font-semibold">Tên vắc xin:</div>
-                  <div><i className="fa-solid fa-syringe tw-mr-3 tw-text-green-500"></i>{currentVaccine.vaccineName}</div>
-
-                  <div className="tw-font-semibold">Phân loại:</div>
-                  <div>{currentVaccine.vaccineType || "-"}</div>
-
-                  <div className="tw-font-semibold">Ngày/giờ:</div>
-                  <div><i className="fa-solid fa-clock  tw-mr-3 tw-text-pink-500"></i>{currentVaccine.date}</div>
-
-                  <div className="tw-font-semibold">Số lượng:</div>
-                  <div>
-                    {currentVaccine.quantity} {currentVaccine.vaccineUnit || currentVaccine.unit || "liều"}
-                  </div>
-
-                  <div className="tw-font-semibold">Đơn giá:</div>
-                  <div>{currentVaccine.unitPrice?.toLocaleString() || 0} VNĐ</div>
-
-                  <div className="tw-font-semibold">Thành tiền:</div>
-                  <div>{(currentVaccine.quantity * (currentVaccine.unitPrice || 0)).toLocaleString()} VNĐ</div>
-
-                  <div className="tw-font-semibold">Loại giao dịch:</div>
-                  <div>{currentVaccine.type}</div>
-
-                  <div className="tw-font-semibold">Nhà cung cấp:</div>
-                  <div><i className="fa-solid fa-house-chimney tw-mr-3 tw-text-blue-500"></i>{currentVaccine.source}</div>
-
-                  <div className="tw-font-semibold">Địa chỉ nhà cung cấp:</div>
-                  <div><i className="fa-solid fa-location-dot tw-mr-3 tw-text-purple-500"></i>{currentVaccine.supplierAddress || "-"}</div>
-
-                  <div className="tw-font-semibold">Thông tin liên hệ:</div>
-                  <div><i className="fa-solid fa-phone-volume tw-mr-3 tw-text-red-500"></i>{currentVaccine.supplierContact || "-"}</div>
-
-                  <div className="tw-font-semibold">Ghi chú:</div>
-                  <div><i className="fa-solid fa-book tw-mr-3 tw-text-yellow-500"></i>{currentVaccine.note || "—"}</div>
-
-                  <div className="tw-font-semibold">Nhân viên:</div>
-                  <div><i className="fa-solid fa-people-group tw-mr-3 tw-text-cyan-500"></i>{currentVaccine.staff}</div>
-                </div>
-              </div>
-            </div>
-          )}
-
+          <ViewStockVCModal show={!!currentVaccine} onClose={() => setCurrentVaccine(null)}  vaccine={currentVaccine} />
          
         </div>
       )}
@@ -1026,92 +808,27 @@ export default function StaffVaccines() {
             </div>
             
             {/* Modal xác nhận xoá */}
-            {confirmAction && (
-              <div className="tw-fixed tw-inset-0 tw-bg-black tw-bg-opacity-50 tw-flex tw-justify-center tw-items-center">
-                <div className="tw-bg-white tw-p-6 tw-rounded-xl tw-w-[400px] tw-shadow-xl tw-relative">
-                  <h2 className="tw-text-3xl tw-font-semibold tw-mb-4 tw-text-blue-600"> Xác nhận xóa </h2>
-                  <p className="tw-mb-6 tw-text-gray-600">
-                    Bạn có chắc muốn xóa thông báo “<b>{confirmAction.item.name}</b>” không?
-                  </p>
-                  <div className="tw-flex tw-justify-end tw-space-x-3">
-                    <button  onClick={() => setConfirmAction(null)}
-                      className="tw-bg-red-600 tw-text-white tw-px-4 tw-py-2 tw-rounded hover:tw-bg-red-500" >
-                      Hủy
-                    </button>
-                    <button onClick={() => {
-                        setVaccines((prev) =>
-                          prev.filter((v) => v.id !== confirmAction.item.id)
-                        ); setConfirmAction(null);
-                      }} className="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded hover:tw-bg-blue-500" >
-                      Đồng ý
-                    </button>
-                  </div>
-                </div>
-              </div>
+            <ConfirmModal  show={!!confirmAction} title="Xác nhận xóa"
+              message={ confirmAction && ( <> Bạn có chắc muốn xóa thông báo “ <b>{confirmAction.item.name}</b>” không? </>
+                  )} onCancel={() => setConfirmAction(null)}
+                  onConfirm={() => {
+                    setVaccines((prev) =>
+                      prev.filter((v) => v.id !== confirmAction.item.id)
+                    );
+                    setConfirmAction(null);
+                  }}
+                  confirmText="Đồng ý" cancelText="Hủy"
+            />
+
+             {/* Modal xem chi tiết */}
+              {showDetailModal && currentVaccine && (
+              <ViewExpiryVCModal show={showDetailModal}
+                onClose={() => {
+                  setShowDetailModal(false);
+                  setCurrentVaccine(null);
+                }} vaccine={currentVaccine}
+              />
             )}
-
-            {showDetailModal && currentVaccine && (
-              <div className="tw-fixed tw-inset-0 tw-bg-black/50 tw-flex tw-items-center tw-justify-center tw-pt-[80px]">
-                <div className="tw-bg-white tw-rounded-2xl tw-shadow-xl tw-p-8 tw-w-[550px] tw-animate-fadeIn">
-                  
-                  {/* Header */}
-                  <div className="tw-relative tw-flex tw-items-center tw-justify-center tw-mb-6">
-                    <h2 className="tw-text-3xl tw-font-bold tw-text-blue-600">
-                      <i className="fa-solid fa-vial-virus tw-mr-2"></i> Chi tiết vắc xin
-                    </h2>
-                    <button onClick={() => setCurrentVaccine(null)}
-                      className="tw-absolute tw-right-0 tw-top-0 tw-flex tw-items-center tw-justify-center 
-                                tw-w-10 tw-h-10 tw-rounded-full tw-text-red-500 hover:tw-bg-gray-200 
-                                hover:tw-text-red-600 transition-colors">
-                      <i className="fa-solid fa-xmark tw-text-2xl"></i>
-                    </button>
-                  </div>
-
-                  {/* Body */}
-                  <div className="tw-grid tw-grid-cols-2 tw-gap-y-4 tw-text-gray-700 tw-text-left tw-px-20 tw-pb-8 tw-ml-20">
-                    <div className="tw-font-semibold">Tên vắc xin:</div>
-                    <div>{currentVaccine.name}</div>
-
-                    <div className="tw-font-semibold">Loại:</div>
-                    <div>{currentVaccine.type}</div>
-
-                    <div className="tw-font-semibold">Mã:</div>
-                    <div>{currentVaccine.code}</div>
-
-                    <div className="tw-font-semibold">Số lượng:</div>
-                    <div>{currentVaccine.quantity} {currentVaccine.unit}</div>
-
-                    <div className="tw-font-semibold">Hạn sử dụng:</div>
-                    <div>{currentVaccine.expiry}</div>
-
-                    <div className="tw-font-semibold">Nhà sản xuất:</div>
-                    <div>{currentVaccine.manufacturer}</div>
-
-                    <div className="tw-font-semibold">Quốc gia:</div>
-                    <div>{currentVaccine.country}</div>
-
-                    <div className="tw-font-semibold">Số lô:</div>
-                    <div>{currentVaccine.batch}</div>
-
-                    <div className="tw-font-semibold">Giá:</div>
-                    <div>{currentVaccine.price.toLocaleString()} VNĐ</div>
-
-                    <div className="tw-font-semibold">Cảnh báo:</div>
-                    <div className={`tw-font-medium ${
-                      currentVaccine.warningType === "Hàng & Hạn đã hết" ? "tw-text-red-600" :
-                      currentVaccine.warningType === "Hạn sử dụng sắp hết" ? "tw-text-orange-600" :
-                      currentVaccine.warningType === "Số lượng sắp hết" ? "tw-text-blue-600" :
-                      "tw-text-green-600"
-                    }`}>
-                      {currentVaccine.warningType}
-                    </div>
-                    <div className="tw-font-semibold">Ghi chú:</div>
-                    <div>{currentVaccine.note || "—"}</div>
-                  </div>
-                </div>
-              </div>
-            )}
-
 
 
         </div>
