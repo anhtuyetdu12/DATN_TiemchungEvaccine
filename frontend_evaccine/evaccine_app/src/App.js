@@ -1,6 +1,10 @@
 import { Routes, Route } from "react-router-dom"; 
-import Footer from './components/Footer';
+import { useState } from "react";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import './App.css';
+
+import Footer from './components/Footer';
 import NavBar from './components/NavBar';
 import Home from "./pages/user/Home";
 import RecordBook from "./pages/user/RecordBook";
@@ -11,9 +15,10 @@ import Register from "./pages/user/Register";
 import Login from "./pages/user/Login";
 import ForgotPassword from "./pages/user/ForgotPassword"
 import ResetPassword from "./pages/user/ResetPassword"
-import { useState } from "react";
 import ProtectedRoute from "./layouts/ProtectedRoute";   
 import ScrollToTop from "./layouts/ScrollToTop";
+import DetailsVaccine from "./pages/user/DetailsVaccine";
+import BookingForm from "./pages/user/modal/BookingForm";
 
 import StaffHome from "./pages/staff/StaffHome";
 import StaffAppointments from "./pages/staff/StaffAppointments";
@@ -27,8 +32,7 @@ import UserLayout from "./layouts/UserLayout";
 import StaffLayout from "./layouts/StaffLayout";
 import StaffNavBar from "./components/StaffNavBar"
 
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -70,6 +74,8 @@ function App() {
         {/* User routes */}
         <Route element={<UserLayout user={user} setUser={setUser} />}>
           <Route path="/" element={<Home />} />
+          <Route path="/vaccines/:slug" element={<DetailsVaccine />} />
+          <Route path="/bookingform" element={<BookingForm />} />
           <Route path="/recordbook" element={<ProtectedRoute user={user}><RecordBook /></ProtectedRoute>} />
           <Route path="/appointments" element={<ProtectedRoute user={user}><Appointments /></ProtectedRoute>} />
           <Route path="/vaccines" element={<ProtectedRoute user={user}><VaccinesList /></ProtectedRoute>} />

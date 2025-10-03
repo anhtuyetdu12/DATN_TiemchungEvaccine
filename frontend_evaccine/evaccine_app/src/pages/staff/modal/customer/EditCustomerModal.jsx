@@ -176,7 +176,7 @@ export default function EditCustomerModal({
           <button onClick={onClose} className="tw-text-white tw-bg-red-500 hover:tw-bg-red-600 tw-rounded-full tw-px-3 tw-py-2">Đóng ✕</button>
         </div>
 
-        <div className="tw-flex-1 tw-grid tw-grid-cols-3 tw-overflow-hidden">
+        <div className="tw-flex-1 tw-grid tw-grid-cols-3 tw-overflow-hidden ">
           <div className="tw-col-span-1 tw-border-r tw-p-4 tw-overflow-y-auto">
             <div className="tw-mb-4">
               <div className="tw-text-xl tw-text-gray-500">Thông tin cơ bản</div>
@@ -185,13 +185,14 @@ export default function EditCustomerModal({
               <div className="tw-text-lg tw-text-gray-600">{customer.address}</div>
             </div>
 
-            <div className="tw-space-y-2">
-              <button onClick={() => setDetailTab('info')} className={`tw-w-full tw-text-left tw-py-2 tw-rounded ${detailTab==='info' ? 'tw-bg-blue-50' : 'hover:tw-bg-gray-50'}`}>Thông tin</button>
-              <button onClick={() => setDetailTab('family')} className={`tw-w-full tw-text-left tw-py-2 tw-rounded ${detailTab==='family' ? 'tw-bg-blue-50' : 'hover:tw-bg-gray-50'}`}>Gia đình</button>
-              <button onClick={() => setDetailTab('appointments')} className={`tw-w-full tw-text-left tw-py-2 tw-rounded ${detailTab==='appointments' ? 'tw-bg-blue-50' : 'hover:tw-bg-gray-50'}`}>Lịch hẹn</button>
-              <button onClick={() => setDetailTab('history')} className={`tw-w-full tw-text-left tw-py-2 tw-rounded ${detailTab==='history' ? 'tw-bg-blue-50' : 'hover:tw-bg-gray-50'}`}>Lịch sử tiêm</button>
-              <button className="tw-bg-indigo-600 tw-text-white tw-px-4 tw-py-2 tw-rounded hover:tw-bg-indigo-500">In phiếu xác nhận</button>
+            <div className="tw-space-y-4 tw-mt-20">
+              <button onClick={() => setDetailTab('info')} className={`tw-w-full tw-text-left tw-py-2 tw-px-2 tw-rounded ${detailTab==='info' ? 'tw-bg-cyan-200' : 'hover:tw-bg-blue-50'}`}>Thông tin</button>
+              <button onClick={() => setDetailTab('family')} className={`tw-w-full tw-text-left tw-py-2 tw-px-2 tw-rounded ${detailTab==='family' ? 'tw-bg-cyan-200' : 'hover:tw-bg-blue-50'}`}>Gia đình</button>
+              <button onClick={() => setDetailTab('appointments')} className={`tw-w-full tw-text-left tw-py-2 tw-px-2 tw-rounded ${detailTab==='appointments' ? 'tw-bg-cyan-200' : 'hover:tw-bg-blue-50'}`}>Lịch hẹn</button>
+              <button onClick={() => setDetailTab('history')} className={`tw-w-full tw-text-left tw-py-2 tw-px-2 tw-rounded ${detailTab==='history' ? 'tw-bg-cyan-200' : 'hover:tw-bg-blue-50'}`}>Lịch sử tiêm</button>
+         
             </div>
+              <button className="tw-bg-indigo-600 tw-text-white tw-px-4 tw-py-2 tw-rounded hover:tw-bg-indigo-500 tw-mt-10">In phiếu xác nhận</button> 
           </div>
 
           <div className="tw-col-span-2 tw-p-4 tw-overflow-y-auto">
@@ -471,11 +472,144 @@ export default function EditCustomerModal({
 
             {detailTab === 'appointments' && (
               <div className="tw-space-y-6">
-                <h4 className="tw-font-semibold tw-text-3xl tw-border-b tw-pb-3 tw-text-blue-400">
+                <h4 className="tw-font-semibold tw-text-3xl  tw-text-blue-400">
                   <i className="fa-solid fa-calendar-week  tw-mr-3"></i> Lịch hẹn</h4>
                 <div className="tw-space-y-4">
-                  
-                <div className="tw-max-h-[300px] tw-overflow-y-auto tw-pr-2 tw-space-y-4 tw-mb-6">
+
+                 {/* form tạo lịch hẹn */}
+                <div className="tw-border-t tw-pt-5">
+                  <h5 className="tw-font-semibold tw-text-2xl tw-mb-6 tw-text-green-600 flex items-center">
+                    <i className="fa-solid fa-calendar-plus tw-mr-3"></i>Tạo lịch hẹn mới
+                  </h5>
+
+                  <div className="tw-grid md:tw-grid-cols-2 lg:tw-grid-cols-3 tw-gap-6">
+                    <div className="tw-flex tw-flex-col">
+                      <label className="tw-text-xl tw-text-left tw-font-medium tw-mb-2">Ngày/Giờ</label>
+                      <input  type="datetime-local" min={new Date().toISOString().slice(0,16)}
+                        value={newAppointment.date}
+                        onChange={(e)=>setNewAppointment(s=>({...s,date:e.target.value}))} 
+                        className="tw-border tw-rounded-lg tw-px-3 tw-py-2 focus:tw-outline-none 
+                                  focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" 
+                      />
+                    </div>
+
+                    <div className="tw-flex tw-flex-col">
+                      <label className="tw-text-xl tw-text-left tw-font-medium tw-mb-2">Loại Vaccine</label>
+                      <Dropdown value={newAppointment.vaccine}
+                        options={vaccines.map(v => ({
+                          value: v.id,
+                          label: `${v.name} (${v.price?.toLocaleString()} đ)`
+                        }))} onChange={(val) => {
+                          const selected = vaccines.find(v => v.id === val);
+                          setNewAppointment(s => ({
+                            ...s,
+                            vaccineId: selected?.id,
+                            vaccine: selected?.name || "",
+                            price: selected?.price || "",
+                            category: selected?.category || ""
+                          }));
+                        }}
+                      />
+                    </div>
+
+                    <div className="tw-flex tw-flex-col">
+                      <label className="tw-text-xl tw-text-left tw-font-medium tw-mb-2">Phân loại</label>
+                      <Dropdown
+                        value={newAppointment.category}
+                        options={[
+                          { value: "adult", label: "Người lớn" },
+                          { value: "child", label: "Trẻ em" },
+                          { value: "pregnant", label: "Phụ nữ mang thai" },
+                          { value: "other", label: "Khác" }
+                        ]}
+                        onChange={(val) => setNewAppointment(s => ({ ...s, category: val }))}
+                      />
+                    </div>
+
+                    <div className="tw-flex tw-flex-col">
+                      <label className="tw-text-xl tw-text-left tw-font-medium tw-mb-2">Đơn giá</label>
+                      <input   type="text" readOnly   placeholder="VNĐ" 
+                        value={newAppointment.price || ""} 
+                        onChange={(e)=>setNewAppointment(s=>({...s,price:e.target.value}))} 
+                        className="tw-border tw-rounded-lg tw-px-3 tw-py-2 focus:tw-outline-none 
+                                  focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" 
+                      />
+                    </div>
+
+                    <div className="tw-flex tw-flex-col">
+                      <label className="tw-text-xl tw-font-medium">Số mũi tiêm</label>
+                      <QuantityPicker
+                          value={newAppointment.doses}
+                          max={
+                            newAppointment.vaccineId
+                              ? Math.min(
+                                  vaccines.find(v => v.id === newAppointment.vaccineId)?.protocolDoses -
+                                    getDosesTaken(newAppointment.vaccineId),
+                                  MAX_DAILY_DOSES
+                                )
+                              : MAX_DAILY_DOSES
+                          }
+                          onChange={(val) =>
+                            setNewAppointment(prev => ({
+                              ...prev,
+                              doses: val,
+                              total: prev.price * val
+                            }))
+                          }
+                        />
+
+                        {/* Thông báo số mũi còn lại */}
+                        {newAppointment.vaccineId && (() => {
+                          const selected = vaccines.find(v => v.id === newAppointment.vaccineId);
+                          if (!selected) return null;
+                          const taken = getDosesTaken(selected.id);
+                          if (taken >= selected.protocolDoses) {
+                            return (
+                              <p className="tw-text-sm tw-text-red-600 tw-mt-1">
+                                Đã tiêm đủ phác đồ cho {selected.name}
+                              </p>
+                            );
+                          }
+                          return (
+                            <p className="tw-text-sm tw-text-gray-500 tw-mt-1">
+                              Đã tiêm {taken}/{selected.protocolDoses} mũi. 
+                              Còn thiếu {selected.protocolDoses - taken} mũi.
+                            </p>
+                          );
+                        })()}
+                    </div>
+                    <div className="tw-flex tw-flex-col">
+                      <label className="tw-text-xl tw-text-left tw-font-medium tw-mb-2">Thành tiền</label>
+                      <input
+                        type="text" placeholder="VNĐ"    readOnly
+                        value={newAppointment.total ? `${newAppointment.total.toLocaleString()} VNĐ` : ""}
+                        className="tw-border tw-rounded-lg tw-px-3 tw-py-2 bg-gray-100 tw-font-semibold focus:tw-outline-none 
+                                  focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
+                      />
+                    </div>
+
+                    <div className="tw-flex tw-flex-col lg:tw-col-span-2">
+                      <label className="tw-text-xl tw-text-left tw-font-medium tw-mb-2">Ghi chú (Bệnh nền)</label>
+                      <textarea 
+                        placeholder="Ví dụ: Tiểu đường, tim mạch..." 
+                        value={newAppointment.note || ""} 
+                        onChange={(e)=>setNewAppointment(s=>({...s,note:e.target.value}))} 
+                        className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-min-h-[80px] focus:tw-outline-none 
+                                  focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="tw-mt-6">
+                  <button   onClick={handleAddAppointment} className="tw-bg-green-600 hover:tw-bg-green-500 tw-text-white tw-px-6 tw-py-3 tw-rounded-full tw-shadow-md tw-text-xl" >
+                        💾 Lưu lịch hẹn
+                    </button>
+
+                  </div>
+                </div>
+
+                {/* danh sách lịch hẹn */}
+                <div className="tw-max-h-[300px] tw-overflow-y-auto tw-pr-2 tw-space-y-4 tw-mb-6 tw-mt-8 tw-border-t tw-pt-6">
                   {appointmentsList.length > 0 ? (
                     <div className="tw-space-y-4">
                       {appointmentsList.map(a => (
@@ -506,27 +640,21 @@ export default function EditCustomerModal({
                             <div className="tw-flex tw-gap-2">
                               {a.status === 'pending' && (
                                 <>
-                                  <button
-                                    onClick={() => handleConfirmAppointmentLocal(customer.id, a.id)}
-                                    className="tw-bg-blue-600 hover:tw-bg-blue-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow"
-                                  >
+                                  <button  onClick={() => handleConfirmAppointmentLocal(customer.id, a.id)}
+                                    className="tw-bg-blue-600 hover:tw-bg-blue-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow" >
                                     Xác nhận
                                   </button>
 
-                                  <button
-                                    onClick={() => handleCancelAppointmentLocal(customer.id, a.id)}
-                                    className="tw-bg-red-600 hover:tw-bg-red-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow"
-                                  >
+                                  <button  onClick={() => handleCancelAppointmentLocal(customer.id, a.id)}
+                                    className="tw-bg-red-600 hover:tw-bg-red-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow" >
                                     Hủy
                                   </button>
                                 </>
                               )}
 
                               {a.status === 'confirmed' && (
-                                <button
-                                  onClick={() => handleCancelAppointmentLocal(customer.id, a.id)}
-                                  className="tw-bg-red-600 hover:tw-bg-red-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow"
-                                >
+                                <button onClick={() => handleCancelAppointmentLocal(customer.id, a.id)}
+                                  className="tw-bg-red-600 hover:tw-bg-red-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow" >
                                   Hủy
                                 </button>
                               )}
@@ -537,143 +665,12 @@ export default function EditCustomerModal({
                       ))}
                     </div>
                   ) : (
-                    <p className="tw-text-gray-500 tw-italic">Chưa có lịch hẹn nào</p>
+                    <p className="tw-text-center tw-text-red-500 tw-font-medium tw-py-4 tw-italic">Chưa có lịch hẹn nào</p>                   
                   )}
                 </div>
 
 
-
-                  <div className="tw-mt-8 tw-border-t tw-pt-6">
-                    <h5 className="tw-font-semibold tw-text-2xl tw-mb-6 tw-text-green-600 flex items-center">
-                      <i className="fa-solid fa-calendar-plus tw-mr-3"></i>Tạo lịch hẹn mới
-                    </h5>
-
-                    <div className="tw-grid md:tw-grid-cols-2 lg:tw-grid-cols-3 tw-gap-6">
-                      <div className="tw-flex tw-flex-col">
-                        <label className="tw-text-xl tw-text-left tw-font-medium tw-mb-2">Ngày/Giờ</label>
-                        <input 
-                          type="datetime-local" min={new Date().toISOString().slice(0,16)}
-                          value={newAppointment.date}
-                          onChange={(e)=>setNewAppointment(s=>({...s,date:e.target.value}))} 
-                          className="tw-border tw-rounded-lg tw-px-3 tw-py-2 focus:tw-outline-none 
-                                    focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" 
-                        />
-                      </div>
-
-                      <div className="tw-flex tw-flex-col">
-                        <label className="tw-text-xl tw-text-left tw-font-medium tw-mb-2">Loại Vaccine</label>
-                        <Dropdown value={newAppointment.vaccine}
-                          options={vaccines.map(v => ({
-                            value: v.id,
-                            label: `${v.name} (${v.price?.toLocaleString()} đ)`
-                          }))} onChange={(val) => {
-                            const selected = vaccines.find(v => v.id === val);
-                            setNewAppointment(s => ({
-                              ...s,
-                              vaccineId: selected?.id,
-                              vaccine: selected?.name || "",
-                              price: selected?.price || "",
-                              category: selected?.category || ""
-                            }));
-                          }}
-                        />
-                      </div>
-
-                      <div className="tw-flex tw-flex-col">
-                        <label className="tw-text-xl tw-text-left tw-font-medium tw-mb-2">Phân loại</label>
-                        <Dropdown
-                          value={newAppointment.category}
-                          options={[
-                            { value: "adult", label: "Người lớn" },
-                            { value: "child", label: "Trẻ em" },
-                            { value: "pregnant", label: "Phụ nữ mang thai" },
-                            { value: "other", label: "Khác" }
-                          ]}
-                          onChange={(val) => setNewAppointment(s => ({ ...s, category: val }))}
-                        />
-                      </div>
-
-                      <div className="tw-flex tw-flex-col">
-                        <label className="tw-text-xl tw-text-left tw-font-medium tw-mb-2">Đơn giá</label>
-                        <input   type="text" readOnly   placeholder="VNĐ" 
-                          value={newAppointment.price || ""} 
-                          onChange={(e)=>setNewAppointment(s=>({...s,price:e.target.value}))} 
-                          className="tw-border tw-rounded-lg tw-px-3 tw-py-2 focus:tw-outline-none 
-                                    focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" 
-                        />
-                      </div>
-
-                      <div className="tw-flex tw-flex-col">
-                        <label className="tw-text-xl tw-font-medium">Số mũi tiêm</label>
-                        <QuantityPicker
-                            value={newAppointment.doses}
-                            max={
-                              newAppointment.vaccineId
-                                ? Math.min(
-                                    vaccines.find(v => v.id === newAppointment.vaccineId)?.protocolDoses -
-                                      getDosesTaken(newAppointment.vaccineId),
-                                    MAX_DAILY_DOSES
-                                  )
-                                : MAX_DAILY_DOSES
-                            }
-                            onChange={(val) =>
-                              setNewAppointment(prev => ({
-                                ...prev,
-                                doses: val,
-                                total: prev.price * val
-                              }))
-                            }
-                          />
-
-                          {/* Thông báo số mũi còn lại */}
-                          {newAppointment.vaccineId && (() => {
-                            const selected = vaccines.find(v => v.id === newAppointment.vaccineId);
-                            if (!selected) return null;
-                            const taken = getDosesTaken(selected.id);
-                            if (taken >= selected.protocolDoses) {
-                              return (
-                                <p className="tw-text-sm tw-text-red-600 tw-mt-1">
-                                  Đã tiêm đủ phác đồ cho {selected.name}
-                                </p>
-                              );
-                            }
-                            return (
-                              <p className="tw-text-sm tw-text-gray-500 tw-mt-1">
-                                Đã tiêm {taken}/{selected.protocolDoses} mũi. 
-                                Còn thiếu {selected.protocolDoses - taken} mũi.
-                              </p>
-                            );
-                          })()}
-                      </div>
-                      <div className="tw-flex tw-flex-col">
-                        <label className="tw-text-xl tw-text-left tw-font-medium tw-mb-2">Thành tiền</label>
-                        <input
-                          type="text" placeholder="VNĐ"    readOnly
-                          value={newAppointment.total ? `${newAppointment.total.toLocaleString()} VNĐ` : ""}
-                          className="tw-border tw-rounded-lg tw-px-3 tw-py-2 bg-gray-100 tw-font-semibold focus:tw-outline-none 
-                                    focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                        />
-                      </div>
-
-                      <div className="tw-flex tw-flex-col lg:tw-col-span-2">
-                        <label className="tw-text-xl tw-text-left tw-font-medium tw-mb-2">Ghi chú (Bệnh nền)</label>
-                        <textarea 
-                          placeholder="Ví dụ: Tiểu đường, tim mạch..." 
-                          value={newAppointment.note || ""} 
-                          onChange={(e)=>setNewAppointment(s=>({...s,note:e.target.value}))} 
-                          className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-min-h-[80px] focus:tw-outline-none 
-                                    focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="tw-mt-6">
-                    <button   onClick={handleAddAppointment} className="tw-bg-green-600 hover:tw-bg-green-500 tw-text-white tw-px-6 tw-py-3 tw-rounded-full tw-shadow-md tw-text-xl" >
-                          💾 Lưu lịch hẹn
-                      </button>
-
-                    </div>
-                  </div>
+                 
 
                   
                 </div>
@@ -684,37 +681,166 @@ export default function EditCustomerModal({
             
 
 
-            {detailTab === 'history' && (
-              <div>
-                <h4 className="tw-font-semibold tw-mb-2 tw-text-3xl">Lịch sử tiêm</h4>
-                {historyList.map(h => (
-                  <div key={h.id} className="tw-p-3 tw-border tw-rounded">
-                    <div className="tw-font-medium">{h.vaccine} — {h.date}</div>
-                    <div className="tw-text-sm tw-text-gray-600">Lô: {h.batch} • Ghi chú: {h.note}</div>
+           {detailTab === 'history' && (
+            <div className="tw-space-y-6">
+              {/* Tiêu đề */}
+              <h4 className="tw-font-bold tw-text-3xl tw-text-blue-400 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-center">
+                <i className="fa-solid fa-syringe"></i>
+                Lịch sử tiêm
+              </h4>
+
+              {/* Form thêm mũi tiêm mới */}
+              <div className="tw-border-t tw-pt-5">
+                <h5 className="tw-font-semibold tw-text-2xl tw-mb-3 tw-text-blue-600">
+                  <i className="fa-solid fa-plus"></i> Ghi nhận mũi tiêm mới
+                </h5>
+
+                <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-3 tw-gap-3">
+                  
+                  {/* Ngày tiêm */}
+                  <div className="tw-flex tw-flex-col">
+                    <label className="tw-text-xl tw-text-left tw-font-medium tw-mb-2">Ngày tiêm</label>
+                    <input type="date" max={new Date().toISOString().split("T")[0]} 
+                      value={newVaccineRecord.date}
+                      onChange={(e)=>setNewVaccineRecord(s=>({...s,date:e.target.value}))}
+                      className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-h-[35px]
+                                focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" 
+                    />
                   </div>
-                ))}
-                <div className="tw-mt-4 tw-border-t pt-4">
-                  <h5 className="tw-font-medium">Ghi nhận mũi tiêm mới</h5>
-                  <div className="tw-grid tw-grid-cols-4 tw-gap-2 tw-mt-2">
-                    <input placeholder="Ngày" value={newVaccineRecord.date} onChange={(e)=>setNewVaccineRecord(s=>({...s,date:e.target.value}))} 
-                      className="tw-border tw-px-2 tw-py-1 tw-rounded focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
-                    <input placeholder="Vaccine" value={newVaccineRecord.vaccine} onChange={(e)=>setNewVaccineRecord(s=>({...s,vaccine:e.target.value}))} 
-                      className="tw-border tw-px-2 tw-py-1 tw-rounded focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
-                    <input placeholder="Số lô" value={newVaccineRecord.batch} onChange={(e)=>setNewVaccineRecord(s=>({...s,batch:e.target.value}))} 
-                      className="tw-border tw-px-2 tw-py-1 tw-rounded focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
-                    <input placeholder="Ghi chú" value={newVaccineRecord.note} onChange={(e)=>setNewVaccineRecord(s=>({...s,note:e.target.value}))} 
-                      className="tw-border tw-px-2 tw-py-1 tw-rounded focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
+
+                  {/* Tên vaccine */}
+                  <div className="tw-flex tw-flex-col">
+                    <label className="tw-text-xl tw-text-left tw-font-medium tw-mb-2">Tên Vaccine</label>
+                    <input 
+                      value={newVaccineRecord.vaccine} 
+                      onChange={(e)=>setNewVaccineRecord(s=>({...s,vaccine:e.target.value}))} 
+                      className="tw-border tw-px-3 tw-py-2 tw-rounded-lg 
+                                focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" 
+                    />
                   </div>
-                  <div className="tw-mt-2">
-                    <button onClick={()=> {
-                      const rec={id:`rec-${Date.now()}`, ...newVaccineRecord};
-                      onRecordVaccine(customer.id, rec);
-                      setNewVaccineRecord({date:'', vaccine:'', batch:'', note:''});
-                    }} className="tw-bg-blue-600 tw-text-white tw-px-3 tw-py-1 tw-rounded">Ghi nhận</button>
+
+                  {/* Cơ sở tiêm chủng */}
+                  <div className="tw-flex tw-flex-col">
+                    <label className="tw-text-xl tw-text-left tw-font-medium tw-mb-2">Cơ sở tiêm chủng</label>
+                    <input 
+                      value={newVaccineRecord.place} 
+                      onChange={(e)=>setNewVaccineRecord(s=>({...s,place:e.target.value}))} 
+                      className="tw-border tw-px-3 tw-py-2 tw-rounded-lg 
+                                focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" 
+                    />
+                  </div>
+
+                  {/* Số mũi tiêm */}
+                  <div className="tw-flex tw-flex-col">
+                    <label className="tw-text-xl tw-text-left tw-font-medium tw-mb-2">Số mũi tiêm</label>
+                    <Dropdown  
+                      value={newVaccineRecord.dose} 
+                      onChange={(val)=>setNewVaccineRecord(s=>({...s,dose:val}))}
+                      options={[
+                        { value: "1", label: "Mũi 1" },
+                        { value: "2", label: "Mũi 2" },
+                        { value: "3", label: "Mũi 3" },
+                        { value: "4", label: "Mũi 4" },
+                        { value: "5", label: "Mũi 5" }
+                      ]}
+                      className="tw-col-span-1"
+                    />
+                  </div>
+                  {/* Ghi chú */}
+                  <div className="tw-flex tw-flex-col lg:tw-col-span-2">
+                    <label className="tw-text-xl tw-text-left tw-font-medium tw-mb-2">Ghi chú (Bệnh nền)</label>
+                    <textarea 
+                      placeholder="Ví dụ: Tiểu đường, tim mạch..." 
+                      value={newVaccineRecord.note || ""} 
+                      onChange={(e)=>setNewVaccineRecord(s=>({...s,note:e.target.value}))} 
+                      className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-h-[40px] tw-resize-none focus:tw-outline-none 
+                                focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
+                    />
                   </div>
                 </div>
+
+                {/* Nút ghi nhận */}
+                <div className="tw-mt-4">
+                  <button  
+                      onClick={()=>{
+                       const rec = { 
+                          id:`rec-${Date.now()}`, 
+                          ...newVaccineRecord,
+                          place: newVaccineRecord.place || center?.name || "Trung tâm tiêm chủng Evaccine" 
+                        };
+
+
+                        // 1. Gọi callback để hệ thống (parent) ghi nhận
+                        onRecordVaccine(customer.id, rec);
+
+                        // 2. Cập nhật local state để hiển thị ngay
+                        setCustomers(prev => prev.map(c =>
+                          c.id === customer.id
+                            ? { ...c, history: [rec, ...(c.history || [])] } // prepend vào đầu
+                            : c
+                        ));
+                        setSelectedCustomer(prev => ({
+                          ...prev,
+                          history: [rec, ...(prev.history || [])]
+                        }));
+
+                        // 3. Reset form
+                        setNewVaccineRecord({date:'', vaccine:'', place:'', dose:'', batch:'', note:''});
+                      }} 
+                      className="tw-bg-blue-600 hover:tw-bg-blue-700 tw-text-white tw-font-medium tw-px-6 tw-py-2 tw-rounded-full tw-shadow" 
+                    >
+                      <i className="fa-solid fa-save tw-mr-2"></i>Ghi nhận
+                    </button>
+
+                </div>
               </div>
-            )}
+
+
+              {/* Danh sách lịch sử */}
+              <div className="tw-max-h-[300px] tw-overflow-y-auto tw-space-y-3 tw-pr-2 tw-mt-8 tw-border-t tw-pt-6">
+                {historyList.length === 0 ? (
+                  <div className="tw-text-center tw-text-red-500 tw-font-medium tw-py-4 tw-italic">
+                    Chưa ghi nhận danh sách lịch sử tiêm chủng
+                  </div>
+                ) : (
+                  historyList.map(h => (
+                    <div
+                      key={h.id}
+                      className="tw-bg-cyan-50 tw-shadow-md tw-rounded-xl tw-p-4 tw-flex tw-justify-between tw-items-center hover:tw-shadow-lg tw-transition"
+                    >
+                      <div>
+                        <div className="tw-font-semibold tw-text-gray-800">
+                          {h.vaccine} 
+                          <span className="tw-text-lg tw-text-gray-500"> ({h.date})</span>
+                        </div>
+                        <div className="tw-text-base tw-text-gray-600 tw-mt-1">
+                          <span className="tw-inline-block tw-bg-green-100 tw-px-3 tw-py-1 tw-rounded-full tw-mr-2">
+                            🏥 {h.place || "Trung tâm tiêm chủng Evaccine"}
+                          </span>
+                        </div>
+                        <div className="tw-text-base tw-text-gray-600 mt-1">
+                          <span className="tw-inline-block tw-bg-yellow-100 tw-px-3 tw-py-1 tw-rounded-full tw-mr-2">
+                            Lô: {h.batch}
+                          </span>
+                          <span className="tw-text-gray-500 tw-text-base">
+                            📝 {h.note || "Không có ghi chú"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="tw-text-green-500 tw-text-2xl">
+                        <i className="fa-solid fa-check-circle"></i>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+
+
+              
+            </div>
+          )}
+
 
           </div>
         </div>

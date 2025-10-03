@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { Link, useNavigate  } from "react-router-dom";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("cum");
   const [showMore, setShowMore] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <div>
@@ -258,7 +260,7 @@ export default function Home() {
               </p>
             </div>
             {/* Bên phải */}
-            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden">
+            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden ">
               {/* Card 1 */}
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-shadow-md tw-flex tw-flex-col tw-justify-between tw-text-center">
                 <span>🇳🇱 Hà Lan</span>
@@ -266,9 +268,18 @@ export default function Home() {
                 <h4 className="tw-font-bold tw-text-[16px]">Vắc xin Influvac Tetra</h4>
                 <p>Phòng Cúm</p>
                 <p className="tw-font-bold tw-text-[#ff6600]">333.000đ / Liều</p>
-                <button className="tw-bg-[#abe0ff] tw-text-[#3267fa] tw-font-medium tw-py-[8px] tw-px-[60px] tw-rounded-full hover:tw-bg-[#3267fa] hover:tw-text-white">
-                  Đặt hẹn
-                </button>
+                <div className="tw-flex tw-gap-2 tw-justify-center">
+                  <Link  to={`/vaccines/influvac-tetra`}
+                    className="tw-inline-flex tw-items-center tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#ff6600] hover:tw-text-white" >
+                    Xem chi tiết
+                  </Link>
+                  <button  onClick={() => navigate("/bookingform")}
+                    className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
+                              tw-font-medium tw-py-2 tw-px-8 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white">
+                    Đặt hẹn
+                  </button>
+                </div>
+
               </div>
               {/* Card 2 */}
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-shadow-md tw-flex tw-flex-col tw-justify-between tw-text-center">
@@ -277,9 +288,17 @@ export default function Home() {
                 <h4 className="tw-font-bold tw-text-[16px]">Vắc xin Vaxigrip Tetra</h4>
                 <p>Phòng Cúm</p>
                 <p className="tw-font-bold tw-text-[#ff6600]">333.000đ / Liều</p>
-                <button className="tw-bg-[#abe0ff] tw-text-[#3267fa] tw-font-medium tw-py-[8px] tw-px-[60px] tw-rounded-full hover:tw-bg-[#3267fa] hover:tw-text-white">
-                  Đặt hẹn
-                </button>
+                <div className="tw-flex tw-gap-2 tw-justify-center">
+                  <Link  to={`/vaccines/influvac-tetra`}
+                    className="tw-inline-flex tw-items-center tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#ff6600] hover:tw-text-white" >
+                    Xem chi tiết
+                  </Link>
+                  <button  onClick={() => navigate("/bookingform")}
+                    className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
+                              tw-font-medium tw-py-2 tw-px-8 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white">
+                    Đặt hẹn
+                  </button>
+                </div>
               </div>
               {/* Card 3 */}
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-shadow-md tw-flex tw-flex-col tw-justify-between tw-text-center">
@@ -288,9 +307,17 @@ export default function Home() {
                 <h4 className="tw-font-bold tw-text-[16px]">Vắc xin Ivacflu-s 0.5ml</h4>
                 <p>Phòng Cúm</p>
                 <p className="tw-font-bold tw-text-[#ff6600]">260.000đ / Liều</p>
-                <button className="tw-bg-[#abe0ff] tw-text-[#3267fa] tw-font-medium tw-py-[8px] tw-px-[60px] tw-rounded-full hover:tw-bg-[#3267fa] hover:tw-text-white">
-                  Đặt hẹn
-                </button>
+                <div className="tw-flex tw-gap-2 tw-justify-center">
+                  <Link  to={`/vaccines/influvac-tetra`}
+                    className="tw-inline-flex tw-items-center tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#ff6600] hover:tw-text-white" >
+                    Xem chi tiết
+                  </Link>
+                  <button  onClick={() => navigate("/bookingform")}
+                    className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
+                              tw-font-medium tw-py-2 tw-px-8 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white">
+                    Đặt hẹn
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -311,7 +338,7 @@ export default function Home() {
                 Tiêm vắc xin đúng lịch là biện pháp phòng ngừa hiệu quả các bệnh liên quan đến HPV, đặc biệt là ung thư cổ tử cung.
               </p>
             </div>
-            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto">
+            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden">
               {/* Card 1 */}
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-shadow-md tw-flex tw-flex-col tw-justify-between tw-text-center">
                 <span>🇺🇸 Mỹ</span>
@@ -319,9 +346,17 @@ export default function Home() {
                 <h4 className="tw-font-bold tw-text-[16px]">Vắc xin Gardasil 9</h4>
                 <p>Phòng HPV</p>
                 <p className="tw-font-bold tw-text-[#ff6600]">1.600.000đ / Liều</p>
-                <button className="tw-bg-[#abe0ff] tw-text-[#3267fa] tw-py-[8px] tw-px-[60px] tw-rounded-full hover:tw-bg-[#3267fa] hover:tw-text-white">
-                  Đặt hẹn
-                </button>
+                <div className="tw-flex tw-gap-2 tw-justify-center">
+                  <Link  to={`/vaccines/influvac-tetra`}
+                    className="tw-inline-flex tw-items-center tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#ff6600] hover:tw-text-white" >
+                    Xem chi tiết
+                  </Link>
+                  <button  onClick={() => navigate("/bookingform")}
+                    className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
+                              tw-font-medium tw-py-2 tw-px-8 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white">
+                    Đặt hẹn
+                  </button>
+                </div>
               </div>
               {/* Card 2 */}
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-shadow-md tw-flex tw-flex-col tw-justify-between tw-text-center">
@@ -330,9 +365,17 @@ export default function Home() {
                 <h4 className="tw-font-bold tw-text-[16px]">Vắc xin Cervarix</h4>
                 <p>Phòng HPV</p>
                 <p className="tw-font-bold tw-text-[#ff6600]">950.000đ / Liều</p>
-                <button className="tw-bg-[#abe0ff] tw-text-[#3267fa] tw-py-[8px] tw-px-[60px] tw-rounded-full hover:tw-bg-[#3267fa] hover:tw-text-white">
-                  Đặt hẹn
-                </button>
+                <div className="tw-flex tw-gap-2 tw-justify-center">
+                  <Link  to={`/vaccines/influvac-tetra`}
+                    className="tw-inline-flex tw-items-center tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#ff6600] hover:tw-text-white" >
+                    Xem chi tiết
+                  </Link>
+                  <button  onClick={() => navigate("/bookingform")}
+                    className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
+                              tw-font-medium tw-py-2 tw-px-8 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white">
+                    Đặt hẹn
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -352,16 +395,24 @@ export default function Home() {
                 Tiêm phòng vắc xin là biện pháp hiệu quả giúp bảo vệ sức khỏe cho bạn và cộng đồng.
               </p>
             </div>
-            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto">
+            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden">
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-text-center tw-shadow-md tw-flex tw-flex-col tw-justify-between">
                 <span>🇫🇷 Pháp</span>
                 <img src="images/sot1.jpg" alt="" className="tw-w-full tw-max-h-[120px] tw-object-contain" />
                 <h4 className="tw-font-bold tw-text-[16px]">Vắc xin Dengvaxia</h4>
                 <p>Phòng Sốt Xuất Huyết</p>
                 <p className="tw-font-bold tw-text-[#ff6600]">1.200.000đ / Liều</p>
-                <button className="tw-bg-[#abe0ff] tw-text-[#3267fa] tw-py-[8px] tw-px-[60px] tw-rounded-full hover:tw-bg-[#3267fa] hover:tw-text-white">
-                  Đặt hẹn
-                </button>
+                <div className="tw-flex tw-gap-2 tw-justify-center">
+                  <Link  to={`/vaccines/influvac-tetra`}
+                    className="tw-inline-flex tw-items-center tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#ff6600] hover:tw-text-white" >
+                    Xem chi tiết
+                  </Link>
+                  <button  onClick={() => navigate("/bookingform")}
+                    className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
+                              tw-font-medium tw-py-2 tw-px-8 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white">
+                    Đặt hẹn
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -380,16 +431,24 @@ export default function Home() {
                 loại vắc xin tái tổ hợp dành cho trẻ từ 2 tháng tuổi đến người lớn tròn 50 tuổi.
               </p>
             </div>
-            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto">
+            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden">
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-shadow-md tw-flex tw-flex-col tw-justify-between tw-text-center">
                 <span>🇬🇧 Anh</span>
                 <img src="images/caub1.jpg" alt="" className="tw-w-full tw-max-h-[120px] tw-object-contain" />
                 <h4 className="tw-font-bold tw-text-[16px]">Vắc xin Bexsero</h4>
                 <p>Phòng Mô Cầu B</p>
                 <p className="tw-font-bold tw-text-[#ff6600]">2.100.000đ / Liều</p>
-                <button className="tw-bg-[#abe0ff] tw-text-[#3267fa] tw-py-[8px] tw-px-[60px] tw-rounded-full hover:tw-bg-[#3267fa] hover:tw-text-white">
-                  Đặt hẹn
-                </button>
+                <div className="tw-flex tw-gap-2 tw-justify-center">
+                  <Link  to={`/vaccines/influvac-tetra`}
+                    className="tw-inline-flex tw-items-center tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#ff6600] hover:tw-text-white" >
+                    Xem chi tiết
+                  </Link>
+                  <button  onClick={() => navigate("/bookingform")}
+                    className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
+                              tw-font-medium tw-py-2 tw-px-8 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white">
+                    Đặt hẹn
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -408,7 +467,7 @@ export default function Home() {
                       là cách để bảo vệ bản thân và gia đình, giúp ngăn ngừa nguy cơ mắc bệnh và biến chứng nghiêm trọng.
               </p>
             </div>
-            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto">
+            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden">
               {/* card1 */}
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-shadow-md tw-flex tw-flex-col tw-justify-between tw-text-center">
                 <span>🇫🇷 Pháp</span>
@@ -416,9 +475,17 @@ export default function Home() {
                 <h4 className="tw-font-bold tw-text-[16px]">Vắc xin Menactra</h4>
                 <p>Phòng Mô Cầu ACYW</p>
                 <p className="tw-font-bold tw-text-[#ff6600]">1.360.000đ / Liều</p>
-                <button className="tw-bg-[#abe0ff] tw-text-[#3267fa] tw-py-[8px] tw-px-[60px] tw-rounded-full hover:tw-bg-[#3267fa] hover:tw-text-white">
-                  Đặt hẹn
-                </button>
+                <div className="tw-flex tw-gap-2 tw-justify-center">
+                  <Link  to={`/vaccines/influvac-tetra`}
+                    className="tw-inline-flex tw-items-center tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#ff6600] hover:tw-text-white" >
+                    Xem chi tiết
+                  </Link>
+                  <button  onClick={() => navigate("/bookingform")}
+                    className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
+                              tw-font-medium tw-py-2 tw-px-8 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white">
+                    Đặt hẹn
+                  </button>
+                </div>
               </div>
               {/* card2 */}
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-shadow-md tw-flex tw-flex-col tw-justify-between tw-text-center">
@@ -427,9 +494,17 @@ export default function Home() {
                 <h4 className="tw-font-bold tw-text-[16px]">Vắc xin MenQuadfi</h4>
                 <p>Phòng Mô Cầu ACYW</p>
                 <p className="tw-font-bold tw-text-[#ff6600]">1.900.000đ / Liều</p>
-                <button className="tw-bg-[#abe0ff] tw-text-[#3267fa] tw-py-[8px] tw-px-[60px] tw-rounded-full hover:tw-bg-[#3267fa] hover:tw-text-white">
-                  Đặt hẹn
-                </button>
+                <div className="tw-flex tw-gap-2 tw-justify-center">
+                  <Link  to={`/vaccines/influvac-tetra`}
+                    className="tw-inline-flex tw-items-center tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#ff6600] hover:tw-text-white" >
+                    Xem chi tiết
+                  </Link>
+                  <button  onClick={() => navigate("/bookingform")}
+                    className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
+                              tw-font-medium tw-py-2 tw-px-8 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white">
+                    Đặt hẹn
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -455,9 +530,17 @@ export default function Home() {
                 <h4 className="tw-font-bold tw-text-[16px]">Vắc xin Imojev</h4>
                 <p>Phòng Viêm Não Nhật Bản</p>
                 <p className="tw-font-bold tw-text-[#ff6600]">1.700.000đ / Liều</p>
-                <button className="tw-bg-[#abe0ff] tw-text-[#3267fa] tw-py-[8px] tw-px-[60px] tw-rounded-full hover:tw-bg-[#3267fa] hover:tw-text-white">
-                  Đặt hẹn
-                </button>
+                <div className="tw-flex tw-gap-2 tw-justify-center">
+                  <Link  to={`/vaccines/influvac-tetra`}
+                    className="tw-inline-flex tw-items-center tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#ff6600] hover:tw-text-white" >
+                    Xem chi tiết
+                  </Link>
+                  <button  onClick={() => navigate("/bookingform")}
+                    className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
+                              tw-font-medium tw-py-2 tw-px-8 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white">
+                    Đặt hẹn
+                  </button>
+                </div>
               </div>
               {/* card2 */}
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-shadow-md tw-flex tw-flex-col tw-justify-between tw-text-center">
@@ -466,9 +549,17 @@ export default function Home() {
                 <h4 className="tw-font-bold tw-text-[16px]">Vắc xin JEVAX</h4>
                 <p>Phòng Viêm Não Nhật Bản</p>
                 <p className="tw-font-bold tw-text-[#ff6600]">850.000đ / Liều</p>
-                <button className="tw-bg-[#abe0ff] tw-text-[#3267fa] tw-py-[8px] tw-px-[60px] tw-rounded-full hover:tw-bg-[#3267fa] hover:tw-text-white">
-                  Đặt hẹn
-                </button>
+                <div className="tw-flex tw-gap-2 tw-justify-center">
+                  <Link  to={`/vaccines/influvac-tetra`}
+                    className="tw-inline-flex tw-items-center tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#ff6600] hover:tw-text-white" >
+                    Xem chi tiết
+                  </Link>
+                  <button  onClick={() => navigate("/bookingform")}
+                    className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
+                              tw-font-medium tw-py-2 tw-px-8 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white">
+                    Đặt hẹn
+                  </button>
+                </div>
               </div>
               {/* card3*/}
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-shadow-md tw-flex tw-flex-col tw-justify-between tw-text-center">
@@ -477,9 +568,17 @@ export default function Home() {
                 <h4 className="tw-font-bold tw-text-[16px]">Vắc xin Jeev 6mcg/0.5ml</h4>
                 <p>Phòng Viêm Não Nhật Bản</p>
                 <p className="tw-font-bold tw-text-[#ff6600]">520.000đ / Liều</p>
-                <button className="tw-bg-[#abe0ff] tw-text-[#3267fa] tw-py-[8px] tw-px-[60px] tw-rounded-full hover:tw-bg-[#3267fa] hover:tw-text-white">
-                  Đặt hẹn
-                </button>
+                <div className="tw-flex tw-gap-2 tw-justify-center">
+                  <Link  to={`/vaccines/influvac-tetra`}
+                    className="tw-inline-flex tw-items-center tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#ff6600] hover:tw-text-white" >
+                    Xem chi tiết
+                  </Link>
+                  <button  onClick={() => navigate("/bookingform")}
+                    className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
+                              tw-font-medium tw-py-2 tw-px-8 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white">
+                    Đặt hẹn
+                  </button>
+                </div>
               </div>
               {/* card4 */}
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-shadow-md tw-flex tw-flex-col tw-justify-between tw-text-center">
@@ -488,9 +587,17 @@ export default function Home() {
                 <h4 className="tw-font-bold tw-text-[16px]">Vắc xin JEVAX</h4>
                 <p>Phòng Viêm Não Nhật Bản</p>
                 <p className="tw-font-bold tw-text-[#ff6600]">350.000đ / Liều</p>
-                <button className="tw-bg-[#abe0ff] tw-text-[#3267fa] tw-py-[8px] tw-px-[60px] tw-rounded-full hover:tw-bg-[#3267fa] hover:tw-text-white">
-                  Đặt hẹn
-                </button>
+                <div className="tw-flex tw-gap-2 tw-justify-center">
+                  <Link  to={`/vaccines/influvac-tetra`}
+                    className="tw-inline-flex tw-items-center tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#ff6600] hover:tw-text-white" >
+                    Xem chi tiết
+                  </Link>
+                  <button  onClick={() => navigate("/bookingform")}
+                    className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
+                              tw-font-medium tw-py-2 tw-px-8 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white">
+                    Đặt hẹn
+                  </button>
+                </div>
               </div>
             </div>
           </div>

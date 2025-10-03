@@ -83,12 +83,7 @@ export default function NavBar({ user, setUser }) {
                       Sổ tiêm chủng
                       </Link>
                   </li>
-                  <li>
-                      <Link to="/appointments"
-                      className="tw-text-[#333] tw-text-[14px] tw-font-semibold hover:tw-text-[#1999ee] tw-transition-colors" >
-                      Lịch tiêm
-                      </Link>
-                  </li>
+                  
                   <li>
                       <Link to="/vaccines"
                       className="tw-text-[#333] tw-text-[14px] tw-font-semibold hover:tw-text-[#1999ee] tw-transition-colors"  >
@@ -100,6 +95,12 @@ export default function NavBar({ user, setUser }) {
                       className="tw-text-[#333] tw-text-[14px] tw-font-semibold hover:tw-text-[#1999ee] tw-transition-colors" >
                       Kiến thức tiêm chủng
                       </Link>
+                  </li>
+                   <li>
+                    <Link to="/notifications"
+                      className="tw-flex tw-items-center tw-gap-2 tw-text-[#f60] tw-text-[18px] tw-font-semibold hover:tw-text-[#eeb519] tw-transition-colors">
+                      <i className="fa fa-bell "></i>                   
+                    </Link>
                   </li>
                   <li className="tw-relative">
                     {user ? (

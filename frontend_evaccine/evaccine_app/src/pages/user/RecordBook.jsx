@@ -1,7 +1,8 @@
 // Sổ tiêm chủng  
 import { useState } from "react";
-import UpdateDose from "./UpdateDose";
-import AddUserForm from "./AddUserForm";
+import UpdateDose from "./modal/RecordBook/UpdateDose";
+import AddUserForm from "./modal/AddUserForm";
+
 
 export default function RecordBook() {
     // người dùng
@@ -11,6 +12,7 @@ export default function RecordBook() {
   ]);
   const [activeUser, setActiveUser] = useState(1);
   const [showAddForm, setShowAddForm] = useState(false);
+  
 
   const handleSaveUser = (newUser) => {
     const newId = users.length + 1;
@@ -53,26 +55,35 @@ export default function RecordBook() {
     // update  mũi 
     const [showUpdate, setShowUpdate] = useState(false);
     const [selectedDisease, setSelectedDisease] = useState(null);
+    const [showDiseaseModal, setShowDiseaseModal] = useState(false);
 
     // bảng tiêm
     const [vaccinationData, setVaccinationData] = useState({}); 
 
     const handleSaveDose = (diseaseId, doses) => {
-    const updated = {};
-    doses.forEach((dose, i) => {
-        updated[i] = !!dose.date || !!dose.vaccine || !!dose.location;
-    });
+        const updated = {};
+        doses.forEach((dose, i) => {
+            if (dose.date || dose.vaccine || dose.location) {
+            updated[i] = {
+                date: dose.date,
+                vaccine: dose.vaccine,
+                location: dose.location,
+            };
+            }
+        });
 
-    setVaccinationData(prev => ({
-        ...prev,
-        [activeUser]: {
-        ...prev[activeUser],
-        [diseaseId]: updated,
-        }
-    }));
+        setVaccinationData((prev) => ({
+            ...prev,
+            [activeUser]: {
+            ...prev[activeUser],
+            [diseaseId]: updated,
+            },
+        }));
 
-    setShowUpdate(false);
+        setShowUpdate(false);
     };
+
+   
 
   return (
     <section className="tw-bg-gray-100 tw-py-10 tw-mt-[100px]">
@@ -197,25 +208,40 @@ export default function RecordBook() {
                         key={disease.id}
                         className="tw-grid tw-grid-cols-6 tw-gap-4 tw-text-center tw-items-center tw-border-b tw-border-gray-200 tw-py-3">
                         {/* Tên phòng bệnh */}
-                        <div className="tw-text-left tw-text-xl tw-font-medium tw-text-gray-700 tw-pr-2 tw-break-words">
-                             {disease.name}
+                        <div className="tw-text-left tw-text-xl tw-font-medium tw-text-gray-700 tw-pr-2 tw-break-words tw-cursor-pointer hover:tw-text-blue-600"
+                            onClick={() => {
+                                setSelectedDisease(disease);
+                                setShowDiseaseModal(true);
+                            }}>
+                                {disease.name}
                         </div>
 
                         {/* Render số mũi thực tế */}
                         
                         {[...Array(disease.doseCount)].map((_, i) => {
-                        const isVaccinated = vaccinationData[activeUser]?.[disease.id]?.[i];
+                            const doseInfo = vaccinationData[activeUser]?.[disease.id]?.[i];
+                            const isVaccinated = !!doseInfo;
                             return (
-                                <div key={i}   onClick={() => {
+                                <div  key={i} onClick={() => {
                                     setSelectedDisease(disease);
                                     setShowUpdate(true);
                                 }}
-                                className={`tw-rounded-xl tw-flex tw-items-center tw-justify-center tw-h-[90px] tw-cursor-pointer
+                                className={`tw-rounded-xl tw-flex tw-flex-col tw-items-center tw-justify-center tw-h-[90px] tw-cursor-pointer
                                     ${isVaccinated ? "tw-bg-green-100 tw-text-green-600" : "tw-bg-orange-100 tw-text-orange-600"}`} >
-                                {isVaccinated ? "Đã tiêm"  : isEditing  ? (
+                                {isVaccinated ? (
+                                    <div className="tw-flex tw-flex-col tw-items-start">
+                                        <span className="tw-font-semibold tw-text-xl">Đã tiêm</span>
+                                        <span className="tw-text-lg tw-text-gray-500">
+                                            {new Date(doseInfo.date).toLocaleDateString("vi-VN")}
+                                        </span>
+                                    </div>
+                                ) : isEditing ? (
                                     <div className="tw-w-10 tw-h-10 tw-flex tw-items-center tw-justify-center tw-rounded-full tw-border-2 tw-bg-orange-500 tw-border-orange-500">
                                         <i className="fa-solid fa-plus tw-text-lg tw-text-white"></i>
-                                    </div> ) : "Chưa tiêm"}
+                                    </div>
+                                ) : (
+                                    "Chưa tiêm"
+                                )}
                                 </div>
                             );
                         })}
@@ -237,7 +263,34 @@ export default function RecordBook() {
                         onSave={handleSaveDose}/>
                 )}
 
+                {showDiseaseModal && selectedDisease && (
+                    <div className="tw-fixed tw-inset-0 tw-flex tw-items-center tw-justify-center tw-bg-black/40 tw-z-50">
+                        <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-w-[400px] tw-p-6 tw-relative">
+                        <button onClick={() => setShowDiseaseModal(false)}
+                            className="tw-absolute tw-top-3 tw-right-3 tw-text-gray-500 hover:tw-text-red-500" >
+                            <i className="fa-solid fa-xmark tw-text-xl"></i>
+                        </button>
+
+                        <h2 className="tw-text-2xl tw-font-bold tw-mb-3">
+                            {selectedDisease.name}
+                        </h2>
+
+                        <p className="tw-text-gray-600 tw-mb-6">
+                            {selectedDisease.description || "Chưa có mô tả chi tiết."}
+                        </p>
+
+                        <button
+                            onClick={() => alert("Mở danh mục vắc xin cho " + selectedDisease.name)}
+                            className="tw-bg-blue-500 hover:tw-bg-blue-600 tw-text-white tw-font-medium tw-px-4 tw-py-2 tw-rounded-lg">
+                            Danh mục vắc xin
+                        </button>
+                        </div>
+                    </div>
+                    )}
+
+
             </div>
+
             </div>
         </div>
     </section>
