@@ -25,7 +25,7 @@ export default function VaccineKnowledge() {
 
                         <button  type="button" className="tw-text-blue-500 tw-text-lg hover:tw-underline  tw-flex tw-items-center" >
                             Xem tất cả
-                            <i class="fa-solid fa-angles-right tw-pl-3"></i>
+                            <i className="fa-solid fa-angles-right tw-pl-3"></i>
                         </button>
                     </div>
 
@@ -177,7 +177,7 @@ export default function VaccineKnowledge() {
 
                             <button  type="button" className="tw-text-blue-500 tw-text-lg hover:tw-underline  tw-flex tw-items-center" >
                                 Xem tất cả
-                                <i class="fa-solid fa-angles-right tw-pl-3"></i>
+                                <i className="fa-solid fa-angles-right tw-pl-3"></i>
                             </button>
                         </div>
                         <div className="tw-grid tw-grid-cols-4 tw-gap-6">
@@ -209,7 +209,7 @@ export default function VaccineKnowledge() {
 
                             <button  type="button" className="tw-text-blue-500 tw-text-lg hover:tw-underline  tw-flex tw-items-center" >
                                 Xem tất cả
-                                <i class="fa-solid fa-angles-right tw-pl-3"></i>
+                                <i className="fa-solid fa-angles-right tw-pl-3"></i>
                             </button>
                         </div>
                         <div className="tw-grid tw-grid-cols-4 tw-gap-6">
@@ -240,7 +240,7 @@ export default function VaccineKnowledge() {
 
                         <button  type="button" className="tw-text-blue-500 tw-text-lg hover:tw-underline  tw-flex tw-items-center" >
                             Xem tất cả
-                            <i class="fa-solid fa-angles-right tw-pl-3"></i>
+                            <i className="fa-solid fa-angles-right tw-pl-3"></i>
                         </button>
                     </div>
                     <div className="tw-grid tw-grid-cols-4 tw-gap-6">

@@ -522,7 +522,7 @@ export default function Home() {
                       thậm chí tử vong. Tiêm vắc xin là biện pháp phòng ngừa hiệu quả nhất đối với bệnh Viêm não Nhật Bản.
               </p>
             </div>
-            <div className="tw-flex-2 tw-flex tw-w-[60%] tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto ">
+            <div className="tw-flex-2 tw-flex tw-w-[60%] tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden">
               {/* card1 */}
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-shadow-md tw-flex tw-flex-col tw-justify-between tw-text-center">
                 <span>🇯🇵 Nhật Bản</span>
@@ -721,78 +721,78 @@ export default function Home() {
       </section>
 
       {/* Danh sách bác sỹ */}
-      <section class="tw-bg-gradient-to-r tw-from-blue-50 tw-via-blue-50 tw-to-blue-50 tw-py-16">
-        <div class="tw-max-w-[1200px] tw-mx-auto tw-px-6">
-          <div class="tw-text-center tw-mb-12">
-            <h2 class="tw-text-3xl tw-font-bold tw-text-[38px] tw-text-gray-800 tw-py-[5px]">
-              Đội ngũ <span class="tw-text-green-600 tw-italic">bác sĩ chuyên khoa</span>
+      <section className="tw-bg-gradient-to-r tw-from-blue-50 tw-via-blue-50 tw-to-blue-50 tw-py-16">
+        <div className="tw-max-w-[1200px] tw-mx-auto tw-px-6">
+          <div className="tw-text-center tw-mb-12">
+            <h2 className="tw-text-3xl tw-font-bold tw-text-[38px] tw-text-gray-800 tw-py-[5px]">
+              Đội ngũ <span className="tw-text-green-600 tw-italic">bác sĩ chuyên khoa</span>
             </h2>
-            <p class="tw-text-gray-600 tw-mt-3 tw-text-[18px] tw-font-semibold tw-py-[5px]">
+            <p className="tw-text-gray-600 tw-mt-3 tw-text-[18px] tw-font-semibold tw-py-[5px]">
               Những bác sĩ hàng đầu trong lĩnh vực tiêm chủng và y tế dự phòng
             </p>
           </div>
 
-          <div class="tw-grid tw-gap-8 tw-grid-cols-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="tw-grid tw-gap-8 tw-grid-cols-4 sm:grid-cols-2 lg:grid-cols-4">
             
-            <div class="doctor-card tw-relative tw-bg-white tw-rounded-2xl tw-shadow-md tw-overflow-hidden tw-transition hover:tw-shadow-2xl">
-              <div class="tw-h-72 tw-bg-white tw-flex tw-items-center tw-justify-center">
-                <img src="/images/bs2.jpg" alt="Bác sĩ" class="tw-h-full tw-w-full tw-object-cover" />
+            <div className="doctor-card tw-relative tw-bg-white tw-rounded-2xl tw-shadow-md tw-overflow-hidden tw-transition hover:tw-shadow-2xl">
+              <div className="tw-h-72 tw-bg-white tw-flex tw-items-center tw-justify-center">
+                <img src="/images/bs2.jpg" alt="Bác sĩ" className="tw-h-full tw-w-full tw-object-cover" />
               </div>
-              <div class="tw-p-6">
-                <h3 class="tw-text-2xl tw-font-semibold tw-text-gray-800">BS. Nguyễn Văn An</h3>
-                <p class="tw-text-blue-600 tw-mb-2">Chuyên khoa Nhi - Tiêm chủng</p>
-                <p class="tw-text-gray-600 tw-mb-4 tw-line-clamp-2">
+              <div className="tw-p-6">
+                <h3 className="tw-text-2xl tw-font-semibold tw-text-gray-800">BS. Nguyễn Văn An</h3>
+                <p className="tw-text-blue-600 tw-mb-2">Chuyên khoa Nhi - Tiêm chủng</p>
+                <p className="tw-text-gray-600 tw-mb-4 tw-line-clamp-2">
                   Hơn 15 năm kinh nghiệm trong lĩnh vực tiêm chủng và tư vấn phòng bệnh cho trẻ em.
                 </p>
-                <button class="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-xl hover:tw-bg-blue-700 tw-transition">
+                <button className="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-xl hover:tw-bg-blue-700 tw-transition">
                   Liên hệ
                 </button>
               </div>
             </div>
 
-            <div class="doctor-card tw-relative tw-bg-white tw-rounded-2xl tw-shadow-md tw-overflow-hidden tw-transition hover:tw-shadow-2xl">
-              <div class="tw-h-72 tw-bg-white tw-flex tw-items-center tw-justify-center">
-                <img src="/images/bs1.jpg" alt="Bác sĩ" class="tw-h-full tw-w-full tw-object-cover" />
+            <div className="doctor-card tw-relative tw-bg-white tw-rounded-2xl tw-shadow-md tw-overflow-hidden tw-transition hover:tw-shadow-2xl">
+              <div className="tw-h-72 tw-bg-white tw-flex tw-items-center tw-justify-center">
+                <img src="/images/bs1.jpg" alt="Bác sĩ" className="tw-h-full tw-w-full tw-object-cover" />
               </div>
-              <div class="tw-p-6">
-                <h3 class="tw-text-2xl tw-font-semibold tw-text-gray-800">BS. Trần Thị Bình</h3>
-                <p class="tw-text-blue-600 tw-mb-2">Chuyên khoa Dịch tễ</p>
-                <p class="tw-text-gray-600 tw-mb-4 tw-line-clamp-2">
+              <div className="tw-p-6">
+                <h3 className="tw-text-2xl tw-font-semibold tw-text-gray-800">BS. Trần Thị Bình</h3>
+                <p className="tw-text-blue-600 tw-mb-2">Chuyên khoa Dịch tễ</p>
+                <p className="tw-text-gray-600 tw-mb-4 tw-line-clamp-2">
                   Tư vấn và quản lý lịch tiêm chủng điện tử, nghiên cứu dịch tễ học cộng đồng.
                 </p>
-                <button class="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-xl hover:tw-bg-blue-700 tw-transition">
+                <button className="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-xl hover:tw-bg-blue-700 tw-transition">
                   Liên hệ
                 </button>
               </div>
             </div>
 
-            <div class="doctor-card tw-relative tw-bg-white tw-rounded-2xl tw-shadow-md tw-overflow-hidden tw-transition hover:tw-shadow-2xl">
-              <div class="tw-h-72 tw-bg-white tw-flex tw-items-center tw-justify-center">
-                <img src="/images/bs5.jpg" alt="Bác sĩ" class="tw-h-full tw-w-full tw-object-contain" />
+            <div className="doctor-card tw-relative tw-bg-white tw-rounded-2xl tw-shadow-md tw-overflow-hidden tw-transition hover:tw-shadow-2xl">
+              <div className="tw-h-72 tw-bg-white tw-flex tw-items-center tw-justify-center">
+                <img src="/images/bs5.jpg" alt="Bác sĩ" className="tw-h-full tw-w-full tw-object-contain" />
               </div>
-              <div class="tw-p-6">
-                <h3 class="tw-text-2xl tw-font-semibold tw-text-gray-800">BS. Lê Minh Tuấn</h3>
-                <p class="tw-text-blue-600 tw-mb-2">Chuyên khoa Miễn dịch</p>
-                <p class="tw-text-gray-600 tw-mb-4 tw-line-clamp-2">
+              <div className="tw-p-6">
+                <h3 className="tw-text-2xl tw-font-semibold tw-text-gray-800">BS. Lê Minh Tuấn</h3>
+                <p className="tw-text-blue-600 tw-mb-2">Chuyên khoa Miễn dịch</p>
+                <p className="tw-text-gray-600 tw-mb-4 tw-line-clamp-2">
                   Nghiên cứu và tư vấn các loại vắc-xin, hướng dẫn an toàn tiêm chủng cho mọi đối tượng.
                 </p>
-                <button class="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-xl hover:tw-bg-blue-700 tw-transition">
+                <button className="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-xl hover:tw-bg-blue-700 tw-transition">
                   Liên hệ
                 </button>
               </div>
             </div>
 
-            <div class="doctor-card tw-relative tw-bg-white tw-rounded-2xl tw-shadow-md tw-overflow-hidden tw-transition hover:tw-shadow-2xl">
-              <div class="tw-h-72 tw-bg-white tw-flex tw-items-center tw-justify-center">
-                <img src="/images/bs3.jpg" alt="Bác sĩ" class="tw-h-full tw-w-full tw-object-contain" />
+            <div className="doctor-card tw-relative tw-bg-white tw-rounded-2xl tw-shadow-md tw-overflow-hidden tw-transition hover:tw-shadow-2xl">
+              <div className="tw-h-72 tw-bg-white tw-flex tw-items-center tw-justify-center">
+                <img src="/images/bs3.jpg" alt="Bác sĩ" className="tw-h-full tw-w-full tw-object-contain" />
               </div>
-              <div class="tw-p-6">
-                <h3 class="tw-text-2xl tw-font-semibold tw-text-gray-800">BS. Phạm Thị Hòa</h3>
-                <p class="tw-text-blue-600 tw-mb-2">Chuyên khoa Nội tổng quát</p>
-                <p class="tw-text-gray-600 tw-mb-4 tw-line-clamp-2">
+              <div className="tw-p-6">
+                <h3 className="tw-text-2xl tw-font-semibold tw-text-gray-800">BS. Phạm Thị Hòa</h3>
+                <p className="tw-text-blue-600 tw-mb-2">Chuyên khoa Nội tổng quát</p>
+                <p className="tw-text-gray-600 tw-mb-4 tw-line-clamp-2">
                   Hỗ trợ chẩn đoán và tư vấn sức khỏe định kỳ, đảm bảo an toàn trong tiêm chủng.
                 </p>
-                <button class="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-xl hover:tw-bg-blue-700 tw-transition">
+                <button className="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-xl hover:tw-bg-blue-700 tw-transition">
                   Liên hệ
                 </button>
               </div>

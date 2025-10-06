@@ -1,10 +1,11 @@
-import { Link } from "react-router-dom";
+import { Link  } from "react-router-dom";
 import { useEffect, useState } from "react";
+// import api from "../services/axios";
 
 export default function StaffNavBar({ user, setUser }) {
   const [loading, setLoading] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
-
+  // const navigate = useNavigate(); 
   // Tự động đóng khi click ra ngoài
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -20,6 +21,7 @@ export default function StaffNavBar({ user, setUser }) {
     localStorage.removeItem("user");
     setUser(null);
   };
+   
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1500);

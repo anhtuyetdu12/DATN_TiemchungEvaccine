@@ -31,7 +31,7 @@ export default function StaffSendNotification() {
       <div className="tw-w-full md:tw-w-3/4 lg:tw-w-2/3 xl:tw-w-1/2">
         {/* Header */}
         <div className="tw-flex tw-items-center tw-space-x-3 tw-mb-16 tw-justify-center">
-          <i class="fa-regular fa-bell  tw-text-6xl tw-mr-3 tw-bg-gradient-to-r tw-from-[#8323e2] tw-to-pink-500 
+          <i className="fa-regular fa-bell  tw-text-6xl tw-mr-3 tw-bg-gradient-to-r tw-from-[#8323e2] tw-to-pink-500 
                       tw-bg-clip-text tw-text-transparent"></i>
           <h1 className="tw-text-[30px] tw-font-bold tw-bg-gradient-to-r tw-from-[#8323e2] tw-to-pink-500
                           tw-bg-clip-text tw-text-transparent tw-pb-2">

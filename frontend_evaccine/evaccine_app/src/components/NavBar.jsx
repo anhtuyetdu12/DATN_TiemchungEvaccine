@@ -1,7 +1,9 @@
-import { Link } from "react-router-dom";
+import { Link  } from "react-router-dom";
 import { useEffect, useState } from "react";
-export default function NavBar({ user, setUser }) {
+// import api from "../services/axios";
 
+export default function NavBar({ user, setUser }) {
+    // const navigate = useNavigate(); 
     const [loading, setLoading] = useState(true);
     const [showDropdown, setShowDropdown] = useState(false);
 
@@ -18,11 +20,14 @@ export default function NavBar({ user, setUser }) {
 
 
 
+    // const handleLogout = () => {
+    //     localStorage.removeItem("user"); // xóa dữ liệu user
+    //     setUser(null);
+    // };
     const handleLogout = () => {
         localStorage.removeItem("user"); // xóa dữ liệu user
         setUser(null);
     };
-
     useEffect(() => {
         // giả lập load xong sau 1.5 giây
         const timer = setTimeout(() => setLoading(false), 1500);

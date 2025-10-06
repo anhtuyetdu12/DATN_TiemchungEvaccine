@@ -1,7 +1,8 @@
 // Sổ tiêm chủng  
 import { useState } from "react";
 import UpdateDose from "./modal/RecordBook/UpdateDose";
-import AddUserForm from "./modal/AddUserForm";
+import AddUserForm from "./modal/RecordBook/AddUserForm";
+import DiseaseModal from "./modal/RecordBook/DiseaseModal";
 
 
 export default function RecordBook() {
@@ -182,7 +183,7 @@ export default function RecordBook() {
                         </p>
                     </div>
                     <button className="tw-text-blue-600 tw-font-semibold tw-text-lg">
-                        Nhập  <i class="fa-solid fa-angle-right tw-ml-2"></i>
+                        Nhập  <i className="fa-solid fa-angle-right tw-ml-2"></i>
                     </button>
                 </div>
             </div>
@@ -263,30 +264,13 @@ export default function RecordBook() {
                         onSave={handleSaveDose}/>
                 )}
 
+                
                 {showDiseaseModal && selectedDisease && (
-                    <div className="tw-fixed tw-inset-0 tw-flex tw-items-center tw-justify-center tw-bg-black/40 tw-z-50">
-                        <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-w-[400px] tw-p-6 tw-relative">
-                        <button onClick={() => setShowDiseaseModal(false)}
-                            className="tw-absolute tw-top-3 tw-right-3 tw-text-gray-500 hover:tw-text-red-500" >
-                            <i className="fa-solid fa-xmark tw-text-xl"></i>
-                        </button>
-
-                        <h2 className="tw-text-2xl tw-font-bold tw-mb-3">
-                            {selectedDisease.name}
-                        </h2>
-
-                        <p className="tw-text-gray-600 tw-mb-6">
-                            {selectedDisease.description || "Chưa có mô tả chi tiết."}
-                        </p>
-
-                        <button
-                            onClick={() => alert("Mở danh mục vắc xin cho " + selectedDisease.name)}
-                            className="tw-bg-blue-500 hover:tw-bg-blue-600 tw-text-white tw-font-medium tw-px-4 tw-py-2 tw-rounded-lg">
-                            Danh mục vắc xin
-                        </button>
-                        </div>
-                    </div>
-                    )}
+                <DiseaseModal
+                    selectedDisease={selectedDisease}
+                    setShowDiseaseModal={setShowDiseaseModal}
+                />
+                )}
 
 
             </div>

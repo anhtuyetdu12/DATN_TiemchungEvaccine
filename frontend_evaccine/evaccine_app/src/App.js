@@ -19,6 +19,7 @@ import ProtectedRoute from "./layouts/ProtectedRoute";
 import ScrollToTop from "./layouts/ScrollToTop";
 import DetailsVaccine from "./pages/user/DetailsVaccine";
 import BookingForm from "./pages/user/modal/BookingForm";
+import NotificationsUser from "./pages/user/NotificationsUser"
 
 import StaffHome from "./pages/staff/StaffHome";
 import StaffAppointments from "./pages/staff/StaffAppointments";
@@ -48,60 +49,62 @@ function App() {
       return null;
     }
   });
+  
+
+    return (
+      <div className="App">
+        {/* Navbar luôn hiển thị */}
+        {user?.role === "staff" ? (
+          <StaffNavBar user={user} setUser={setUser} />
+        // ) : user?.role === "customer" ? (
+        //   <NavBar user={user} setUser={setUser} />
+        ) : (
+          <NavBar user={user} setUser={setUser} />
+        )}
+
+        <ScrollToTop />
+
+        {/* Các route */}
+        <Routes>
+          {/* Public routes */}
+          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<Login setUser={setUser} />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+
+          {/* User routes */}
+          <Route element={<UserLayout user={user} setUser={setUser} />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/vaccines/:slug" element={<DetailsVaccine />} />
+            <Route path="/bookingform" element={<BookingForm />} />
+            <Route path="/notifications" element={<NotificationsUser />} />
+            <Route path="/recordbook" element={<ProtectedRoute user={user}><RecordBook /></ProtectedRoute>} />
+            <Route path="/appointments" element={<ProtectedRoute user={user}><Appointments /></ProtectedRoute>} />
+            <Route path="/vaccines" element={<ProtectedRoute user={user}><VaccinesList /></ProtectedRoute>} />
+            <Route path="/knowledge" element={<ProtectedRoute user={user}><VaccineKnowledge /></ProtectedRoute>} />
+          </Route>
+
+          {/* Staff routes */}
+          <Route element={<StaffLayout user={user} setUser={setUser} />}>
+            <Route path="/staff/home" element={<ProtectedRouteStaff user={user}><StaffHome /></ProtectedRouteStaff>} />
+            <Route path="/staff/appointments" element={<ProtectedRouteStaff user={user}><StaffAppointments /></ProtectedRouteStaff>}/>
+            <Route path="/staff/customers" element={<ProtectedRouteStaff user={user}><StaffCustomers /></ProtectedRouteStaff>}/>
+            <Route path="/staff/notifications" element={<ProtectedRouteStaff user={user}><StaffNotifications /></ProtectedRouteStaff>} />
+            <Route path="/staff/reports" element={<ProtectedRouteStaff user={user}><StaffReports /></ProtectedRouteStaff>} />
+            <Route path="/staff/vaccines" element={<ProtectedRouteStaff user={user}><StaffVaccines /></ProtectedRouteStaff>} />
+          </Route>
+        </Routes>
 
 
-  return (
-    <div className="App">
-      {/* Navbar luôn hiển thị */}
-      {user?.role === "staff" ? (
-        <StaffNavBar user={user} setUser={setUser} />
-      ) : user?.role === "customer" ? (
-        <NavBar user={user} setUser={setUser} />
-      ) : (
-        <NavBar user={user} setUser={setUser} /> // fallback cho chưa login
-      )}
+        <Footer />
 
-      <ScrollToTop />
+        <ToastContainer  position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop={false}
+                      closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover/>
+      </div>
 
-      {/* Các route */}
-      <Routes>
-        {/* Public routes */}
-        <Route path="/register" element={<Register />} />
-        <Route path="/login" element={<Login setUser={setUser} />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+      
+    );
 
-        {/* User routes */}
-        <Route element={<UserLayout user={user} setUser={setUser} />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/vaccines/:slug" element={<DetailsVaccine />} />
-          <Route path="/bookingform" element={<BookingForm />} />
-          <Route path="/recordbook" element={<ProtectedRoute user={user}><RecordBook /></ProtectedRoute>} />
-          <Route path="/appointments" element={<ProtectedRoute user={user}><Appointments /></ProtectedRoute>} />
-          <Route path="/vaccines" element={<ProtectedRoute user={user}><VaccinesList /></ProtectedRoute>} />
-          <Route path="/knowledge" element={<ProtectedRoute user={user}><VaccineKnowledge /></ProtectedRoute>} />
-        </Route>
-
-        {/* Staff routes */}
-        <Route element={<StaffLayout user={user} setUser={setUser} />}>
-          <Route path="/staff/home" element={<ProtectedRouteStaff user={user}><StaffHome /></ProtectedRouteStaff>} />
-          <Route path="/staff/appointments" element={<ProtectedRouteStaff user={user}><StaffAppointments /></ProtectedRouteStaff>}/>
-          <Route path="/staff/customers" element={<ProtectedRouteStaff user={user}><StaffCustomers /></ProtectedRouteStaff>}/>
-          <Route path="/staff/notifications" element={<ProtectedRouteStaff user={user}><StaffNotifications /></ProtectedRouteStaff>} />
-          <Route path="/staff/reports" element={<ProtectedRouteStaff user={user}><StaffReports /></ProtectedRouteStaff>} />
-          <Route path="/staff/vaccines" element={<ProtectedRouteStaff user={user}><StaffVaccines /></ProtectedRouteStaff>} />
-        </Route>
-      </Routes>
-
-
-      <Footer />
-
-      <ToastContainer  position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop={false}
-                    closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover/>
-    </div>
-
-    
-  );
 }
 
 export default App;

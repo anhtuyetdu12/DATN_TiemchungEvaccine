@@ -419,9 +419,9 @@ export default function EditCustomerModal({
                               setSelectedCustomer(prev => ({ ...prev, family: updated }));
                             }} >
                             {f.expanded ? (
-                              <i class="fa-solid fa-angles-up  tw-text-blue-500"></i>
+                              <i className="fa-solid fa-angles-up  tw-text-blue-500"></i>
                             ) : (
-                              <i class="fa-solid fa-angles-down tw-text-blue-500"></i>
+                              <i className="fa-solid fa-angles-down tw-text-blue-500"></i>
                             )}
                           </div>
                         </div>

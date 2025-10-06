@@ -62,102 +62,53 @@ CREATE TABLE medical_staff (
 );
 
 
-/*
-
--- Bảng department (khoa/phòng ban)
--- Mục đích: quản lý danh sách các khoa/phòng, tránh nhập text trùng lặp, chuẩn hóa dữ liệu
-CREATE TABLE department (
-    department_id INT PRIMARY KEY IDENTITY(1,1),   -- Khóa chính tự tăng
-    name NVARCHAR(100) NOT NULL UNIQUE,            -- Tên khoa/phòng (VD: Nhi, Nội, Tiêm chủng)
-    description NVARCHAR(255) NULL                 -- Mô tả thêm về khoa/phòng (tùy chọn)
-);
-
--- Bảng work_shift (ca làm việc)
--- Mục đích: chuẩn hóa ca làm việc cho nhân viên y tế
-CREATE TABLE work_shift (
-    work_shift_id INT PRIMARY KEY IDENTITY(1,1),       -- Khóa chính tự tăng
-    name NVARCHAR(50) NOT NULL UNIQUE,            -- Tên ca (VD: sáng, chiều, tối)
-    start_time TIME NOT NULL,                      -- Thời gian bắt đầu ca
-    end_time TIME NOT NULL,                        -- Thời gian kết thúc ca
-    description NVARCHAR(255) NULL                -- Ghi chú thêm về ca làm việc (tùy chọn)
-);
-GO
-
-
--- Bảng medical_staff (nhân viên y tế )
-CREATE TABLE medical_staff (
-    staff_id INT PRIMARY KEY,              -- Trùng với user_id (1-1 với bảng users)
-    department_id INT NOT NULL,              -- Khoa/phòng ban (VD: Nhi, Nội, Tiêm chủng)
-    specialization NVARCHAR(100),          -- Chuyên môn (VD: Bác sĩ, Điều dưỡng, Dược sĩ)
-    license_number NVARCHAR(50),           -- Số chứng chỉ hành nghề
-    work_shift_id INT NOT NULL,               -- Ca làm việc (sáng/chiều/tối)
-    hire_date DATE,                        -- Ngày bắt đầu làm việc
-    status NVARCHAR(20) DEFAULT 'active',   -- Trạng thái: active, inactive
-	notes NVARCHAR(MAX)	,				  -- để quản lý thêm thông tin khác (VD: tình trạng công tác)
-    FOREIGN KEY (staff_id) REFERENCES users(user_id),
-	FOREIGN KEY (department_id) REFERENCES department(department_id),
-    FOREIGN KEY (work_shift_id) REFERENCES work_shift(work_shift_id)
-);
-
-
-
-*/
-
 
 GO
-
 -- Bảng vaccines (danh mục vaccine)
 CREATE TABLE vaccines (
     vaccine_id INT IDENTITY(1,1) PRIMARY KEY,
-    name NVARCHAR(100) NOT NULL,                     -- Tên vaccine        
-    manufacturer NVARCHAR(100),                      -- Nhà sản xuất       
-    origin NVARCHAR(100),                            -- Nguồn gốc xuất xứ  
-	vaccine_type NVARCHAR(50),						-- Loại vaccine (mRNA, Vector, Bất hoạt…)            
-    price DECIMAL(12,2),                             -- Giá bán     
-    doses_required INT CHECK (doses_required BETWEEN 1 AND 5), -- Số liều khuyến nghị (1-5 mũi)
-    interval_days INT,                               -- Khoảng cách (ngày) giữa các mũi
-    age_group NVARCHAR(50),                          -- Nhóm tuổi chỉ định
-    indications NVARCHAR(MAX),                       -- Công dụng, chỉ định tiêm     
-    contraindications NVARCHAR(MAX),                 -- Chống chỉ định    
-    storage_requirements NVARCHAR(255),              -- Điều kiện bảo quản
-	 description NVARCHAR(MAX),						-- Mô tả/ghi chú thêm
-    status NVARCHAR(20) DEFAULT 'active' CHECK (status IN ('active','inactive')), -- Tình trạng vaccine
-	side_effects NVARCHAR(MAX),						-- tác dụng phụ thường gặp.
-	approval_date DATE,								-- ngày được cấp phép lưu hành.
-    created_at DATETIME DEFAULT GETDATE()            -- Ngày tạo bản ghi
+
+    disease_id INT NOT NULL 
+        FOREIGN KEY REFERENCES diseases(disease_id), 
+        -- Mối quan hệ: vaccine này phòng bệnh gì
+
+    name NVARCHAR(100) NOT NULL,               -- Tên vắc xin (VD: Qdenga, Pfizer, Moderna…)
+    manufacturer NVARCHAR(100),                -- Nhà sản xuất (Sanofi, Pfizer…)
+    origin NVARCHAR(100),                      -- Xuất xứ (Pháp, Mỹ, Nhật…)
+    vaccine_type NVARCHAR(50),                 -- Loại (mRNA, Vector, Bất hoạt…)
+    price DECIMAL(12,2),                       -- Giá bán
+    doses_required INT CHECK (doses_required BETWEEN 1 AND 5), 
+        -- Số mũi khuyến nghị (1-5 mũi)
+    interval_days INT,                         -- Khoảng cách giữa 2 mũi (tính theo ngày)
+    age_group NVARCHAR(50),                    -- Nhóm tuổi chỉ định (VD: Trẻ 2–11 tuổi, ≥18 tuổi)
+    indications NVARCHAR(MAX),                 -- Công dụng/chỉ định (VD: phòng ngừa sốt xuất huyết)
+    contraindications NVARCHAR(MAX),           -- Chống chỉ định (VD: dị ứng, suy giảm miễn dịch…)
+    storage_requirements NVARCHAR(255),        -- Điều kiện bảo quản (VD: 2-8°C, đông lạnh…)
+    description NVARCHAR(MAX),                 -- Mô tả thêm chi tiết về vaccine
+    status NVARCHAR(20) DEFAULT 'active' 
+        CHECK (status IN ('active','inactive')), 
+        -- Trạng thái (còn sử dụng / ngưng lưu hành)
+    side_effects NVARCHAR(MAX),                -- Tác dụng phụ thường gặp (VD: sốt nhẹ, đau chỗ tiêm)
+    approval_date DATE,                        -- Ngày được cấp phép
+    created_at DATETIME DEFAULT GETDATE()      -- Ngày tạo bản ghi
+);
+
+GO
+
+
+CREATE TABLE diseases (
+    disease_id INT IDENTITY(1,1) PRIMARY KEY,  -- Khóa chính, định danh bệnh
+    name NVARCHAR(100) NOT NULL,               -- Tên bệnh (VD: Sốt xuất huyết Dengue)
+    description NVARCHAR(MAX),                 -- Mô tả chi tiết về bệnh, nguyên nhân, đường lây    
+    symptoms NVARCHAR(MAX),                    -- Các triệu chứng thường gặp (sốt, phát ban, ho…    
+    complications NVARCHAR(MAX),               -- Biến chứng nguy hiểm (VD: sốc, xuất huyết, suy hô hấp…)   
+    created_at DATETIME DEFAULT GETDATE()      -- Ngày tạo bản ghi (phục vụ audit/log)
 );
 GO
 
--- Bảng suppliers (quản lý nhà cung cấp vaccine)
-CREATE TABLE suppliers (
-    supplier_id INT IDENTITY(1,1) PRIMARY KEY,
-    name NVARCHAR(200) NOT NULL,          -- Tên nhà cung cấp
-    contact_person NVARCHAR(100),         -- Người liên hệ
-    phone NVARCHAR(20),                   -- Số điện thoại
-    email NVARCHAR(100),                  -- Email
-    address NVARCHAR(255),                -- Địa chỉ
-    tax_code NVARCHAR(50),                -- Mã số thuế (nếu có)
-    notes NVARCHAR(MAX),                  -- Ghi chú thêm
-    status NVARCHAR(20) DEFAULT 'active' CHECK (status IN ('active','inactive')),     -- Trạng thái: "active" (đang hợp tác), "inactive" (ngừng hợp tác).
-);
 GO
 
--- Bảng vaccine_inventory (quản lý kho vaccine)
-CREATE TABLE vaccine_inventory (
-    inventory_id INT IDENTITY(1,1) PRIMARY KEY,       
-    vaccine_id INT NOT NULL,                           
-    supplier_id INT NOT NULL,                   -- id nhà cung cấp
-    staff_id INT,                               -- ID nhân viên nhập kho
-    batch_number NVARCHAR(50),                  -- Số lô sản xuất         
-    quantity INT NOT NULL,                      -- Số lượng còn lại trong kho    
-    import_date DATE,                           -- Ngày nhập kho
-    expiration_date DATE,                       -- Ngày hết hạn    
-    updated_at DATETIME DEFAULT GETDATE(),      -- Thời gian cập nhật gần nhất 
-    FOREIGN KEY (vaccine_id) REFERENCES vaccines(vaccine_id),
-    FOREIGN KEY (staff_id) REFERENCES medical_staff(staff_id),
-    FOREIGN KEY (supplier_id) REFERENCES suppliers(supplier_id)
-);
-GO
+
 
 -- Bảng appointments (quản lý lịch hẹn tiêm)
 CREATE TABLE appointments (

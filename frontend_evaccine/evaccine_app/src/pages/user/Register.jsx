@@ -120,7 +120,7 @@ export default function Register({ onClose }) {
         {/* Cột form bên trái */}
         <div className="tw-w-full md:tw-w-1/2 tw-p-5 tw-mx-[5px] tw-text-center tw-relative">
           <button  onClick={handleClose} className="tw-absolute tw-top-4 tw-right-4 tw-text-gray-500 hover:tw-text-red-500 tw-text-3xl tw-font-bold tw-w-14 tw-h-14 tw-flex tw-items-center tw-justify-center tw-rounded-full hover:tw-bg-gray-100" >
-            <i class="fa-solid fa-xmark"></i>
+            <i className="fa-solid fa-xmark"></i>
           </button>
 
           <h2 className="tw-text-4xl tw-font-bold tw-text-blue-600 tw-mb-8">

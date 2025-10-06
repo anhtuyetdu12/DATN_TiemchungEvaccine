@@ -113,7 +113,7 @@ export default function Appointments() {
               <button onClick={() => navigate("/vaccines")}
                 className="tw-px-6 tw-w-[120px] tw-mt-3 tw-bg-[#b8def6] tw-text-[#1999ee] tw-font-medium tw-rounded-full 
                 tw-py-[8px] hover:tw-bg-[#1999ee] hover:tw-text-white transition" >
-                <i class="fa-solid fa-calendar-days tw-mr-2"></i> Đặt hẹn 
+                <i className="fa-solid fa-calendar-days tw-mr-2"></i> Đặt hẹn 
               </button>
             </div>
           ) : (
