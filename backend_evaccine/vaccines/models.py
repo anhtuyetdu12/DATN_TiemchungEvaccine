@@ -24,6 +24,7 @@ class Disease(models.Model):
     class Meta:
         verbose_name = "Bệnh"
         verbose_name_plural = "Danh sách bệnh"
+        ordering = ["-created_at"]
 
     def __str__(self):
         return self.name
@@ -38,11 +39,11 @@ class VaccineCategory(models.Model):
     description = models.TextField("Mô tả", blank=True, null=True)
     image = models.ImageField("Hình ảnh danh mục", upload_to="vaccine_categories/", blank=True, null=True)
     status = models.BooleanField("Trạng thái hiển thị", default=True)
-
+    created_at = models.DateTimeField("Ngày tạo", auto_now_add=True, null=True)
     class Meta:
         verbose_name = "Danh mục vắc xin"
         verbose_name_plural = "Danh sách danh mục vắc xin"
-
+        ordering = ["-created_at"]
     def __str__(self):
         return self.name
 
@@ -91,6 +92,7 @@ class Vaccine(models.Model):
     class Meta:
         verbose_name = "Vắc xin"
         verbose_name_plural = "Danh sách vắc xin"
+        ordering = ["-created_at"]
 
     def __str__(self):
         return self.name
@@ -104,11 +106,11 @@ class VaccinePackageGroup(models.Model):
     description = models.TextField("Mô tả nhóm", blank=True, null=True)
     order = models.PositiveIntegerField("Thứ tự hiển thị", default=0)
     status = models.BooleanField("Hiển thị", default=True)
-
+    created_at = models.DateTimeField("Ngày tạo", auto_now_add=True, null=True)
     class Meta:
         verbose_name = "Nhóm gói tiêm"
         verbose_name_plural = "Danh sách nhóm gói tiêm"
-        ordering = ["order"]
+        ordering = ["-created_at"]
 
     def __str__(self):
         return self.title
@@ -126,10 +128,11 @@ class VaccinePackage(models.Model):
     description = models.TextField("Mô tả", blank=True, null=True)
     image = models.ImageField(upload_to="package_images/", blank=True, null=True)
     status = models.BooleanField("Kích hoạt", default=True)
-
+    created_at = models.DateTimeField("Ngày tạo", auto_now_add=True, null=True)
     class Meta:
         verbose_name = "Gói vắc xin"
         verbose_name_plural = "Danh sách gói vắc xin"
+        ordering = ["-created_at"]
 
     def __str__(self):
         return self.name
@@ -179,7 +182,7 @@ class Booking(models.Model):
     class Meta:
         verbose_name = "Lịch hẹn tiêm"
         verbose_name_plural = "Danh sách lịch hẹn tiêm"
-
+        ordering = ["-created_at"]
     def __str__(self):
         return f"Lịch hẹn của {self.user.full_name} - {self.appointment_date}"
 

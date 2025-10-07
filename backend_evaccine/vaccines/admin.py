@@ -7,11 +7,13 @@ import nested_admin
 class DiseaseAdmin(admin.ModelAdmin):
     list_display = ("id", "name")
     search_fields = ("name",)
+    ordering = ("-created_at",)
 
 @admin.register(VaccineCategory)
 class VaccineCategoryAdmin(admin.ModelAdmin):
     list_display = ("id", "name")
     search_fields = ("name",)
+    ordering = ("-created_at",)
 
 @admin.register(Vaccine)
 class VaccineAdmin(admin.ModelAdmin):
@@ -30,10 +32,11 @@ class VaccineAdmin(admin.ModelAdmin):
     )
     list_filter = ("status", "category", "disease", "origin", "vaccine_type")
     search_fields = ("name", "manufacturer", "origin")
-    ordering = ("id",)
+    ordering = ("-created_at",)
     list_per_page = 20
     autocomplete_fields = ("category", "disease")
     list_editable = ("status", "price")
+    ordering = ("-created_at",)
     fields = (
         "name",
         "category",
@@ -74,7 +77,7 @@ class VaccinePackageAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "group",  "status", "preview_image")
     list_filter = ("group", "status")
     search_fields = ("name",)
-    ordering = ("id",)
+    ordering = ("-created_at",)
     inlines = [VaccinePackageDiseaseInline]
 
     fieldsets = (
@@ -110,3 +113,4 @@ class BookingAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "vaccine", "package", "status", "appointment_date")
     list_filter = ("status",)
     search_fields = ("user__email",)
+    ordering = ("-created_at",)

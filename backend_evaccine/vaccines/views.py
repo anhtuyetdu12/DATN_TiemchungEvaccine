@@ -23,7 +23,7 @@ class VaccineCategoryViewSet(viewsets.ModelViewSet):
 
 
 class VaccineViewSet(viewsets.ModelViewSet):
-    queryset = Vaccine.objects.all().select_related("disease", "category")
+    queryset = Vaccine.objects.all().select_related("disease", "category").order_by('-created_at')
     serializer_class = VaccineSerializer
     permission_classes = [permissions.AllowAny]
     
@@ -55,12 +55,12 @@ class VaccineViewSet(viewsets.ModelViewSet):
 class VaccinePackageGroupViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = VaccinePackageGroup.objects.filter(status=True).prefetch_related(
         Prefetch("packages", queryset=VaccinePackage.objects.prefetch_related("disease_groups__vaccines"))
-    )
+    ).order_by('-created_at')
     serializer_class = VaccinePackageGroupSerializer
     permission_classes = [permissions.AllowAny]
     
 class VaccinePackageViewSet(viewsets.ModelViewSet):
-    queryset = VaccinePackage.objects.all()
+    queryset = VaccinePackage.objects.all().order_by('-created_at')
     serializer_class = VaccinePackageSerializer
     permission_classes = [permissions.AllowAny]
 
@@ -71,6 +71,6 @@ class VaccinePackageViewSet(viewsets.ModelViewSet):
 
 
 class BookingViewSet(viewsets.ModelViewSet):
-    queryset = Booking.objects.all().select_related("user", "vaccine", "package")
+    queryset = Booking.objects.all().select_related("user", "vaccine", "package").order_by('-created_at')
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]

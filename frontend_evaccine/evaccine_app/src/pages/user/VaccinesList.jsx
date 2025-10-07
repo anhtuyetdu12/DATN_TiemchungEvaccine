@@ -4,6 +4,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import AccordionFilter from "../../components/AccordionFilter";
 import { Link, useNavigate  } from "react-router-dom";
 import api from "../../services/axios";
+import Pagination from "../../components/Pagination";
+
 
 export default function VaccinesList() {
   const banners = [
@@ -34,8 +36,6 @@ export default function VaccinesList() {
   // --- Hiển thị giới hạn ---
   const [showAll, setShowAll] = useState(false);
   const [displayedVaccines, setDisplayedVaccines] = useState([]);
-  // const displayedVaccines = showAll ? vaccines : vaccines.slice(0, 8);  // Giới hạn hiển thị 8 phần tử nếu chưa showAll
-  const [vaccines_dropdown, setVaccinesDropdown] = useState([]);
   const [selectedPackage, setSelectedPackage] = useState(null);
 
 
@@ -51,36 +51,24 @@ export default function VaccinesList() {
 
   // --- Checkbox chọn tất cả ---
   const toggleCheckAll = () => {
-    const newState = !checkedAll;
-    const newChecked = {};
-    vaccines.forEach((v) => {
-      newChecked[v.id] = newState;
-    });
-    setCheckedItems(newChecked);
-    setCheckedAll(newState);
-  };
+  // đảo trạng thái
+  const newState = !checkedAll;
+  setCheckedAll(newState);
 
-  // --- Dropdown vaccine ---
-  const toggleDropdown = (index) => {
-    setOpenIndex(openIndex === index ? null : index);
-  };
+  // cập nhật toàn bộ group trong selectedPackage
+  if (selectedPackage) {
+    const updated = { ...selectedPackage };
+    updated.disease_groups = updated.disease_groups.map((group) => ({
+      ...group,
+      checked: newState,
+    }));
+    setSelectedPackage(updated);
+  }
+};
 
-  const handleSelect = (index, item) => {
-    setSelectedItems((prev) => ({ ...prev, [index]: item }));
-    setOpenIndex(null);
-  };
-
-   // --- Cập nhật số lượng ---
-  const updateQuantity = (id, value) => {
-    if (value < 1) return;
-    setVaccines((prev) =>
-      prev.map((v) => (v.id === id ? { ...v, quantity: value } : v))
-    );
-  };
 
   const BASE_URL = "http://127.0.0.1:8000";
   
- 
  // --- LẤY DỮ LIỆU TỪ BACKEND ---
   useEffect(() => {
     const fetchData = async () => {
@@ -128,7 +116,36 @@ export default function VaccinesList() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (selectedPackage?.disease_groups?.length) {
+      const allChecked = selectedPackage.disease_groups.every((g) => g.checked);
+      setCheckedAll(allChecked);
+    }
+  }, [selectedPackage]);
 
+  useEffect(() => {
+    const fetchPackage = async () => {
+      try {
+        const res = await api.get("http://localhost:8000/api/vaccine-packages/1/");
+        const data = res.data;
+
+        // Gắn thêm các giá trị mặc định để hiển thị
+        data.disease_groups.forEach((group) => {
+          group.checked = true;
+          group.selectedVaccine = group.vaccines[0];
+          group.quantity = 1;
+        });
+
+        setSelectedPackage(data);
+      } catch (err) {
+        console.error("Lỗi khi lấy dữ liệu gói:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPackage();
+  }, []);
   
   // dữ liệu tĩnh cho 3 nhóm
   const ageOptions = [
@@ -153,7 +170,13 @@ export default function VaccinesList() {
     { id: "canada", label: "Canada" },
   ];
 
-
+  // ----- phân trang ----------
+  const [page, setPage] = useState(1);
+  const perPage = 12;
+  // Tính vị trí bắt đầu và kết thúc theo trang
+  const startIndex = (page - 1) * perPage;
+  const endIndex = startIndex + perPage;
+  const paginatedVaccines = vaccines.slice(startIndex, endIndex);
    
   //--- AUTO SLIDE ---
   useEffect(() => {
@@ -173,8 +196,8 @@ export default function VaccinesList() {
   if (loading) return <p className="tw-text-center tw-text-xl">Đang tải dữ liệu...</p>;
 
   return (
-    <section className="tw-bg-gradient-to-r tw-from-blue-100 tw-to-pink-50 tw-py-10 tw-mt-[100px] ">
-      <div className=" tw-mx-auto tw-px-14  tw-w-[1300px]">    
+    <section className="tw-bg-gradient-to-r tw-from-blue-100 tw-to-pink-50 tw-py-10 tw-pb-40 tw-mt-[100px] ">
+      <div className=" tw-container tw-mx-auto tw-px-14 tw-max-w-[1300px]">    
         {/* Banner */}
         <div className="tw-relative tw-w-full tw-h-[200px] tw-overflow-hidden tw-rounded-2xl tw-mb-12">
           <div  className="tw-flex tw-h-full tw-transition-transform tw-duration-700 tw-ease-in-out"
@@ -234,7 +257,7 @@ export default function VaccinesList() {
         {activeTab === "vacxin" ? (
           <div>
             {/* Các danh mục nhỏ */}
-            <div className="tw-grid tw-grid-cols-2 md:tw-grid-cols-4 tw-gap-5 tw-pt-10 tw-mb-6">
+            <div className="tw-grid tw-grid-cols-2 md:tw-grid-cols-4 tw-gap-5 tw-pt-20 tw-my-20">
               {(showAll ? vaccineCategories : vaccineCategories.slice(0, 8)).map((category) => (
                 <div key={category.id}
                   className="tw-bg-white tw-rounded-2xl tw-shadow-sm tw-flex tw-flex-row tw-items-center tw-p-2 tw-cursor-pointer hover:tw-shadow-md tw-h-36"
@@ -264,7 +287,7 @@ export default function VaccinesList() {
                 </span>
               </div>
              )}
-            <div className="tw-grid tw-grid-cols-[260px_1fr] tw-gap-5 tw-h-screen tw-pt-5 tw-px-6">
+            <div className="tw-grid tw-grid-cols-[260px_1fr] tw-gap-5 tw-min-h-screen tw-pt-5 tw-px-6">
 
               {/* Bộ lọc bên trái */}
               <div className=" tw-sticky tw-top-5 tw-self-start tw-h-[450px] tw-pr-2">
@@ -302,7 +325,7 @@ export default function VaccinesList() {
                   </div>
 
                   <div className="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 lg:tw-grid-cols-4 tw-gap-6">     
-                     {vaccines.map((vaccine, index) => (
+                     {paginatedVaccines.map((vaccine, index) => (
                       <div key={vaccine.id || index} className="tw-bg-white tw-rounded-xl tw-shadow-sm tw-p-4 hover:tw-shadow-md tw-transition tw-relative tw-text-left tw-flex tw-flex-col tw-whitespace-nowrap">
                         <img src={vaccine.image} alt={vaccine.title} className="tw-h-80 tw-mx-auto tw-mb-3" />
                         <div className="tw-flex tw-flex-col tw-h-full tw-pt-2 tw-pb-3">
@@ -318,12 +341,12 @@ export default function VaccinesList() {
                             </p>
                             <div className="tw-flex tw-gap-2 tw-justify-center">
                               <Link to={`/vaccines/${vaccine.slug}`}
-                                className="tw-inline-flex tw-items-center tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#ff6600] hover:tw-text-white" >
+                                className="tw-inline-flex tw-items-center tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium tw-py-2 tw-px-6 tw-rounded-full hover:tw-bg-[#ff6600] hover:tw-text-white" >
                                 Xem chi tiết
                               </Link>
                               <button onClick={() => navigate("/bookingform")}
                                 className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
-                                            tw-font-medium tw-py-2 tw-px-8 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white">
+                                            tw-font-medium tw-py-2 tw-px-6 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white">
                                 Đặt hẹn
                               </button>
                             </div>
@@ -333,7 +356,15 @@ export default function VaccinesList() {
 
                   ))}
                   </div>
-                 
+
+                  {vaccines.length > perPage && (
+                    <Pagination
+                      page={page}
+                      totalItems={vaccines.length}
+                      perPage={perPage}
+                      onPageChange={setPage}
+                    />
+                  )}
               </div>
             </div>
       </div>
@@ -384,40 +415,7 @@ export default function VaccinesList() {
               <div className="tw-bg-gray-100 tw-text-left tw-rounded-xl tw-shadow-sm tw-p-4 md:tw-col-span-1">
                 
                 
-                {/* <ul className="tw-space-y-3 tw-mt-3 tw-max-h-[480px] tw-overflow-y-auto tw-scrollbar-hide">
-                  <li>
-                    <h3 className="tw-text-gray-600 tw-font-semibold tw-text-lg tw-text-left tw-px-4 tw-py-3 tw-uppercase">
-                      DANH SÁCH GÓI VẮC XIN
-                    </h3>
-                  </li>
-
-                  {vaccinePackages.map((pkg) => (
-                    <li
-                      key={pkg.id}
-                      onClick={() => setSelectedPackage(pkg)}
-                      className="tw-flex tw-items-center tw-gap-[10px] tw-bg-white tw-rounded-xl tw-h-[72px] tw-p-[4px] tw-cursor-pointer
-                                tw-border tw-border-transparent hover:tw-border-blue-500 hover:tw-border-[3px]"
-                    >
-                      <img
-                        src={pkg.image}
-                        alt={pkg.name}
-                        className="tw-w-[65px] tw-h-[65px] tw-rounded-lg"
-                      />
-                      <div>
-                        <p className="tw-font-medium tw-text-black">{pkg.name}</p>
-                        {pkg.discount && (
-                          <p
-                            className="tw-flex tw-items-center tw-w-fit tw-gap-1 tw-rounded-full tw-h-6 tw-px-3 tw-text-sm tw-font-medium tw-mt-[3px]
-                                      tw-text-white tw-bg-gradient-to-b tw-from-[#ffbb14] tw-to-[#f26f23]"
-                          >
-                            Giảm tới {pkg.discount.toLocaleString("vi-VN")}đ
-                          </p>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul> */}
-              <ul className="tw-space-y-6 tw-mt-3 tw-max-h-[480px] tw-overflow-y-auto tw-scrollbar-hide">
+              {/* <ul className="tw-space-y-6 tw-mt-3 tw-max-h-[480px] tw-overflow-y-auto tw-scrollbar-hide">
                 {Object.entries(
                   vaccinePackages.reduce((groups, pkg) => {
                     const groupName = pkg.group_name || "Khác";
@@ -427,12 +425,10 @@ export default function VaccinesList() {
                   }, {})
                 ).map(([groupName, packages]) => (
                   <li key={groupName}>
-                    {/* Tiêu đề nhóm */}
                     <h3 className="tw-text-gray-600 tw-font-semibold tw-text-lg tw-text-left tw-px-4 tw-py-3 tw-bg-gray-100 tw-rounded-lg">
                       {groupName.toUpperCase()}
                     </h3>
 
-                    {/* Danh sách gói trong nhóm */}
                     <ul className="tw-space-y-3 tw-mt-3">
                       {packages.map((pkg) => (
                         <li key={pkg.id} onClick={() => setSelectedPackage(pkg)}
@@ -443,9 +439,49 @@ export default function VaccinesList() {
                         </li>
                       ))}
                     </ul>
+
+                    
+                  </li>
+                ))}
+              </ul> */}
+
+              <ul className="tw-space-y-6 tw-mt-3 tw-max-h-[480px] tw-overflow-y-auto tw-scrollbar-hide">
+                {Object.entries(
+                  vaccinePackages.reduce((groups, pkg) => {
+                    const groupName = pkg.group_name || "Khác";
+                    if (!groups[groupName]) groups[groupName] = [];
+                    groups[groupName].push(pkg);
+                    return groups;
+                  }, {})
+                ).map(([groupName, packages]) => (
+                  <li key={groupName}>
+                    <h3 className="tw-text-gray-600 tw-font-semibold tw-text-lg tw-text-left tw-px-4 tw-py-3 tw-bg-gray-100 tw-rounded-lg">
+                      {groupName.toUpperCase()}
+                    </h3>
+
+                    <ul className="tw-space-y-3 tw-mt-3">
+                      {packages.map((pkg) => (
+                        <li key={pkg.id} onClick={() => setSelectedPackage(pkg)}
+                          className={`tw-flex tw-items-center tw-gap-[10px] tw-bg-white tw-rounded-xl tw-h-[72px] tw-p-[4px] tw-cursor-pointer
+                            tw-border tw-transition-all tw-duration-200
+                            ${ selectedPackage?.id === pkg.id
+                                ? "tw-border-[#3bd3f6] tw-border-[2px]"
+                                : "tw-border-transparent hover:tw-border-[#3bd3f6] hover:tw-border-[2px]"
+                            }`} >
+                          <img src={pkg.image} alt={pkg.name} className="tw-w-[65px] tw-h-[65px] tw-rounded-lg" />
+                          <div>
+                            <p className="tw-font-medium tw-text-black">{pkg.name}</p>
+ 
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+
+                    
                   </li>
                 ))}
               </ul>
+
 
 
               </div>
@@ -464,11 +500,11 @@ export default function VaccinesList() {
                     <div className="tw-flex tw-items-center tw-gap-4">
                       <button type="button"  role="checkbox"
                           aria-checked={checkedAll} onClick={toggleCheckAll}
-                          className={`tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center 
+                          className={`tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center 
                             tw-border tw-rounded-md tw-transition-colors tw-duration-150
                             ${checkedAll ? "tw-bg-blue-500 tw-border-blue-500" : "tw-border-gray-400" }
                             hover:tw-border-blue-500 hover:tw-ring-2 hover:tw-ring-cyan-400 hover:tw-ring-opacity-40`}>
-                          {checkedAll && <i className="fa-solid fa-check tw-text-white tw-text-xs"></i>}
+                          {checkedAll && <i className="fa-solid fa-check tw-text-white tw-text-lg"></i>}
                         </button>
                       <span>Vắc xin</span>
                     </div>
@@ -479,54 +515,76 @@ export default function VaccinesList() {
                   </div>
                 </div>
 
-                {/* Danh sách vaccine */}
-                {/* <div className="tw-flex-1 tw-max-h-[300px] tw-px-6 tw-py-4 tw-space-y-4 tw-overflow-y-auto tw-scrollbar-hide">
-                  {vaccines_dropdown.map((vaccine, index) => (
-                    <div
-                      key={vaccine.id}
-                      className="tw-grid tw-grid-cols-[2fr_1fr_1fr_1fr] tw-gap-4 tw-items-center tw-border-b tw-border-dashed tw-pb-5 tw-mb-5"
-                    >
-                      <div className="tw-flex tw-flex-col tw-gap-4">
-                        <div className="tw-flex tw-items-center tw-gap-4">
-                          <button
-                            type="button"
-                            role="checkbox"
-                            aria-checked={checkedItems[vaccine.id]}
-                            onClick={() => toggleCheck(vaccine.id)}
-                            className={`tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center 
-                              tw-border tw-rounded-md tw-transition-colors tw-duration-150
-                              ${checkedItems[vaccine.id] ? "tw-bg-blue-500 tw-border-blue-500" : "tw-border-gray-400"}
-                              hover:tw-border-blue-500 hover:tw-ring-2 hover:tw-ring-cyan-400 hover:tw-ring-opacity-40`}
-                          >
-                            {checkedItems[vaccine.id] && (
-                              <i className="fa-solid fa-check tw-text-white tw-text-xs"></i>
-                            )}
-                          </button>
-                          <p className="tw-font-medium tw-text-black tw-text-xl">{vaccine.name}</p>
-                        </div>
 
-                        <div className="tw-relative tw-w-full">
-                          <button
-                            onClick={() => toggleDropdown(index)}
+
+            {/* DANH SÁCH CHI TIẾT GÓI */}
+            <div className="tw-flex-1 tw-max-h-[500px] tw-overflow-y-auto tw-scrollbar-hide tw-px-6 tw-py-4 tw-space-y-4">
+              {selectedPackage?.disease_groups?.map((group, groupIndex) => {
+                const key = `group-${groupIndex}`;
+                const selectedVaccine = selectedItems[key] || group.selectedVaccine || group.vaccines?.[0];
+
+                return (
+                  <div key={group.id || groupIndex}
+                    className="tw-grid tw-grid-cols-[2fr_1fr_1fr_1fr] tw-gap-4 tw-items-center tw-border-b tw-border-dashed tw-pb-4">
+                    {/* --- Cột 1: Checkbox + Tên phòng bệnh + Dropdown vaccine --- */}
+                    <div className="tw-flex tw-items-center tw-gap-4">
+                      <button type="button" role="checkbox" aria-checked={group.checked}
+                        onClick={() => {
+                          const updated = { ...selectedPackage };
+                          updated.disease_groups[groupIndex].checked = !group.checked;
+                          setSelectedPackage(updated);
+                        }} className={`tw-min-w-[20px] tw-min-h-[20px] tw-flex tw-items-center tw-justify-center 
+                          tw-border tw-rounded-md tw-transition-colors tw-duration-150 tw-mr-2 tw-px-2
+                          ${group.checked ? "tw-bg-blue-500 tw-border-blue-500" : "tw-border-gray-400"}
+                          hover:tw-border-blue-500 hover:tw-ring-2 hover:tw-ring-cyan-400 hover:tw-ring-opacity-40`} >
+                        {group.checked && <i className="fa-solid fa-check tw-text-white tw-text-lg"></i>}
+                      </button>
+
+                      <div className="tw-flex tw-flex-col tw-gap-2 tw-w-full">
+                        {/* Tên phòng bệnh */}
+                        <span className="tw-font-semibold tw-text-gray-800 tw-text-[14px]">
+                          {group.disease?.name || "Không rõ tên bệnh"}
+                        </span>
+
+                        {/* Dropdown chọn vaccine */}
+                        <div className="tw-relative">
+                          <button onClick={() => setOpenIndex(openIndex === key ? null : key)}
                             className="tw-w-full tw-flex tw-justify-between tw-items-center 
-                              tw-border tw-border-gray-300 tw-rounded-lg tw-px-3 tw-py-2 tw-text-gray-700 tw-text-xl
-                              hover:tw-border-[#56b6f7] hover:tw-ring-1 hover:tw-ring-[#56b6f7] focus:tw-outline-none"
-                          >
-                            <span>{selectedItems[index] || "Chọn vaccine"}</span>
-                            <i className={`fa-solid ${openIndex === index ? "fa-angle-up" : "fa-angle-down"}`}></i>
+                              tw-border tw-border-gray-300 tw-rounded-lg tw-px-3 tw-py-2 
+                              tw-text-gray-700 tw-bg-white tw-hover:border-[#56b6f7] tw-hover:ring-1 tw-hover:ring-[#56b6f7]" >
+                            <span>
+                              {selectedVaccine?.origin_country
+                                ? `${selectedVaccine.manufacturer} - ${selectedVaccine.name}`
+                                : selectedVaccine?.name || "Chọn vắc xin"}
+                            </span>
+                            <i className={`fa-solid ${ openIndex === key ? "fa-angle-up" : "fa-angle-down" }`} ></i>
                           </button>
-                          {openIndex === index && (
-                            <div className="tw-absolute tw-top-full tw-mt-2 tw-w-full tw-bg-white tw-border tw-border-gray-300 tw-rounded-lg tw-shadow-lg tw-py-2 tw-z-10 tw-text-lg tw-space-y-0.5">
-                              {vaccine.options.map((item, i) => (
-                                <div
-                                  key={i}
-                                  onClick={() => handleSelect(index, item)}
-                                  className={`tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-cursor-pointer ${
-                                    selectedItems[index] === item ? "tw-bg-[#e6f7fa]" : "hover:tw-bg-[#e6f7fa]"
-                                  }`}
-                                >
-                                  <span>{item}</span>
-                                  {selectedItems[index] === item && (
+
+                          {openIndex === key && (
+                            <div className="tw-absolute tw-top-full tw-mt-2 tw-w-full tw-bg-white tw-border tw-border-gray-200 tw-rounded-lg tw-shadow-lg tw-z-10">
+                              {group.vaccines?.map((vaccine) => (
+                                <div key={vaccine.id}
+                                  onClick={() => {
+                                    const updated = { ...selectedPackage };
+                                    updated.disease_groups[groupIndex].selectedVaccine = vaccine;
+                                    updated.disease_groups[groupIndex].quantity = 1;
+                                    setSelectedPackage(updated);
+                                    setSelectedItems((prev) => ({ ...prev, [key]: vaccine }));
+                                    setOpenIndex(null);
+                                  }}
+                                  className={`tw-px-4 tw-py-2 tw-flex tw-justify-between tw-items-center tw-cursor-pointer ${
+                                    selectedVaccine?.id === vaccine.id
+                                      ? "tw-bg-[#e6f7fa]"
+                                      : "hover:tw-bg-[#f2faff]"
+                                  }`} >
+                                  <div className="tw-flex tw-flex-col">
+                                    <span className="tw-font-normal">
+                                      {vaccine.origin
+                                        ? `${vaccine.origin} - ${vaccine.name}`
+                                        : vaccine.name}
+                                    </span>
+                                  </div>
+                                  {selectedVaccine?.id === vaccine.id && (
                                     <i className="fa-solid fa-check tw-text-[#1999ee]"></i>
                                   )}
                                 </div>
@@ -535,92 +593,84 @@ export default function VaccinesList() {
                           )}
                         </div>
                       </div>
+                    </div>
 
-                      <div className="tw-flex tw-items-center tw-justify-center">
-                        <span className="tw-text-gray-500 tw-text-center tw-font-normal tw-text-xl">
-                          {vaccine.schedule}
+                    {/* --- Cột 2: Phác đồ --- */}
+                    <div className="tw-flex tw-items-center tw-justify-center tw-text-gray-600 tw-text-[14px]">
+                      {selectedVaccine?.doses_required  ? `${selectedVaccine.doses_required} liều` : "-"}
+                    </div>
+
+                   {/* --- Cột 3: Số lượng --- */}
+                  <div className="tw-flex tw-items-center tw-justify-center">
+                    <div className="tw-flex tw-items-center tw-justify-between tw-border tw-border-gray-300 
+                                    tw-rounded-full tw-w-[100px] tw-bg-white tw-shadow-sm tw-overflow-hidden">
+                      
+                      {/* Nút trừ */}
+                      <button onClick={() => {
+                          const updated = { ...selectedPackage };
+                          const current = updated.disease_groups[groupIndex].quantity;
+                          updated.disease_groups[groupIndex].quantity =
+                            current > 1 ? current - 1 : 1;
+                          setSelectedPackage(updated);
+                        }} disabled={(group.quantity || 1) <= 1}
+                        className={`tw-w-10 tw-h-10 tw-flex tw-items-center tw-justify-center tw-rounded-full tw-transition-all tw-duration-200
+                          ${(group.quantity || 1) <= 1
+                            ? "tw-bg-gray-200 tw-text-gray-400 tw-cursor-not-allowed"
+                            : "tw-bg-gradient-to-r tw-from-[#56b6f7] tw-to-[#1999ee] hover:tw-from-[#3aa9f0] hover:tw-to-[#1789d4] tw-text-white"
+                          }`} >
+                        <i className="fa-solid fa-minus"></i>
+                      </button>
+
+                      {/* Input */}
+                      <input type="number" value={group.quantity || 1}
+                        min={1} max={selectedVaccine?.doses_required || 1}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          const updated = { ...selectedPackage };
+                          updated.disease_groups[groupIndex].quantity = Math.min(
+                            val, selectedVaccine?.doses_required || 1 );
+                          setSelectedPackage(updated);
+                        }} className="tw-w-14 tw-h-10 tw-text-center tw-border-none tw-font-semibold 
+                                  tw-text-gray-800 focus:tw-outline-none tw-bg-transparent" />
+
+                      {/* Nút cộng */}
+                      <button onClick={() => {
+                          const updated = { ...selectedPackage };
+                          const current = updated.disease_groups[groupIndex].quantity;
+                          const max = selectedVaccine?.doses_required || 1;
+                          updated.disease_groups[groupIndex].quantity =
+                            current < max ? current + 1 : max;
+                          setSelectedPackage(updated);
+                        }}
+                        disabled={(group.quantity || 1) >= (selectedVaccine?.doses_required || 1)}
+                        className={`tw-w-10 tw-h-10 tw-flex tw-items-center tw-justify-center tw-rounded-full tw-transition-all tw-duration-200
+                          ${(group.quantity || 1) >= (selectedVaccine?.doses_required || 1)
+                            ? "tw-bg-gray-200 tw-text-gray-400 tw-cursor-not-allowed"
+                            : "tw-bg-gradient-to-r tw-from-[#56b6f7] tw-to-[#1999ee] hover:tw-from-[#3aa9f0] hover:tw-to-[#1789d4] tw-text-white"
+                          }`} >
+                        <i className="fa-solid fa-plus"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                    {/* --- Cột 4: Đơn giá --- */}
+                    <div className="tw-flex tw-flex-col tw-items-end">
+                      <span className="tw-text-[#fd8206] tw-font-semibold tw-text-[14px]">
+                        {selectedVaccine?.price ? `${Number(selectedVaccine.price).toLocaleString("vi-VN")} VNĐ` : "—"}
+                      </span>
+                      {selectedVaccine?.original_price && (
+                        <span className="tw-text-gray-400 tw-line-through">
+                          {Number(selectedVaccine.original_price).toLocaleString("vi-VN")} VNĐ
                         </span>
-                      </div>
-
-                      <div className="tw-flex tw-items-center tw-justify-center tw-h-full">
-                        <div className="tw-flex tw-items-center tw-border tw-rounded-lg tw-overflow-hidden tw-w-36 tw-h-12">
-                          <button onClick={() => updateQuantity(vaccine.id, vaccine.quantity - 1)}
-                                className="tw-w-12 tw-h-14 tw-flex tw-items-center tw-justify-center tw-text-2xl tw-text-gray-600 hover:tw-bg-gray-100">
-                            −
-                          </button>
-                          <span className="tw-flex-1 tw-text-center tw-font-medium tw-text-xl">
-                            {vaccine.quantity}
-                          </span>
-                          <button onClick={() => updateQuantity(vaccine.id, vaccine.quantity + 1)}
-                                className="tw-w-12 tw-h-14 tw-flex tw-items-center tw-justify-center tw-text-2xl tw-text-gray-600 hover:tw-bg-gray-100">
-                            +
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="tw-text-right">
-                        <p className="tw-font-semibold tw-text-xl">{vaccine.price.toLocaleString()}đ</p>
-                        {vaccine.originalPrice && (
-                          <p className="tw-text-xl tw-line-through tw-text-gray-400">
-                            {vaccine.originalPrice.toLocaleString()}đ
-                          </p>
-                        )}
-                      </div>
+                      )}
                     </div>
-                  ))}
-                </div> */}
-                <div className="tw-flex-1 tw-max-h-[300px] tw-px-6 tw-py-4 tw-space-y-4 tw-overflow-y-auto tw-scrollbar-hide">
-                  {displayedVaccines.map((vaccine) => (
-                    <div
-                      key={vaccine.id}
-                      className="tw-grid tw-grid-cols-[2fr_1fr_1fr_1fr] tw-gap-4 tw-items-center tw-border-b tw-border-dashed tw-pb-5 tw-mb-5"
-                    >
-                      {/* Tên vaccine */}
-                      <div className="tw-flex tw-items-center tw-gap-4">
-                        <img
-                          src={vaccine.image}
-                          alt={vaccine.name}
-                          className="tw-w-16 tw-h-16 tw-rounded-lg"
-                        />
-                        <p className="tw-font-medium tw-text-black tw-text-lg">{vaccine.name}</p>
-                      </div>
-
-                      {/* Phác đồ */}
-                      <div className="tw-text-center tw-text-gray-500">2 Liều</div>
-
-                      {/* Số lượng */}
-                      <div className="tw-flex tw-items-center tw-justify-center tw-gap-3">
-                        <button
-                          className="tw-px-3 tw-py-1 tw-border tw-rounded-md hover:tw-bg-gray-100"
-                          onClick={() =>
-                            updateQuantity(vaccine.id, Math.max(1, vaccine.quantity - 1))
-                          }
-                        >
-                          −
-                        </button>
-                        <span>{vaccine.quantity}</span>
-                        <button
-                          className="tw-px-3 tw-py-1 tw-border tw-rounded-md hover:tw-bg-gray-100"
-                          onClick={() => updateQuantity(vaccine.id, vaccine.quantity + 1)}
-                        >
-                          +
-                        </button>
-                      </div>
-
-                      {/* Giá */}
-                      <div className="tw-text-right tw-font-semibold tw-text-blue-600">
-                        {vaccine.price
-                          ? vaccine.price.toLocaleString("vi-VN") + "₫"
-                          : "Chưa có giá"}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
+                  </div>
+                );
+              })}
+            </div>
 
                {/* Tổng tiền cố định */}
               <div className="tw-px-6 tw-py-4 tw-border-t tw-grid tw-grid-cols-[3fr_1fr] tw-gap-6 tw-items-start">
-                {/* Cột trái */}
                 <div>
                   <div className="tw-flex tw-gap-3 tw-mb-[10px]">
                     <button className="tw-bg-gradient-to-r tw-from-[#1999ee] tw-to-[#56b6f7]
@@ -636,7 +686,6 @@ export default function VaccinesList() {
                     </button>
                   </div>
 
-                  {/* Nội dung chú thích dưới nút */}
                   <div className="tw-px-6 tw-mt-2 tw-space-y-[5px]">
                     <div className="tw-flex tw-items-center tw-gap-2">
                       <div className="tw-bg-gray-200 tw-rounded-full tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-mr-[5px]">
@@ -658,7 +707,6 @@ export default function VaccinesList() {
                   </div>
                 </div>
 
-                {/* Cột phải */}
                 <div className="tw-text-right tw-space-y-1">
                   <p className="tw-inline-flex tw-items-center tw-gap-1 tw-cursor-pointer 
                         tw-rounded-full tw-h-6 tw-px-5 tw-text-sm tw-font-medium tw-mb-1
@@ -669,20 +717,14 @@ export default function VaccinesList() {
                   <p className="tw-text-gray-400 tw-line-through">11.102.660đ</p>
                 </div>
               </div>
-
-
+  
               </div>
             </div>
 
 
           </div>
         </div>
-
-    
-        
-
         )}
-
       </div>
     </section>
   );
