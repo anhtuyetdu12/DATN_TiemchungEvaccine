@@ -59,6 +59,10 @@ export default function Login({ setUser }) {
         remember: true 
       });
 
+       // --- Lưu token vào localStorage để axios sử dụng ---
+    localStorage.setItem("access", response.data.access);
+    localStorage.setItem("refresh", response.data.refresh);
+
        // kiểm tra cờ require_change_password từ API
       if (response.data.require_change_password) {
         localStorage.setItem("identifier", identifier);
@@ -94,9 +98,9 @@ export default function Login({ setUser }) {
     navigate("/"); 
   };
   return (
-    <div className="tw-fixed tw-inset-0 tw-bg-black/60 tw-flex tw-items-center tw-justify-center tw-z-40 tw-mt-[100px] " onClick={handleClose}>
+    <div className="tw-fixed tw-inset-0 tw-bg-black/60 tw-flex tw-items-center tw-justify-center tw-z-40  " onClick={handleClose}>
       {/* Khung chứa ảnh + form */}
-      <div className="tw-w-full tw-max-w-7xl tw-bg-white tw-rounded-2xl tw-shadow-2xl tw-flex tw-overflow-hidden"
+      <div className="tw-w-full tw-max-w-7xl tw-bg-white tw-rounded-2xl tw-shadow-2xl tw-flex tw-overflow-hidden tw-mt-[100px]"
         onClick={(e) => e.stopPropagation()} >
         {/* Cột ảnh bên trái */}
         <div className="tw-hidden md:tw-flex tw-w-1/2 tw-items-center tw-justify-center tw-bg-blue-50">

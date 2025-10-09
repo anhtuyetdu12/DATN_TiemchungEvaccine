@@ -1,8 +1,10 @@
 // cập nhật mũi tiêm 
 import { useState, useEffect  } from "react";
+// import { addVaccinationRecord } from "../../../../services/recordBookService";
 
 export default function UpdateDose({ disease, onClose, onSave }) {
    const [doses, setDoses] = useState([]);
+   const [expanded, setExpanded] = useState(false); 
 
   useEffect(() => {
     setDoses([
@@ -81,15 +83,12 @@ export default function UpdateDose({ disease, onClose, onSave }) {
   };
 
   return (
-    <div className="tw-fixed tw-inset-0 tw-bg-black/50 tw-flex tw-items-center tw-justify-center tw-z-50 tw-mt-[100px]">
-      <div className="tw-bg-white tw-rounded-2xl tw-w-full md:tw-w-[600px] tw-min-h-[400px] tw-max-h-[80vh] tw-flex tw-flex-col">
+    <div className="tw-fixed tw-inset-0 tw-bg-black/50 tw-flex tw-items-center tw-justify-center tw-z-50 ">
+      <div className="tw-bg-white tw-rounded-2xl tw-w-full md:tw-w-[600px] tw-min-h-[400px] tw-max-h-[80vh] tw-flex tw-flex-col tw-mt-[100px]">
         {/* Header */}
         <div className="tw-flex tw-items-center tw-justify-between tw-p-4 tw-border-b">
           <h2 className="tw-text-[20px] tw-font-bold">Cập nhật mũi đã tiêm</h2>
-          <button
-            onClick={onClose}
-            className="tw-text-red-600 hover:tw-text-red-400"
-          >
+          <button onClick={onClose} className="tw-text-red-600 hover:tw-text-red-400" >
             <i className="fa-solid fa-delete-left tw-text-3xl"></i>
           </button>
         </div>
@@ -97,13 +96,30 @@ export default function UpdateDose({ disease, onClose, onSave }) {
         {/* Thông tin bệnh */}
         <div className="tw-px-4 tw-py-2 tw-border-b">
           <p className="tw-font-semibold tw-text-2xl">{disease?.name}</p>
-          <p className="tw-text-gray-600 tw-text-base">
-            {disease?.description || "Không có mô tả"}
-          </p>
+          <div className="tw-relative tw-mt-2">
+            <p className={`tw-text-gray-600 tw-text-base tw-px-3 tw-text-justify tw-transition-all tw-duration-300 ${!expanded ? 'tw-line-clamp-3' : ''}`}>
+              {disease?.description || "Không có mô tả"}
+            </p>
+            {disease?.description?.split(" ").length > 10 && (
+              <div className="tw-flex tw-justify-center tw-mt-2">
+                <button  className="tw-flex tw-items-center tw-gap-1 tw-text-blue-500 tw-text-lg tw-font-medium" 
+                  onClick={() => setExpanded(!expanded)}>
+                  {expanded ? "Thu gọn" : "Xem thêm"}
+                  <i className={`fa-solid ${expanded ? "fa-angles-up" : "fa-angles-down"}`} 
+                    style={{ fontSize: "0.9rem", marginTop: "2px" }} ></i>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
+
+
         {/* Danh sách mũi */}
-        <div className="tw-flex-1 tw-overflow-y-auto tw-px-4 tw-py-2 tw-bg-gray-100">
+        <div className="tw-flex-1 tw-overflow-y-auto tw-px-4 tw-py-2 tw-bg-gray-100 tw-scrollbar 
+                          [&::-webkit-scrollbar]:tw-w-2 [&::-webkit-scrollbar-thumb]:tw-rounded-full
+                        [&::-webkit-scrollbar-track]:tw-bg-gray-100 [&::-webkit-scrollbar-thumb]:tw-bg-gradient-to-b
+                        [&::-webkit-scrollbar-thumb]:tw-from-cyan-400 [&::-webkit-scrollbar-thumb]:tw-to-blue-400 ">
           {doses.map((dose, index) => (
             <div key={index} className="tw-border tw-rounded-xl tw-mb-4 tw-bg-white">
               {/* Header của mũi */}

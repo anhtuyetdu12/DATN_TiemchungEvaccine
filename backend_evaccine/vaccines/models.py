@@ -62,7 +62,7 @@ class Vaccine(models.Model):
     name = models.CharField("Tên vắc xin", max_length=255)
     manufacturer = models.CharField("Nhà sản xuất", max_length=255, blank=True, null=True)
     origin = models.CharField("Xuất xứ", max_length=100, blank=True, null=True)
-    vaccine_type = models.CharField("Loại vắc xin", max_length=100, blank=True, null=True)
+    vaccine_type = models.CharField("Loại vắc xin", max_length=255, blank=True, null=True)
     UNIT_CHOICES = (
         ("liều", "Liều"),
         ("chai", "Chai"),

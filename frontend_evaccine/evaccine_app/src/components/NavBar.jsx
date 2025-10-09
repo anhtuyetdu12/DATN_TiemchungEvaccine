@@ -46,7 +46,7 @@ export default function NavBar({ user, setUser }) {
     <div>
       
       <div className="tw-fixed tw-top-0 tw-left-0 tw-w-full tw-z-[1000] tw-bg-white tw-shadow-md">
-        <header className="tw-flex tw-justify-between tw-items-center tw-h-[45px] tw-border-b tw-border-[#f2f2f2]  tw-px-[30px]">
+        <header className="tw-flex tw-justify-between tw-items-center tw-h-[35px] tw-border-b tw-border-[#f2f2f2]  tw-px-[30px]">
           <p className="tw-text-[12px] tw-leading-[24px] tw-pt-3 tw-text-[#2e95ef]">
             EVaccine: Giải pháp Quản lý Tiêm chủng Toàn diện
           </p>

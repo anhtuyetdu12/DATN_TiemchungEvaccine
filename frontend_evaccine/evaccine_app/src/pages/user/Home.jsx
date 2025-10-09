@@ -11,8 +11,8 @@ export default function Home() {
       
       <div>
         {/* ---------- ABOUT ---------- */}
-        <section id="about" className="tw-relative tw-bg-cover tw-bg-center tw-py-36 tw-px-4 tw-mt-[100px]"  style={{ backgroundImage: "url('/images/bac1.jpg')" }} >
-          <div className="tw-max-w-7xl tw-mx-auto">
+        <section id="about" className="tw-relative tw-bg-cover tw-bg-center tw-py-36 tw-px-4 "  style={{ backgroundImage: "url('/images/bac1.jpg')" }} >
+          <div className="tw-max-w-7xl tw-mx-auto tw-mt-[100px]">
             {/* Khung trắng mờ */}
             <div className="tw-bg-white/40 tw-p-8 md:tw-p-12 tw-rounded-2xl tw-shadow-2xl">
               <h2 className="tw-m-0 tw-text-[40px] tw-font-bold tw-text-[#1a237e] tw-pb-[20px] tw-pt-[10px] tw-tracking-tight tw-text-center">
@@ -260,7 +260,11 @@ export default function Home() {
               </p>
             </div>
             {/* Bên phải */}
-            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden ">
+            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden           
+                              [&::-webkit-scrollbar]:tw-h-3 [&::-webkit-scrollbar-thumb]:tw-rounded-full
+                              [&::-webkit-scrollbar-track]:tw-bg-gradient-to-r [&::-webkit-scrollbar-track]:tw-from-blue-100 [&::-webkit-scrollbar-track]:tw-to-cyan-100
+                              [&::-webkit-scrollbar-thumb]:tw-bg-gradient-to-r [&::-webkit-scrollbar-thumb]:tw-from-[#f1428b] [&::-webkit-scrollbar-thumb]:tw-to-[#51f34b]
+                              [&::-webkit-scrollbar-thumb]:tw-transition-all [&::-webkit-scrollbar-thumb]:tw-duration-300">
               {/* Card 1 */}
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-shadow-md tw-flex tw-flex-col tw-justify-between tw-text-center">
                 <span>🇳🇱 Hà Lan</span>
@@ -338,7 +342,11 @@ export default function Home() {
                 Tiêm vắc xin đúng lịch là biện pháp phòng ngừa hiệu quả các bệnh liên quan đến HPV, đặc biệt là ung thư cổ tử cung.
               </p>
             </div>
-            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden">
+            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden
+            [&::-webkit-scrollbar]:tw-h-3 [&::-webkit-scrollbar-thumb]:tw-rounded-full
+                              [&::-webkit-scrollbar-track]:tw-bg-gradient-to-r [&::-webkit-scrollbar-track]:tw-from-blue-100 [&::-webkit-scrollbar-track]:tw-to-cyan-100
+                              [&::-webkit-scrollbar-thumb]:tw-bg-gradient-to-r [&::-webkit-scrollbar-thumb]:tw-from-[#f1428b] [&::-webkit-scrollbar-thumb]:tw-to-[#51f34b]
+                              [&::-webkit-scrollbar-thumb]:tw-transition-all [&::-webkit-scrollbar-thumb]:tw-duration-300">
               {/* Card 1 */}
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-shadow-md tw-flex tw-flex-col tw-justify-between tw-text-center">
                 <span>🇺🇸 Mỹ</span>
@@ -395,7 +403,11 @@ export default function Home() {
                 Tiêm phòng vắc xin là biện pháp hiệu quả giúp bảo vệ sức khỏe cho bạn và cộng đồng.
               </p>
             </div>
-            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden">
+            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden
+            [&::-webkit-scrollbar]:tw-h-3 [&::-webkit-scrollbar-thumb]:tw-rounded-full
+                              [&::-webkit-scrollbar-track]:tw-bg-gradient-to-r [&::-webkit-scrollbar-track]:tw-from-blue-100 [&::-webkit-scrollbar-track]:tw-to-cyan-100
+                              [&::-webkit-scrollbar-thumb]:tw-bg-gradient-to-r [&::-webkit-scrollbar-thumb]:tw-from-[#f1428b] [&::-webkit-scrollbar-thumb]:tw-to-[#51f34b]
+                              [&::-webkit-scrollbar-thumb]:tw-transition-all [&::-webkit-scrollbar-thumb]:tw-duration-300">
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-text-center tw-shadow-md tw-flex tw-flex-col tw-justify-between">
                 <span>🇫🇷 Pháp</span>
                 <img src="images/sot1.jpg" alt="" className="tw-w-full tw-max-h-[120px] tw-object-contain" />
@@ -431,7 +443,11 @@ export default function Home() {
                 loại vắc xin tái tổ hợp dành cho trẻ từ 2 tháng tuổi đến người lớn tròn 50 tuổi.
               </p>
             </div>
-            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden">
+            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden
+            [&::-webkit-scrollbar]:tw-h-3 [&::-webkit-scrollbar-thumb]:tw-rounded-full
+                              [&::-webkit-scrollbar-track]:tw-bg-gradient-to-r [&::-webkit-scrollbar-track]:tw-from-blue-100 [&::-webkit-scrollbar-track]:tw-to-cyan-100
+                              [&::-webkit-scrollbar-thumb]:tw-bg-gradient-to-r [&::-webkit-scrollbar-thumb]:tw-from-[#f1428b] [&::-webkit-scrollbar-thumb]:tw-to-[#51f34b]
+                              [&::-webkit-scrollbar-thumb]:tw-transition-all [&::-webkit-scrollbar-thumb]:tw-duration-300">
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-shadow-md tw-flex tw-flex-col tw-justify-between tw-text-center">
                 <span>🇬🇧 Anh</span>
                 <img src="images/caub1.jpg" alt="" className="tw-w-full tw-max-h-[120px] tw-object-contain" />
@@ -467,7 +483,11 @@ export default function Home() {
                       là cách để bảo vệ bản thân và gia đình, giúp ngăn ngừa nguy cơ mắc bệnh và biến chứng nghiêm trọng.
               </p>
             </div>
-            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden">
+            <div className="tw-flex-2 tw-w-[60%] tw-flex tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden
+            [&::-webkit-scrollbar]:tw-h-3 [&::-webkit-scrollbar-thumb]:tw-rounded-full
+                              [&::-webkit-scrollbar-track]:tw-bg-gradient-to-r [&::-webkit-scrollbar-track]:tw-from-blue-100 [&::-webkit-scrollbar-track]:tw-to-cyan-100
+                              [&::-webkit-scrollbar-thumb]:tw-bg-gradient-to-r [&::-webkit-scrollbar-thumb]:tw-from-[#f1428b] [&::-webkit-scrollbar-thumb]:tw-to-[#51f34b]
+                              [&::-webkit-scrollbar-thumb]:tw-transition-all [&::-webkit-scrollbar-thumb]:tw-duration-300">
               {/* card1 */}
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-shadow-md tw-flex tw-flex-col tw-justify-between tw-text-center">
                 <span>🇫🇷 Pháp</span>
@@ -522,7 +542,10 @@ export default function Home() {
                       thậm chí tử vong. Tiêm vắc xin là biện pháp phòng ngừa hiệu quả nhất đối với bệnh Viêm não Nhật Bản.
               </p>
             </div>
-            <div className="tw-flex-2 tw-flex tw-w-[60%] tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden">
+            <div className="tw-flex-2 tw-flex tw-w-[60%] tw-gap-4 tw-p-[20px] tw-bg-gradient-to-br tw-from-[#0666f7] tw-to-[#34b4ed] tw-overflow-x-auto tw-scroll-smooth tw-whitespace-nowrap tw-overflow-y-hidden *: [&::-webkit-scrollbar]:tw-h-3 [&::-webkit-scrollbar-thumb]:tw-rounded-full
+                              [&::-webkit-scrollbar-track]:tw-bg-gradient-to-r [&::-webkit-scrollbar-track]:tw-from-blue-100 [&::-webkit-scrollbar-track]:tw-to-cyan-100
+                              [&::-webkit-scrollbar-thumb]:tw-bg-gradient-to-r [&::-webkit-scrollbar-thumb]:tw-from-[#f1428b] [&::-webkit-scrollbar-thumb]:tw-to-[#51f34b]
+                              [&::-webkit-scrollbar-thumb]:tw-transition-all [&::-webkit-scrollbar-thumb]:tw-duration-300">
               {/* card1 */}
               <div className="tw-flex-none tw-w-[230px] tw-h-[360px] tw-bg-white tw-rounded-xl tw-p-[15px] tw-shadow-md tw-flex tw-flex-col tw-justify-between tw-text-center">
                 <span>🇯🇵 Nhật Bản</span>

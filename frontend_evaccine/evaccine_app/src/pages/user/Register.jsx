@@ -112,9 +112,9 @@ export default function Register({ onClose }) {
   };
 
   return (
-    <div className="tw-fixed tw-inset-0 tw-bg-black/60 tw-flex tw-items-center tw-justify-center tw-z-30 tw-mt-[90px]" onClick={handleClose}>
+    <div className="tw-fixed tw-inset-0 tw-bg-black/60 tw-flex tw-items-center tw-justify-center tw-z-30 " onClick={handleClose}>
       {/* Khung chứa ảnh + form */}
-      <div className="tw-w-full tw-max-w-7xl tw-bg-white tw-rounded-2xl tw-shadow-2xl tw-flex tw-overflow-hidden"
+      <div className="tw-w-full tw-max-w-7xl tw-bg-white tw-rounded-2xl tw-shadow-2xl tw-flex tw-overflow-hidden tw-mt-[90px]"
         onClick={(e) => e.stopPropagation()} >
         
         {/* Cột form bên trái */}

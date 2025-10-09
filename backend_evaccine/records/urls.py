@@ -1,12 +1,9 @@
-# records/urls.py
+# app: records/urls.py
 from rest_framework.routers import DefaultRouter
-from .views import FamilyMemberViewSet, DiseaseViewSet, VaccineViewSet, VaccinationRecordViewSet, AppointmentViewSet
+from .views import FamilyMemberViewSet, VaccinationRecordViewSet
 
 router = DefaultRouter()
-router.register(r'family-members', FamilyMemberViewSet, basename="familymember")
-router.register(r'diseases', DiseaseViewSet)
-router.register(r'vaccines', VaccineViewSet)
-router.register(r'vaccination-records', VaccinationRecordViewSet, basename="vaccinationrecord")
-router.register(r'appointments', AppointmentViewSet, basename="appointment")
+router.register(r"family-members", FamilyMemberViewSet, basename="family-member")
+router.register(r"vaccinations", VaccinationRecordViewSet, basename="vaccination")
 
 urlpatterns = router.urls

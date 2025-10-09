@@ -126,7 +126,7 @@ export default function VaccinesList() {
   useEffect(() => {
     const fetchPackage = async () => {
       try {
-        const res = await api.get("http://localhost:8000/api/vaccine-packages/1/");
+        const res = await api.get("vaccines/packages/1/");
         const data = res.data;
 
         // Gắn thêm các giá trị mặc định để hiển thị
@@ -196,8 +196,8 @@ export default function VaccinesList() {
   if (loading) return <p className="tw-text-center tw-text-xl">Đang tải dữ liệu...</p>;
 
   return (
-    <section className="tw-bg-gradient-to-r tw-from-blue-100 tw-to-pink-50 tw-py-10 tw-pb-40 tw-mt-[100px] ">
-      <div className=" tw-container tw-mx-auto tw-px-14 tw-max-w-[1300px]">    
+    <section className="tw-bg-gradient-to-r tw-from-blue-100 tw-to-pink-50 tw-py-10 tw-pb-40 ">
+      <div className=" tw-container tw-mx-auto tw-px-14 tw-max-w-[1300px] tw-mt-[100px] ">    
         {/* Banner */}
         <div className="tw-relative tw-w-full tw-h-[200px] tw-overflow-hidden tw-rounded-2xl tw-mb-12">
           <div  className="tw-flex tw-h-full tw-transition-transform tw-duration-700 tw-ease-in-out"
@@ -257,7 +257,7 @@ export default function VaccinesList() {
         {activeTab === "vacxin" ? (
           <div>
             {/* Các danh mục nhỏ */}
-            <div className="tw-grid tw-grid-cols-2 md:tw-grid-cols-4 tw-gap-5 tw-pt-20 tw-my-20">
+            <div className="tw-grid tw-grid-cols-2 md:tw-grid-cols-4 tw-gap-5 tw-pt-10 tw-mb-20">
               {(showAll ? vaccineCategories : vaccineCategories.slice(0, 8)).map((category) => (
                 <div key={category.id}
                   className="tw-bg-white tw-rounded-2xl tw-shadow-sm tw-flex tw-flex-row tw-items-center tw-p-2 tw-cursor-pointer hover:tw-shadow-md tw-h-36"
@@ -305,8 +305,9 @@ export default function VaccinesList() {
 
                   {/* Phần nội dung cuộn */}
                   <div className="tw-max-h-[calc(100vmin-48px-2*20px-16px)] tw-overflow-auto tw-px-4 tw-scrollbar 
-                              [&::-webkit-scrollbar]:tw-w-1" style={{ scrollbarGutter: "stable" }} >
-
+                              [&::-webkit-scrollbar]:tw-w-2 [&::-webkit-scrollbar]:tw-h-8 [&::-webkit-scrollbar-thumb]:tw-rounded-full
+                            [&::-webkit-scrollbar-track]:tw-bg-gray-100 [&::-webkit-scrollbar-thumb]:tw-bg-gradient-to-b
+                            [&::-webkit-scrollbar-thumb]:tw-from-cyan-400 [&::-webkit-scrollbar-thumb]:tw-to-blue-400" style={{ scrollbarGutter: "stable" }} >
                      <div className="tw-space-y-4">
                       <AccordionFilter title="Độ tuổi" options={ageOptions} />
                       <AccordionFilter title="Phòng bệnh" options={diseaseOptions} />

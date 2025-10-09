@@ -3,9 +3,9 @@
 export default function VaccineKnowledge() {
     return (
         <div>
-            <section className="tw-bg-white tw-pt-10 tw-pb-20 tw-mt-[100px] tw-min-h-screen 
+            <section className="tw-bg-white tw-pt-10 tw-pb-20  tw-min-h-screen 
                    tw-bg-[radial-gradient(circle_at_center,_#bfdbfe_0%,_white_80%)]" >
-                <div className="tw-max-w-[1200px] tw-mx-auto tw-px-6 tw-container">
+                <div className="tw-max-w-[1200px] tw-mx-auto tw-px-6 tw-container tw-mt-[100px]">
                 <div className="tw-container tw-mx-auto tw-px-6 lg:tw-px-14">
                         
                     {/* Tiêu đề */}
