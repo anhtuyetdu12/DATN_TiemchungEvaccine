@@ -1,17 +1,14 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from django.utils import timezone
-from .models import FamilyMember, Appointment, VaccinationRecord
-from .serializers import FamilyMemberSerializer, AppointmentSerializer, VaccinationRecordSerializer
-from django.utils.timezone import now
-# --- Quản lý thành viên gia đình ---
-from rest_framework import viewsets, status
-from rest_framework.response import Response
+from .models import FamilyMember, VaccinationRecord
+from .serializers import FamilyMemberSerializer, VaccinationRecordSerializer
 from .models import FamilyMember
 from .serializers import FamilyMemberSerializer
 from rest_framework.permissions import IsAuthenticated
-
+from rest_framework.views import APIView
+from vaccines.models import Vaccine
+from datetime import date
 
 class FamilyMemberViewSet(viewsets.ModelViewSet):
     serializer_class = FamilyMemberSerializer
@@ -19,30 +16,14 @@ class FamilyMemberViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return FamilyMember.objects.filter(user=self.request.user)
+    
+    def perform_create(self, serializer):
+        # GÁN user cho bản ghi mới => tránh NULL user_id
+        serializer.save(user=self.request.user)
 
-    # def list(self, request, *args, **kwargs):
-    #     user = request.user
-    #     queryset = self.get_queryset()
-
-    #     # Nếu chưa có sổ -> tự tạo “Bản thân”
-    #     if not queryset.exists():
-    #         default_member = FamilyMember.objects.create(
-    #             user=user,
-    #             full_name=getattr(user, "full_name", "") or user.username,
-    #             nickname=user.username,
-    #             relation="Bản thân",
-    #             gender="other",
-    #             date_of_birth="2000-01-01",
-    #             phone=getattr(user, "phone", ""),
-    #             is_self=True,
-    #         )
-    #         queryset = [default_member]
-    #     else:
-    #         # Đảm bảo “Bản thân” luôn lên đầu danh sách
-    #         queryset = sorted(queryset, key=lambda m: 0 if m.relation == "Bản thân" else 1)
-
-    #     serializer = self.get_serializer(queryset, many=True)
-    #     return Response(serializer.data)
+    def perform_update(self, serializer):
+        # (tuỳ chọn) đảm bảo không đổi chủ sở hữu
+        serializer.save(user=self.request.user)
 
     def list(self, request, *args, **kwargs):
         user = request.user
@@ -58,7 +39,7 @@ class FamilyMemberViewSet(viewsets.ModelViewSet):
                 nickname=getattr(user, "full_name", "") or user.email,
                 relation="Bản thân",
                 gender="other",
-                date_of_birth="2000-01-01",   # bạn có thể lấy ngày sinh thật nếu có
+                date_of_birth=date(2000, 1, 1),
                 phone=getattr(user, "phone", ""),
                 is_self=True  # nếu model có cột này
             )
@@ -73,38 +54,10 @@ class FamilyMemberViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
     
-# --- Quản lý lịch hẹn tiêm ---
-class AppointmentViewSet(viewsets.ModelViewSet):
-    queryset = Appointment.objects.all()
-    serializer_class = AppointmentSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        return Appointment.objects.filter(user=self.request.user)
-
-    @action(detail=False, methods=['post'])
-    def auto_update_status(self, request):
-        now = timezone.now()
-        updated = Appointment.objects.filter(
-            status='pending', appointment_date__lt=now
-        ).update(status='cancelled')
-        return Response({'updated': updated})
-
-    @action(detail=True, methods=['post'])
-    def set_next_appointment(self, request, pk=None):
-        appointment = self.get_object()
-        date = request.data.get("appointment_date")
-        if not date:
-            return Response({"error": "Thiếu ngày hẹn tiêm"}, status=status.HTTP_400_BAD_REQUEST)
-        appointment.appointment_date = date
-        appointment.status = 'pending'
-        appointment.save()
-        return Response({"message": "Cập nhật lịch tiêm tiếp theo thành công"})
-
 
 # --- Quản lý sổ tiêm chủng ---
 class VaccinationRecordViewSet(viewsets.ModelViewSet):
-    queryset = VaccinationRecord.objects.all()  # ✅ Bổ sung dòng này luôn
+    queryset = VaccinationRecord.objects.all()  
     serializer_class = VaccinationRecordSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -117,3 +70,22 @@ class VaccinationRecordViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save()
+
+# ---------- đặt hẹn mũi tiêm  -----------
+class RemainingDosesView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        member_id = request.query_params.get("member_id")
+        vaccine_id = request.query_params.get("vaccine_id")
+        if not member_id or not vaccine_id:
+            return Response({"error": "Thiếu member_id/vaccine_id"}, status=400)
+        member = FamilyMember.objects.filter(id=member_id, user=request.user).first()
+        vaccine = Vaccine.objects.filter(id=vaccine_id).first()
+        if not member or not vaccine:
+            return Response({"error": "Không hợp lệ"}, status=400)
+        total = vaccine.doses_required or 1
+        used = VaccinationRecord.objects.filter(family_member=member, vaccine=vaccine).count()
+        return Response({"remaining": max(total - used, 0), "total": total, "used": used})
+    
+
+

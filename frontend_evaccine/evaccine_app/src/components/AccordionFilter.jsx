@@ -1,93 +1,127 @@
-import { useState } from "react";
+// src/components/AccordionFilter.jsx
+import { useMemo, useState } from "react";
 
-// Component tái sử dụng
-export default function AccordionFilter({ title, options, withSearch = false }) {
+export default function AccordionFilter({
+  title,
+  options = [],
+  selected = ["all"],
+  onChange = () => {},
+  withSearch = false,
+  showMoreAt = 4,
+  searchPlaceholder = "Nhập thông tin tìm kiếm ...",
+}) {
   const [isOpen, setIsOpen] = useState(true);
-  const [selected, setSelected] = useState(["all"]);
+  const [expanded, setExpanded] = useState(false);
   const [search, setSearch] = useState("");
+  // Lọc theo từ khoá (nếu bật withSearch)
+  const filteredOptions = useMemo(() => {
+    if (!withSearch || !search.trim()) return options;
+    const kw = search.trim().toLowerCase();
+    return options.filter((opt) => (opt.label || "").toLowerCase().includes(kw));
+  }, [options, withSearch, search]);
+
+  // Danh sách hiển thị khi chưa bấm "Xem thêm"
+  const visibleOptions = useMemo(() => {
+    // luôn ưu tiên render “Tất cả” (nếu có) ở trên
+    const allOpt = filteredOptions.find((o) => o.id === "all");
+    const rest = filteredOptions.filter((o) => o.id !== "all");
+    const sliced = expanded ? rest : rest.slice(0, showMoreAt);
+    return { allOpt, list: sliced, totalNonAll: rest.length };
+  }, [filteredOptions, expanded, showMoreAt]);
+
+  const isChecked = (id) =>
+    selected.includes("all") ? id === "all" : selected.includes(id);
 
   const toggle = (id) => {
     if (id === "all") {
-      setSelected(["all"]);
-    } else {
-      setSelected((prev) =>
-        prev.includes(id)
-          ? prev.filter((x) => x !== id)
-          : [...prev.filter((x) => x !== "all"), id]
-      );
+      onChange(["all"]);
+      return;
     }
+    const current = new Set(selected.includes("all") ? [] : selected);
+    if (current.has(id)) current.delete(id);
+    else current.add(id);
+
+    const next = Array.from(current);
+    onChange(next.length ? next : ["all"]);
   };
 
-  const filteredOptions = withSearch
-    ? options.filter((opt) =>
-        opt.label.toLowerCase().includes(search.toLowerCase())
-      )
-    : options;
-
   return (
-    <div className="tw-border-b tw-py-4">
-      {/* Nút toggle accordion */}
-      <button  type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="tw-flex tw-w-full tw-items-center tw-gap-2" >
-        <span className="tw-text-left tw-font-medium">{title}</span>
-        <i
-          className={`fa-solid ${
-            isOpen ? "fa-angle-up" : "fa-angle-down"
-          } tw-ml-auto tw-text-[14px] tw-transition-all`}
-        ></i>
+    <div className="tw-border tw-border-gray-200 tw-rounded-xl tw-overflow-hidden tw-my-3 ">
+      {/* Header */}
+      <button  type="button" onClick={() => setIsOpen(!isOpen)}
+        className="tw-flex tw-w-full tw-items-center tw-gap-2 tw-bg-gray-50 tw-px-4 tw-py-3">
+        <span className="tw-text-left tw-font-semibold tw-text-gray-700">{title}</span>
+        <i className={`fa-solid ${ isOpen ? "fa-angle-up" : "fa-angle-down" } tw-ml-auto tw-text-[14px] tw-text-gray-500 tw-transition-all`} />
       </button>
 
-      {/* Nội dung */}
+      {/* Body */}
       {isOpen && (
-        <div className="tw--mx-1 tw-px-1 tw-pt-3">
+        <div className="tw-px-4 tw-pt-3 tw-pb-4">
           {withSearch && (
-            <div className=" tw-relative tw-mb-3">
-              <input type="text"  value={search} onChange={(e) => setSearch(e.target.value)}
-                placeholder="Tìm theo quốc gia"
+            <div className="tw-relative tw-mb-3">
+              <input type="text" value={search}
+                onChange={(e) => setSearch(e.target.value)}  placeholder={searchPlaceholder}
                 className="tw-w-full tw-border tw-border-gray-300 tw-rounded-lg tw-pl-3 tw-pr-9 tw-py-2 
-                        tw-text-sm focus:tw-outline-none focus:tw-ring-1 focus:tw-ring-blue-400" />
-                <i className="fa-solid fa-magnifying-glass tw-absolute tw-right-3 tw-top-1/2 -tw-translate-y-1/2 tw-text-gray-400"></i>
-             
+                           tw-text-sm focus:tw-outline-none focus:tw-ring-1 focus:tw-ring-blue-400" />
+              <i className="fa-solid fa-magnifying-glass tw-absolute tw-right-3 tw-top-1/2 -tw-translate-y-1/2 tw-text-gray-400" />
             </div>
           )}
 
           <ul className="tw-flex tw-flex-col tw-gap-2">
-            {filteredOptions.map((opt) => {
-              const checked = selected.includes(opt.id);
-              return (
-                <li key={opt.id}>
-                  <div className="tw-flex tw-items-center tw-gap-3">
-                    {/* Checkbox */}
-                    <div className="tw-shrink-0 tw-p-0.5 tw-size-6">
-                      <button type="button" role="checkbox" aria-checked={checked} data-state={checked ? "checked" : "unchecked"}
-                        onClick={() => toggle(opt.id)}
-                        className={`tw-block tw-w-6 tw-h-6 tw-rounded-md tw-border tw-transition-colors tw-duration-150
-                          ${ checked
-                              ? "tw-border-blue-500 tw-bg-blue-500"
-                              : "tw-border-gray-300 hover:tw-border-cyan-500"
-                          }`} >
-                        {checked && (
-                          <span className="tw-flex tw-items-center tw-justify-center tw-text-white tw-text-sm">
-                            <i className="fa-solid fa-check"></i>
-                          </span>
-                        )}
-                      </button>
-                    </div>
-                    <label className="tw-cursor-pointer tw-text-xl tw-font-medium tw-text-gray-800">
-                      {opt.label}
-                    </label>
-                  </div>
-                </li>
-              );
-            })}
+            {/* Tất cả (nếu có) */}
+            {visibleOptions.allOpt && (
+              <li key="all">
+                <button type="button" onClick={() => toggle("all")}
+                  className="tw-flex tw-items-center tw-gap-3 tw-w-full" >
+                  <span aria-checked={isChecked("all")} role="checkbox"
+                    className={`tw-block tw-w-8 tw-h-8 tw-rounded-md tw-border tw-transition-colors tw-duration-150 ${
+                      isChecked("all")
+                        ? "tw-border-blue-500 tw-bg-blue-500"
+                        : "tw-border-gray-300 hover:tw-border-cyan-500"
+                    }`} >
+                    {isChecked("all") && (
+                      <span className="tw-flex tw-items-center tw-justify-center tw-text-white tw-text-lg tw-mt-1.5">
+                        <i className="fa-solid fa-check" />
+                      </span>
+                    )}
+                  </span>
+                  <span className="tw-cursor-pointer tw-text-[12px] tw-text-left tw-font-medium tw-text-gray-800">
+                    {visibleOptions.allOpt.label}
+                  </span>
+                </button>
+              </li>
+            )}
+
+            {/* Các option khác */}
+            {visibleOptions.list.map((opt) => (
+              <li key={opt.id}>
+                <button type="button" onClick={() => toggle(opt.id)} className="tw-flex tw-items-center tw-gap-3 tw-w-full"  >
+                  <span aria-checked={isChecked(opt.id)} role="checkbox"
+                    className={`tw-block tw-w-8 tw-h-8 tw-rounded-md tw-border tw-transition-colors tw-duration-150 ${
+                      isChecked(opt.id)
+                        ? "tw-border-blue-500 tw-bg-blue-500"
+                        : "tw-border-gray-300 hover:tw-border-cyan-500"
+                    }`}>
+                    {isChecked(opt.id) && (
+                      <span className="tw-flex tw-items-center tw-justify-center tw-text-white tw-text-lg tw-mt-1.5">
+                        <i className="fa-solid fa-check" />
+                      </span>
+                    )}
+                  </span>
+                  <span className="tw-cursor-pointer tw-text-[12px] tw-text-left tw-font-medium tw-text-gray-800"> {opt.label} </span>
+                </button>
+              </li>
+            ))}
           </ul>
 
-          <button type="button"
-            className="tw-mt-3 tw-flex tw-items-center tw-text-blue-600 tw-text-lg hover:tw-underline tw-gap-2"  >
-            Xem thêm
-            <i className="fa-solid fa-angles-down"></i>
-          </button>
+          {/* Xem thêm / Thu gọn */}
+          {visibleOptions.totalNonAll > showMoreAt && (
+            <button type="button" onClick={() => setExpanded(!expanded)}
+              className="tw-mt-3 tw-flex tw-items-center tw-text-blue-600 tw-text-lg hover:tw-underline tw-gap-2" >
+              {expanded ? "Thu gọn" : "Xem thêm"}
+              <i className={`fa-solid ${expanded ? "fa-angles-up" : "fa-angles-down"} tw-text-sm tw-leading-none`} />
+            </button>
+          )}
         </div>
       )}
     </div>

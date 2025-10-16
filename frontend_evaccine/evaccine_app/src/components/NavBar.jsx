@@ -1,11 +1,51 @@
 import { Link  } from "react-router-dom";
 import { useEffect, useState } from "react";
 // import api from "../services/axios";
+import axios from "axios";
+import { clearAllAuth, getStorage } from "../utils/authStorage";
+import { SELECTED_EVENT} from "../utils/selectedVaccines";
+import { loadAuth } from "../utils/authStorage";
+import { readBooking } from "../utils/bookingStorage";
 
 export default function NavBar({ user, setUser }) {
     // const navigate = useNavigate(); 
     const [loading, setLoading] = useState(true);
     const [showDropdown, setShowDropdown] = useState(false);
+
+    // bộ đếm
+    const [count, setCount] = useState(0);
+
+    const refreshBadge = () => {
+      const { user, access } = loadAuth();
+      if (!access || !user) {
+        setCount(0);               // chưa đăng nhập: không hiển thị số
+        return;
+      }
+       // Đếm tổng qty
+     const total = readBooking().reduce((s, it) => s  +  (Number(it.qty) || 1), 0);
+     setCount(total || 0);
+    };
+
+    useEffect(() => {
+      refreshBadge();
+      const onSel = () => refreshBadge();
+      window.addEventListener(SELECTED_EVENT, onSel);
+      return () => window.removeEventListener(SELECTED_EVENT, onSel);
+    }, []);
+
+    useEffect(() => {
+      refreshBadge();
+    }, [user]);
+
+    useEffect(() => {
+      const onStorage = (e) => {
+        if (e.key && e.key.startsWith("booking_items_")) {
+          refreshBadge();
+        }
+      };
+      window.addEventListener("storage", onStorage);
+      return () => window.removeEventListener("storage", onStorage);
+    }, []);
 
     // tự động đóng khi click ra phía ngoài 
     useEffect(() => {
@@ -19,15 +59,21 @@ export default function NavBar({ user, setUser }) {
     }, []);
 
 
-
-    // const handleLogout = () => {
-    //     localStorage.removeItem("user"); // xóa dữ liệu user
-    //     setUser(null);
-    // };
-    const handleLogout = () => {
-        localStorage.removeItem("user"); // xóa dữ liệu user
+    const handleLogout = async () => {
+      try {
+        const store = getStorage();
+        const refresh = store.getItem("refresh");
+        if (refresh) {
+          await axios.post("http://127.0.0.1:8000/api/users/logout/", { refresh });
+        }
+      } catch (_) {}
+      finally {
+        clearAllAuth();
         setUser(null);
+        window.location.href = "/login";
+      }
     };
+
     useEffect(() => {
         // giả lập load xong sau 1.5 giây
         const timer = setTimeout(() => setLoading(false), 1500);
@@ -107,6 +153,23 @@ export default function NavBar({ user, setUser }) {
                       <i className="fa fa-bell "></i>                   
                     </Link>
                   </li>
+                  <li>
+                    <Link to="/bookingform" title="Vắc xin đã chọn"
+                      className=" tw-relative tw-inline-flex tw-items-center tw-gap-2 tw-bg-[#e8f4ff] tw-text-[#1999ee]
+                        tw-px-4 tw-py-2 tw-rounded-full tw-border tw-border-[#bfe0ff] hover:tw-bg-[#d8eeff] hover:tw-text-[#0d79c9] hover:tw-border-[#9fd1ff] tw-transition-colors tw-shadow-sm  ">
+                      <i className="fa-solid fa-syringe" />
+                      <span className="tw-font-semibold tw-text-base">Vắc xin đã chọn</span>
+
+                      {/* (tuỳ chọn) badge đếm */}
+                     {count > 0 && (
+                        <span className=" tw-absolute tw-top-0 tw-right-0 tw-translate-x-1/2 -tw-translate-y-1/2 tw-bg-[#f83a3a] tw-text-white tw-text-sm tw-font-bold
+                          tw-rounded-full tw-min-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center tw-shadow tw-mt-1 tw-mr-2 ">
+                          {count}
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+
                   <li className="tw-relative">
                     {user ? (
                       <div className="user-dropdown tw-relative tw-flex tw-items-center tw-gap-2">

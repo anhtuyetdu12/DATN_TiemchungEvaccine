@@ -109,20 +109,7 @@ export default function RequestConsultationModal({ show, onClose }) {
                         className="tw-w-full tw-border tw-rounded-lg tw-p-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
                 </div>
 
-                {/* Chiều cao + cân nặng */}
-                <div className="tw-grid tw-grid-cols-2 tw-gap-4">
-                    <div>
-                        <label className="tw-block tw-mb-1 tw-text-gray-700 tw-font-normal tw-text-left"> Chiều cao (cm) </label>
-                        <input type="number"  placeholder="Ví dụ: 170"
-                            className="tw-w-full tw-border tw-rounded-lg tw-p-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
-                    </div>
-                    <div>
-                        <label className="tw-block tw-mb-1 tw-text-gray-700 tw-font-normal tw-text-left"> Cân nặng (kg)</label>
-                        <input type="number" placeholder="Ví dụ: 60"
-                            className="tw-w-full tw-border tw-rounded-lg tw-p-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"  />
-                    </div>
-                </div>
-
+               
                 <div className="tw-space-y-2">
                 <label className="tw-block tw-mb-1 tw-text-gray-700 tw-font-normal tw-text-left">  Vắc xin cần tư vấn (Không bắt buộc) </label>
 

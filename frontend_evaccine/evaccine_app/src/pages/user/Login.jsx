@@ -3,6 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { saveAuth } from "../../utils/authStorage";
+import { SELECTED_EVENT } from "../../utils/selectedVaccines";
+import { migrateLegacyBooking } from "../../utils/bookingStorage";
 
 export default function Login({ setUser }) {
   const navigate = useNavigate();
@@ -10,6 +13,7 @@ export default function Login({ setUser }) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [remember, setRemember] = useState(false);
 
 
   // --- VALIDATE FUNCTIONS ---
@@ -56,40 +60,65 @@ export default function Login({ setUser }) {
       const response = await axios.post("http://127.0.0.1:8000/api/users/login/", {
         identifier,
         password,
-        remember: true 
+        remember
       });
 
-       // --- Lưu token vào localStorage để axios sử dụng ---
-    localStorage.setItem("access", response.data.access);
-    localStorage.setItem("refresh", response.data.refresh);
+    const { data } = response;
 
-       // kiểm tra cờ require_change_password từ API
-      if (response.data.require_change_password) {
-        localStorage.setItem("identifier", identifier);
-        navigate("/change-password");
+      // 1) Nếu phải đổi mật khẩu -> KHÔNG lưu token, điều hướng tới reset-password (case mật khẩu tạm qua phone)
+      if (data.require_change_password) {
+        (remember ? localStorage : sessionStorage).setItem("identifier", identifier);
+        navigate("/reset-password?identifier=" + encodeURIComponent(identifier));
         return;
       }
-
-      const userData = {
-        ...response.data.user,
-        role: response.data.user.role.toLowerCase().trim(), // chuẩn hóa lowercasse
-      };
-      localStorage.setItem("user", JSON.stringify(userData));
-      setUser(userData);
-
-      // --- redirect theo role ---
-      if (userData.role === "customer") {
-        navigate("/");
-      } else if (userData.role === "staff") {
+      // Lưu token + user đúng nơi:
+      saveAuth({
+        user: {
+          ...data.user,
+          role: data.user.role?.toLowerCase().trim(),
+        },
+        access: data.access,
+        refresh: data.refresh,
+        remember, // checkbox
+      });
+      setUser({
+        ...data.user,
+        role: data.user.role?.toLowerCase().trim(),
+      });
+      migrateLegacyBooking();
+      window.dispatchEvent(new Event(SELECTED_EVENT));
+      // Nếu có ?next=... -> ưu tiên quay về đó
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get("next");
+      if (next) {
+        navigate(next, { replace: true });
+      } else if (data.user.role?.toLowerCase().trim() === "staff") {
         navigate("/staff/home");
       } else {
-        navigate("/"); // mặc định trang home user
+        navigate("/");
       }
 
       toast.success("Đăng nhập thành công!");
 
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Đăng nhập thất bại");
+      // toast.error(err.response?.data?.detail || "Đăng nhập thất bại");
+      const data = err.response?.data || {};
+      const pick = (v) => Array.isArray(v) ? v[0] : v;
+   
+      // Đổ lỗi về form để hiển thị dưới input
+      setErrors(prev => ({
+        ...prev,
+        identifier: pick(data.identifier) || "",
+        password: pick(data.password) || "",
+      }));
+   
+      // Ưu tiên thông báo rõ ràng theo field
+      const msg =
+        pick(data.identifier) ||     // "Tài khoản không tồn tại" / rule theo email/phone
+        pick(data.password)   ||     // "Mật khẩu không đúng"
+        pick(data.detail)     ||     // fallback khi BE trả detail
+        "Đăng nhập thất bại";
+      toast.error(msg);
     }
   };
 
@@ -125,7 +154,7 @@ export default function Login({ setUser }) {
                 onChange={(e) => setIdentifier(e.target.value)} onBlur={() => handleBlur("identifier")}
                 className="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-500"
                 placeholder="Nhập email hoặc số điện thoại"/>
-                {errors.identifier && <p className="tw-text-red-600 tw-text-base">{errors.identifier}</p>}
+                {errors.identifier && <p className="tw-text-red-600 tw-text-base tw-mt-2">{errors.identifier}</p>}
             </div>
 
             <div>
@@ -142,11 +171,13 @@ export default function Login({ setUser }) {
                   {showPassword ? <EyeOffIcon size={19} /> : <EyeIcon  size={19} />}
                 </button>
               </div>
+              {errors.password && <p className="tw-text-red-600 tw-text-base tw-mt-2">{errors.password}</p>}
             </div>
 
             <div className="tw-flex tw-items-center tw-justify-between tw-mt-2">
               <label className="tw-flex tw-items-center tw-space-x-2 tw-text-gray-500 tw-text-lg tw-cursor-pointer">
-                <input type="checkbox" className="tw-h-5 tw-w-5 tw-text-blue-500 focus:tw-ring-blue-500 tw-rounded tw-cursor-pointer" />
+                <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} 
+                  className="tw-h-5 tw-w-5 tw-text-blue-500 focus:tw-ring-blue-500 tw-rounded tw-cursor-pointer" />
                 <span>Ghi nhớ đăng nhập</span>
               </label>
               <Link to="/forgot-password" className="tw-text-blue-600  tw-text-lg tw-cursor-pointer" >

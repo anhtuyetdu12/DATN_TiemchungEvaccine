@@ -1,4 +1,3 @@
-import { X } from "lucide-react";
 
 export default function SelectCustomerModal({ open, onClose, customers, onSelect }) {
   if (!open) return null;
@@ -8,7 +7,7 @@ export default function SelectCustomerModal({ open, onClose, customers, onSelect
       <div className="tw-bg-white tw-rounded-lg tw-shadow-lg tw-w-[450px] tw-max-w-full tw-p-5">
         {/* Header */}
         <div className="tw-flex tw-justify-between tw-items-center tw-mb-4">
-          <h2 className="tw-font-bold tw-text-XL">Chọn người tiêm</h2>
+          <h2 className="tw-font-bold tw-text-2xl tw-mt-2">Chọn người tiêm</h2>
           <button onClick={onClose}  className="tw-w-10 tw-h-10 tw-flex tw-items-center tw-justify-center 
              tw-rounded-full tw-text-gray-500 hover:tw-text-red-500  tw-mb-2
              hover:tw-bg-gray-100 transition-colors">

@@ -1,22 +1,22 @@
 // src/services/recordBookService.js
 import api from "./axios";
 
-// ✅ Lấy danh sách thành viên
-// export async function getFamilyMembers() {
-//   const res = await api.get("/records/family-members/");
-//   return res.data;
-// }
-export const getFamilyMembers = async () => {
-  const token = localStorage.getItem("access");
-  const res = await api.get("/records/family-members/", {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  return res.data;  // data phải là mảng member
-};
+// Lấy danh sách thành viên
+export async function getFamilyMembers() {
+  const res = await api.get("/records/family-members/");
+  return res.data;
+}
+// export const getFamilyMembers = async () => {
+//   const token = localStorage.getItem("access");
+//   const res = await api.get("/records/family-members/", {
+//     headers: {
+//       Authorization: `Bearer ${token}`,
+//     },
+//   });
+//   return res.data;  // data phải là mảng member
+// };
 
-// ✅ Thêm thành viên
+// Thêm thành viên
 export async function createFamilyMember(payload) {
   try {
     const res = await api.post("/records/family-members/", payload);
@@ -27,49 +27,29 @@ export async function createFamilyMember(payload) {
   }
 }
 
-// ✅ Lấy lịch sử tiêm của 1 thành viên
-/**
- * Lấy lịch sử tiêm của 1 thành viên
- * @param {number} memberId - ID của FamilyMember
- * @returns {Promise<Array>} mảng VaccinationRecord
- */
+// Lấy lịch sử tiêm của 1 thành viên
+
 export const getVaccinationRecords = async (memberId) => {
   if (!memberId) throw new Error("Thiếu memberId");
 
-  try {
-    const token = localStorage.getItem("access");
-    const res = await api.get(`/records/vaccinations/?member_id=${memberId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    // res.data phải là mảng các VaccinationRecord
-    return res.data;
-  } catch (error) {
-    console.error("Lỗi khi tải lịch sử tiêm:", error.response?.data || error.message);
-    throw error;
-  }
+  const res = await api.get(`/records/vaccinations/?member_id=${memberId}`);
+   return res.data;
 };
 
 // cập nhật thông tin bản thân
 export const updateFamilyMember = async (id, payload) => {
-  const token = localStorage.getItem("access");
-  if (!token) throw new Error("Missing access token");
-
-  const res = await api.patch(`/records/family-members/${id}/`, payload, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return res.data;
+  const res = await api.patch(`/records/family-members/${id}/`, payload);
+  return res.data;  
 };
 
-// ✅ Thêm mũi tiêm
+// Thêm mũi tiêm
 export async function addVaccinationRecord(payload) {
   const res = await api.post("/records/vaccinations/", payload);
   return res.data;
 }
 
 
-// ✅ Lấy danh sách bệnh
+// Lấy danh sách bệnh
 export const getDiseases = async () => {
   try {
     const res = await api.get("/vaccines/diseases/");
@@ -78,4 +58,16 @@ export const getDiseases = async () => {
     console.error("Lỗi khi tải danh sách bệnh:", error);
     throw error;
   }
+};
+
+export const getVaccinesByAge = async (memberId, diseaseId, doseNumber) => {
+  if (!memberId) throw new Error("Thiếu memberId");
+  const params = new URLSearchParams({ member_id: String(memberId) });
+  if (diseaseId) params.append("disease_id", String(diseaseId));
+  if (doseNumber) params.append("dose_number", String(doseNumber)); // 🔧 thêm mũi
+
+  // Lưu ý: axios instance `api` của bạn nên có baseURL = "/api"
+  // -> endpoint này tương ứng /api/vaccines/by-age/
+  const res = await api.get(`/vaccines/by-age/?${params.toString()}`);
+  return res.data;
 };

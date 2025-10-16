@@ -1,7 +1,8 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
-
+from django.utils.text import slugify
+from django.core.exceptions import ValidationError
 
 
 # -------------------------
@@ -73,12 +74,30 @@ class Vaccine(models.Model):
     price = models.DecimalField("Giá tiền", max_digits=12, decimal_places=2, blank=True, null=True)
     doses_required = models.IntegerField("Phác đồ điều trị", default=1)
     interval_days = models.IntegerField("Khoảng cách giữa các mũi tiêm (ngày)", blank=True, null=True)
-    age_group = models.CharField("Độ tuổi áp dụng", max_length=100, blank=True, null=True)
+    # Khoảng tuổi áp dụng
+    min_age = models.IntegerField("Tuổi nhỏ nhất", blank=True, null=True, help_text="VD: 0 hoặc 2")
+    max_age = models.IntegerField("Tuổi lớn nhất", blank=True, null=True, help_text="VD: 5 hoặc 12")
+    age_unit = models.CharField(
+        "Đơn vị tuổi",
+        max_length=10,
+        default="tuổi",
+        choices=(("tuổi", "Tuổi"), ("tháng", "Tháng")),
+    )
+
+    # Thông tin mở rộng
+    schedule_text = models.TextField(
+        "Phác đồ lịch tiêm", blank=True, null=True,
+        help_text="VD: Trẻ từ 2 tuổi trở lên tiêm 1 liều cơ bản, nhắc lại sau 5 năm..."
+    )
     indications = models.TextField("Chỉ định", blank=True, null=True)
     contraindications = models.TextField("Chống chỉ định", blank=True, null=True)
     storage_requirements = models.CharField("Điều kiện bảo quản", max_length=255, blank=True, null=True)
     side_effects = models.TextField("Tác dụng phụ", blank=True, null=True)
     description = models.TextField("Mô tả chi tiết", blank=True, null=True)
+    efficacy_text = models.TextField("Hiệu quả bảo vệ", blank=True, null=True)
+    pregnancy_note = models.TextField("Lưu ý với phụ nữ mang thai", blank=True, null=True)
+    deferral_note = models.TextField("Hoãn tiêm chủng", blank=True, null=True)
+    other_notes = models.TextField("Các chú ý khác", blank=True, null=True)
     approval_date = models.DateField("Ngày phê duyệt", default=timezone.now, blank=True, null=True)
     image = models.ImageField("Hình ảnh ", upload_to="vaccines/", blank=True, null=True)
     status = models.CharField(
@@ -88,14 +107,54 @@ class Vaccine(models.Model):
         default="active",
     )
     created_at = models.DateTimeField("Ngày tạo", auto_now_add=True, null=True)
+    slug = models.SlugField("Slug", max_length=255, unique=True, blank=True, null=True)
 
     class Meta:
         verbose_name = "Vắc xin"
         verbose_name_plural = "Danh sách vắc xin"
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "age_unit", "min_age", "max_age", "disease"]),
+        ]
+        
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base = slugify(self.name or "")
+            self.slug = base
+            # đảm bảo unique
+            i = 1
+            Model = self.__class__
+            while Model.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+                self.slug = f"{base}-{i}"
+                i += 1
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        min_age = self.min_age
+        max_age = self.max_age
+        unit = self.age_unit or "tuổi"
+
+        if min_age is None:
+            raise ValidationError({"min_age": "Bắt buộc nhập độ tuổi nhỏ nhất."})
+
+        if unit == "tuổi":
+            if not (0 <= min_age <= 110):
+                raise ValidationError({"min_age": "min_age (tuổi) phải trong khoảng 0–110."})
+            if max_age is not None and not (0 <= max_age <= 110):
+                raise ValidationError({"max_age": "max_age (tuổi) phải trong khoảng 0–110."})
+        else:
+            if not (0 <= min_age <= 110 * 12):
+                raise ValidationError({"min_age": "min_age (tháng) phải trong khoảng 0–1320."})
+            if max_age is not None and not (0 <= max_age <= 110 * 12):
+                raise ValidationError({"max_age": "max_age (tháng) phải trong khoảng 0–1320."})
+
+        if max_age is not None and min_age > max_age:
+            raise ValidationError({"max_age": "max_age phải ≥ min_age."})
 
     def __str__(self):
         return self.name
+
+
 
 
 # -------------------------
@@ -107,6 +166,18 @@ class VaccinePackageGroup(models.Model):
     order = models.PositiveIntegerField("Thứ tự hiển thị", default=0)
     status = models.BooleanField("Hiển thị", default=True)
     created_at = models.DateTimeField("Ngày tạo", auto_now_add=True, null=True)
+    slug = models.SlugField("Slug", max_length=255, unique=True, blank=True, null=True)
+    
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base = slugify(self.title or "")
+            self.slug = base
+            i = 1
+            Model = self.__class__
+            while Model.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+                self.slug = f"{base}-{i}"; i += 1
+        super().save(*args, **kwargs)
+     
     class Meta:
         verbose_name = "Nhóm gói tiêm"
         verbose_name_plural = "Danh sách nhóm gói tiêm"
@@ -129,6 +200,18 @@ class VaccinePackage(models.Model):
     image = models.ImageField(upload_to="package_images/", blank=True, null=True)
     status = models.BooleanField("Kích hoạt", default=True)
     created_at = models.DateTimeField("Ngày tạo", auto_now_add=True, null=True)
+    slug = models.SlugField(max_length=255, unique=True, blank=True, null=True)
+    
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base = slugify(self.name or "")
+            self.slug = base or "goi"
+            i = 1
+            Model = self.__class__
+            while Model.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+                self.slug = f"{base}-{i}"; i += 1
+        super().save(*args, **kwargs)
+        
     class Meta:
         verbose_name = "Gói vắc xin"
         verbose_name_plural = "Danh sách gói vắc xin"
@@ -139,16 +222,21 @@ class VaccinePackage(models.Model):
 
 
 class VaccinePackageDisease(models.Model):
-    package = models.ForeignKey(
-        VaccinePackage, on_delete=models.CASCADE, related_name="disease_groups"
-    )
-    disease = models.ForeignKey(
-        Disease, on_delete=models.CASCADE, related_name="package_diseases"
-    )
-    vaccines = models.ManyToManyField(
-        Vaccine, related_name="package_disease_vaccines", verbose_name="Danh sách vắc xin cho bệnh này"
-    )
-
+    package = models.ForeignKey(  VaccinePackage, on_delete=models.CASCADE, related_name="disease_groups" )
+    disease = models.ForeignKey(  Disease, on_delete=models.CASCADE, related_name="package_diseases")
+    vaccines = models.ManyToManyField( Vaccine, related_name="package_disease_vaccines", verbose_name="Danh sách vắc xin cho bệnh này" )
+    slug = models.SlugField(max_length=255, unique=True, blank=True, null=True)
+    
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base = slugify(f"{self.package_id}-{self.disease_id}")
+            self.slug = base
+            i = 1
+            Model = self.__class__
+            while Model.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+                self.slug = f"{base}-{i}"; i += 1
+        super().save(*args, **kwargs)
+    
     class Meta:
         verbose_name = "Bệnh trong gói tiêm"
         verbose_name_plural = "Danh sách bệnh trong gói tiêm"
@@ -159,21 +247,16 @@ class VaccinePackageDisease(models.Model):
 # Booking
 # -------------------------
 class Booking(models.Model):
-    user = models.ForeignKey("users.CustomUser", on_delete=models.CASCADE, verbose_name="Người đặt")
-    vaccine = models.ForeignKey(Vaccine, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Vắc xin")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Người đặt")
+    member = models.ForeignKey('records.FamilyMember', on_delete=models.CASCADE, verbose_name="Người tiêm")  
+    vaccine = models.ForeignKey(Vaccine, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Vắc xin")  
     package = models.ForeignKey(VaccinePackage, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Gói tiêm")
     appointment_date = models.DateField("Ngày hẹn tiêm", blank=True, null=True)
-    appointment_time = models.TimeField("Giờ hẹn tiêm", blank=True, null=True)
     location = models.CharField("Địa điểm tiêm", max_length=255, blank=True, null=True)
     status = models.CharField(
         "Trạng thái lịch hẹn",
         max_length=20,
-        choices=(
-            ("pending", "Chờ xác nhận"),
-            ("confirmed", "Đã xác nhận"),
-            ("completed", "Đã tiêm xong"),
-            ("cancelled", "Đã hủy"),
-        ),
+        choices=(("pending","Chờ xác nhận"),("confirmed","Đã xác nhận"),("completed","Đã tiêm xong"),("cancelled","Đã hủy")),
         default="pending",
     )
     notes = models.TextField("Ghi chú thêm", blank=True, null=True)
@@ -183,6 +266,23 @@ class Booking(models.Model):
         verbose_name = "Lịch hẹn tiêm"
         verbose_name_plural = "Danh sách lịch hẹn tiêm"
         ordering = ["-created_at"]
-    def __str__(self):
-        return f"Lịch hẹn của {self.user.full_name} - {self.appointment_date}"
 
+    def __str__(self):
+        return f"Lịch hẹn của {getattr(self.user, 'full_name', self.user)} - {self.appointment_date}"
+
+
+class BookingItem(models.Model):
+    booking = models.ForeignKey(
+        Booking, on_delete=models.CASCADE, related_name="items",
+        verbose_name="Đơn đặt hẹn"
+    )
+    vaccine = models.ForeignKey(
+        Vaccine, on_delete=models.CASCADE,
+        verbose_name="Vắc xin"
+    )
+    quantity = models.PositiveIntegerField(default=1, verbose_name="Số liều")
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Đơn giá")
+
+    class Meta:
+        verbose_name = "Mục vắc xin"
+        verbose_name_plural = "Danh sách mục vắc xin"

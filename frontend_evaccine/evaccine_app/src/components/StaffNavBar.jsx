@@ -1,10 +1,14 @@
 import { Link  } from "react-router-dom";
 import { useEffect, useState } from "react";
 // import api from "../services/axios";
+import axios from "axios";
+import { clearAllAuth, getStorage } from "../utils/authStorage";
+
 
 export default function StaffNavBar({ user, setUser }) {
   const [loading, setLoading] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
+  
   // const navigate = useNavigate(); 
   // Tự động đóng khi click ra ngoài
   useEffect(() => {
@@ -17,10 +21,22 @@ export default function StaffNavBar({ user, setUser }) {
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    setUser(null);
-  };
+  const handleLogout = async () => {
+      try {
+        const store = getStorage();
+        const refresh = store.getItem("refresh");
+        if (refresh) {
+          await axios.post("http://127.0.0.1:8000/api/users/logout/", { refresh });
+        }
+      } catch (_) {}
+      finally {
+        clearAllAuth();
+        setUser(null);
+        window.location.href = "/login";
+      }
+    };
+
+
    
 
   useEffect(() => {

@@ -1,16 +1,22 @@
 // cập nhật mũi tiêm 
 import { useState, useEffect  } from "react";
 // import { addVaccinationRecord } from "../../../../services/recordBookService";
+import { toast } from "react-toastify";
 
-export default function UpdateDose({ disease, onClose, onSave }) {
+export default function UpdateDose({ disease, selectedDoseNumber = 1, initialDoses = [], onClose, onSave }) {
    const [doses, setDoses] = useState([]);
    const [expanded, setExpanded] = useState(false); 
 
-  useEffect(() => {
-    setDoses([
-      { id: 1, date: "", vaccine: "", location: "", open: true },
-    ]); //set trạng thái ban đầu
-  }, [disease]);
+   useEffect(() => {
+    // Nếu có dữ liệu cũ: giữ nguyên vaccine, date, location, sắp thứ tự 1..n
+    const base = (Array.isArray(initialDoses) && initialDoses.length > 0)
+      ? initialDoses.map((d, idx) => ({ ...d, id: idx + 1, open: false }))
+      : [{ id: 1, date: "", vaccine: "", location: "", open: false }];
+    // Mở sẵn tab mũi được chọn (nếu trong khoảng)
+    const openIndex = Math.min(Math.max(1, selectedDoseNumber), base.length) - 1;
+    base[openIndex].open = true;
+    setDoses(base);
+  }, [disease, initialDoses, selectedDoseNumber]);
 
 
   // Lấy ngày hôm nay theo local (YYYY-MM-DD)
@@ -40,15 +46,16 @@ export default function UpdateDose({ disease, onClose, onSave }) {
 
   // thêm mũi 
   const handleAddDose = () => {
-    if (doses.length >= (disease?.maxDoses || 1)) {
-      alert(`Chỉ được thêm tối đa ${disease?.maxDoses} mũi tiêm`);
-      return;
-    }
-    setDoses([
-      ...doses,
-      { id: doses.length + 1, date: "", vaccine: "", location: "", open: true },
-    ]);
-  };
+  const limit = disease?.maxDoses || 1;
+  if (doses.length >= limit) {
+    toast && toast.warn ? toast.warn(`Chỉ được thêm tối đa ${limit} mũi tiêm`) : void 0;
+    return;
+  }
+  setDoses(prev => [
+    ...prev,
+    { id: prev.length + 1, date: "", vaccine: "", location: "", open: true },
+  ]);
+};
 
   const handleRemoveDose = (index) => {
     const newDoses = doses.filter((_, i) => i !== index);
@@ -137,8 +144,8 @@ export default function UpdateDose({ disease, onClose, onSave }) {
                   <button onClick={(e) => {
                       e.stopPropagation();
                       handleRemoveDose(index);
-                    }} className="tw-text-red-500 hover:tw-underline" >
-                    <i className="fa-solid fa-trash"></i>
+                    }} className="tw-text-red-600 hover:tw-text-red-700" title="Xoá mũi này">
+                     <i className="fa-solid fa-trash-can"></i>
                   </button> 
                 </div>
               </div>
@@ -148,8 +155,8 @@ export default function UpdateDose({ disease, onClose, onSave }) {
                 <div className="tw-px-4 tw-pb-4 tw-flex tw-flex-col tw-gap-3">
                   {/* Ngày tiêm */}
                   <div className="tw-relative">
-                    <input type="date" value={dose.date}
-                      onChange={(e) => handleDoseChange(index, "date", e.target.value)}
+                    <input type="date" value={dose.appointmentDate || ""}
+                      onChange={(e) => handleDoseChange(index, "appointmentDate", e.target.value)}
                       max={today}                                   // <-- khóa không cho chọn ngày lớn hơn
                       className="tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 pr-10 tw-border-gray-300 tw-text-gray-700
                                 hover:tw-border-[#56b6f7] hover:tw-ring-1 hover:tw-ring-[#56b6f7]

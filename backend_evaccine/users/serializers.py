@@ -80,14 +80,8 @@ class LoginSerializer(serializers.Serializer):
     def validate_password(self, value):
         if " " in value:
             raise serializers.ValidationError("Mật khẩu không được chứa khoảng trắng")
-        if not re.search(r'[A-Z]', value):
-            raise serializers.ValidationError("Mật khẩu phải có ít nhất 1 chữ hoa")
-        if not re.search(r'[a-z]', value):
-            raise serializers.ValidationError("Mật khẩu phải có ít nhất 1 chữ thường")
-        if not re.search(r'[\W_]', value):
-            raise serializers.ValidationError("Mật khẩu phải có ít nhất 1 ký tự đặc biệt")
-        if len(value) < 6:
-            raise serializers.ValidationError("Mật khẩu phải có ít nhất 6 ký tự")
+        if value == "":
+            raise serializers.ValidationError("Mật khẩu không được để trống")
         return value
 
     def validate(self, data):

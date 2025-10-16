@@ -7,7 +7,7 @@ import logging
 from .serializers import LoginSerializer, StaffLoginSerializer
 from django.contrib.auth.hashers import make_password
 from django.utils.crypto import get_random_string
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, AllowAny  
 from django.db import IntegrityError
 from django.core.mail import send_mail
 from django.conf import settings
@@ -19,10 +19,10 @@ from django.core.mail import EmailMultiAlternatives
 from email.mime.image import MIMEImage
 from django.conf import settings
 
-
 logger = logging.getLogger(__name__)
 
 class RegisterAPIView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         identifier = request.data.get("identifier")
         full_name = request.data.get("full_name")
@@ -66,6 +66,7 @@ class RegisterAPIView(APIView):
 
 
 class LoginAPIView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
@@ -99,10 +100,23 @@ class LoginAPIView(APIView):
             }, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
-
+    
+class LogoutAPIView(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        refresh = request.data.get("refresh")
+        if not refresh:
+            return Response({"detail": "Thiếu refresh token"}, status=400)
+        try:
+            token = RefreshToken(refresh)
+            token.blacklist()
+            return Response(status=205)
+        except Exception:
+            return Response({"detail": "Token không hợp lệ"}, status=400)
 
 # --- Quên mật khẩu ---
 class ForgotPasswordAPIView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         identifier = request.data.get("identifier")
         if not identifier:
@@ -222,6 +236,7 @@ class ForgotPasswordAPIView(APIView):
         
 # views.py
 class ResetPasswordAPIView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         identifier = request.data.get("identifier")
         password = request.data.get("password")
@@ -257,30 +272,6 @@ class ResetPasswordAPIView(APIView):
 
         return Response({"detail": "Đặt lại mật khẩu thành công"}, status=200)
         
-
-
-# class ResetPasswordByPhoneAPIView(APIView):
-#     def post(self, request):
-#         phone = request.data.get("phone")
-#         password = request.data.get("password")
-#         repassword = request.data.get("repassword")
-
-#         if not phone or not password or not repassword:
-#             return Response({"detail": "Thiếu trường bắt buộc"}, status=400)
-#         if password != repassword:
-#             return Response({"detail": "Mật khẩu nhập lại không khớp"}, status=400)
-
-#         try:
-#             user = CustomUser.objects.get(phone=phone)
-#         except CustomUser.DoesNotExist:
-#             return Response({"detail": "Số điện thoại không tồn tại"}, status=400)
-
-#         user.set_password(password)
-#         user.must_change_password = False
-#         user.save()
-
-#         return Response({"detail": "Đặt lại mật khẩu thành công"}, status=200)
-
 
 class CreateStaffAPIView(APIView):
     permission_classes = [IsAdminUser]  # chỉ admin mới gọi được
@@ -322,6 +313,7 @@ class CreateStaffAPIView(APIView):
     
     
 class StaffLoginAPIView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = StaffLoginSerializer(data=request.data)
         if serializer.is_valid():

@@ -6,32 +6,10 @@ import DiseaseModal from "./modal/RecordBook/DiseaseModal";
 import DetailDose from "./modal/RecordBook/DetailDose";
 import { getFamilyMembers,  getDiseases , getVaccinationRecords , updateFamilyMember} from "../../services/recordBookService";
 import { toast } from "react-toastify";
-import { jwtDecode } from "jwt-decode";
+import { getVaccinesByAge } from "../../services/recordBookService";
 
 export default function RecordBook() {
-    useEffect(() => {
-    const access = localStorage.getItem("access");
-    if (!access) {
-        // Không có token → redirect login
-        window.location.href = "/login";
-        return;
-    }
-    try {
-        const decoded = jwtDecode(access);
-        const now = Date.now() / 1000;
-        if (!decoded.exp || decoded.exp < now) {
-            localStorage.clear();
-            window.location.href = "/login";
-            return;
-        }
-    } catch (err) {
-        console.warn("Token không hợp lệ:", err);
-        localStorage.clear();
-        window.location.href = "/login";
-        return;
-    }
-    }, []);
-    
+   
 
     // Danh sách thành viên trong sổ tiêm chủng
   const [users, setUsers] = useState([]);
@@ -94,14 +72,12 @@ export default function RecordBook() {
             // structuredData[diseaseId][doseIndex] = { date, vaccine, location, appointmentDate }
             const structuredData = {};
             records.forEach((rec) => {
-                // Nếu backend chưa trả disease_id thì có thể dùng rec.vaccine_name làm key tạm
-                const diseaseId = rec.disease_id || rec.vaccine_name;
+                const diseaseId = rec?.disease?.id || rec.disease_id || rec.vaccine_name;
                 if (!structuredData[diseaseId]) structuredData[diseaseId] = {};
-                // Nếu backend chưa trả dose_number, có thể tự tính thứ tự dựa vào số lượng đã tiêm
-                const doseIndex = rec.dose_number ? rec.dose_number - 1 : Object.keys(structuredData[diseaseId]).length;
+                const doseIndex = rec.dose_number ? rec.dose_number - 1  : Object.keys(structuredData[diseaseId]).length;
                 structuredData[diseaseId][doseIndex] = {
                     date: rec.vaccination_date,
-                    vaccine: rec.vaccine_name,
+                    vaccine: rec.vaccine?.name || rec.vaccine_name || "",
                     location: rec.vaccine_lot,
                     appointmentDate: rec.next_dose_date,
                     note: rec.note,
@@ -145,6 +121,7 @@ export default function RecordBook() {
   };
 
   const currentUser = users.find((u) => u.id === activeUser);
+
    // chỉnh sửa ngày sinh của bản thân
     const [editGender, setEditGender] = useState("");
     const [editDOB, setEditDOB] = useState("");
@@ -163,17 +140,45 @@ export default function RecordBook() {
   // Dữ liệu phòng bệnh
     const [diseases, setDiseases] = useState([]);
 
+    // lấy danh sách phòng bệnh
     useEffect(() => {
-    const fetchDiseases = async () => {
-        try {
+        const fetchDiseases = async () => {
+            try {
             const data = await getDiseases();
-            setDiseases(data);
-        } catch (err) {
+            const normalized = (data || []).map(d => ({
+                ...d,
+                doseCount: d.dose_count || 1,  // map sang key FE đang dùng
+            }));
+            setDiseases(normalized);
+            } catch (err) {
             toast.error("Không thể tải danh sách phòng bệnh");
-        }
-    };
-    fetchDiseases();
+            }
+        };
+        fetchDiseases();
     }, []);
+
+
+    // NEW – gợi ý theo tuổi của activeUser
+    const [ageVaccines, setAgeVaccines] = useState([]);
+    useEffect(() => {
+        if (!activeUser || !currentUser?.dob) return;
+        (async () => {
+        try {
+            const data = await getVaccinesByAge(activeUser); // không truyền diseaseId -> list tổng quát
+            setAgeVaccines(data?.vaccines || []);
+        } catch (err) {
+            console.error("by-age error:", err?.response || err);
+            setAgeVaccines([]);
+            const msg =
+            err?.response?.data?.error ||
+            err?.response?.data?.detail ||
+            (err?.response ? `Lỗi ${err.response.status}` : "Lỗi mạng/CORS");
+            toast.error(msg);
+        }
+        })();
+    }, [activeUser, currentUser?.dob]);
+
+
     // update  mũi 
     const [showUpdate, setShowUpdate] = useState(false);
     const [selectedDisease, setSelectedDisease] = useState(null);
@@ -204,19 +209,50 @@ export default function RecordBook() {
         setShowUpdate(false);
     };
 
+    // xóa
+    const deleteSingleDose = (diseaseId, doseIndex) => {
+    setVaccinationData(prev => {
+        const userMap = { ...(prev[activeUser] || {}) };
+        const diseaseMap = { ...(userMap[diseaseId] || {}) };
+        // xoá mũi tại index
+        delete diseaseMap[doseIndex];
+        // nén lại về 0..n-1 để hiển thị Mũi 1..n đúng thứ tự
+        const compact = {};
+        Object.keys(diseaseMap)
+        .map(k => Number(k))
+        .sort((a,b) => a - b)
+        .map(k => diseaseMap[k])
+        .forEach((d, idx) => { compact[idx] = d; });
+        return { ...prev, [activeUser]: { ...userMap, [diseaseId]: compact } };
+    });
+    };
 
 
-    // trạng thái tiêm
+    const toYMD = (d) => {
+        if (!d) return "";
+        const t = new Date(d);
+        const yyyy = t.getFullYear();
+        const mm = String(t.getMonth() + 1).padStart(2, "0");
+        const dd = String(t.getDate()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}`;
+    };
+    const todayYMD = toYMD(new Date());
+    const fmtVN = (d) => d ? new Date(d).toLocaleDateString("vi-VN") : "";
+
+    // Trạng thái mũi
     const getDoseStatus = (dose) => {
-        const today = new Date();
-        if (dose.date) return "Đã tiêm";
-        if (dose.appointmentDate) {
-            const appoint = new Date(dose.appointmentDate);
-            if (appoint > today) return "Chờ tiêm";
-            else return "Trễ hẹn";
+        const shot = dose?.date ? toYMD(dose.date) : "";
+        if (shot) return "Đã tiêm";
+
+        const appt = dose?.appointmentDate ? toYMD(dose.appointmentDate) : "";
+        if (appt) {
+            if (appt > todayYMD) return "Chờ tiêm";  
+            if (appt < todayYMD) return "Trễ hẹn";   
+            return "Chờ tiêm";                      
         }
         return "Chưa tiêm";
     };
+
     const getStatusStyle = (status) => {
         switch (status) {
             case "Đã tiêm":
@@ -304,8 +340,7 @@ export default function RecordBook() {
                                     onClick={() => setIsEditing(true)} ></i>
                             </div>
                             {/* thông tin chỉnh sửa */}
-                            {!isEditing && ( <p className="tw-text-gray-700 tw-text-lg"> {currentUser.gender === "male"  ? "Nam" : currentUser.gender === "female"  ? "Nữ" : "Khác"} 
-                                · {getAgeText(currentUser.dob)}  </p> )}
+                            {!isEditing && ( <p className="tw-text-gray-700 tw-text-lg"> {currentUser.gender || "Khác"} · {getAgeText(currentUser.dob)}  </p> )}
                             <p className="tw-text-gray-700 tw-text-lg">{currentUser.relation}</p>
 
                             {/* Form chỉnh sửa nhỏ */}
@@ -388,21 +423,28 @@ export default function RecordBook() {
                     </button>
                 </div>
                 <div className="tw-border-t-2 tw-border-solid tw-border-blue-200"></div>
-                {/* Thông báo nhập mã */}
-                <div className="tw-p-5 tw-flex tw-items-center tw-justify-between">
-                    <div className="tw-flex tw-items-center">
-                        <div className="tw-bg-gray-200 tw-rounded-full tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-mr-[5px]">
-                            <i className="fa fa-lightbulb tw-text-yellow-500"></i>
+                    {/* gợi ý theo tuổi của activeUser */}
+                    <p className="tw-text-3xl tw-text-[#1a237e] tw-pt-8 tw-font-semibold">Gợi ý vắc xin phù hợp với độ tuổi</p>
+                    <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 lg:tw-grid-cols-3 tw-gap-5 tw-py-8 tw-px-5">
+                    {ageVaccines.map(v => (
+                        <div key={v.id} className="tw-bg-white tw-rounded-xl tw-shadow-sm tw-p-3 tw-flex tw-items-center tw-gap-5" >
+                        <div className="tw-w-[96px] tw-h-[64px] tw-flex tw-items-center tw-justify-center tw-rounded-lg tw-bg-white">
+                            <img src={v.image || "/images/no-image.jpg"} alt={v.name}
+                                className="tw-max-w-full tw-max-h-full tw-object-contain tw-rounded-md" />
                         </div>
-                        <p className="tw-text-lg tw-text-gray-700">
-                            Nhập mã TCQG để đồng bộ lịch sử tiêm chủng của bản thân và gia đình
-                        </p>
+
+                        {/* Nội dung */}
+                        <div className="tw-text-left tw-min-w-0">
+                            <p className="tw-font-semibold tw-truncate">{v.name}</p>
+                            <p className="tw-text-gray-500 tw-truncate">{v.disease?.name}</p>
+                            {v.formatted_price && (
+                                <p className="tw-text-orange-500 tw-font-semibold">{v.formatted_price}</p>
+                            )}
+                        </div>
+                        </div>
+                    ))}
                     </div>
-                    <button className="tw-text-blue-600 tw-font-semibold tw-text-lg">
-                        Nhập  <i className="fa-solid fa-angle-right tw-ml-2"></i>
-                    </button>
                 </div>
-            </div>
             )}
 
             
@@ -419,60 +461,119 @@ export default function RecordBook() {
                 </div>
 
                 {diseases.map((disease) => (
-                    <div
-                        key={disease.id}
+                    <div  key={disease.id}
                         className="tw-grid tw-grid-cols-6 tw-gap-4 tw-text-center tw-items-center tw-border-b tw-border-gray-200 tw-py-3">
                         <div className="tw-text-left tw-text-xl tw-font-medium tw-text-gray-700 tw-pr-2 tw-break-words tw-cursor-pointer hover:tw-text-blue-600"
-                            onClick={() => {
-                                setSelectedDisease(disease);
-                                setShowDiseaseModal(true);
-                            }}>
-                                {disease.name}
+                            onClick={() => {  setSelectedDisease(disease); setShowDiseaseModal(true);  }}>
+                            {disease.name}
                         </div>
                         
-                        {[...Array(disease.doseCount)].map((_, i) => {
+                      {[...Array(disease.doseCount)].map((_, i) => {
                             const doseInfo = vaccinationData[activeUser]?.[disease.id]?.[i];
-                            const isVaccinated = !!doseInfo;
+                            const status = getDoseStatus(doseInfo || {});
+                            const boxClass =
+                                status === "Đã tiêm" ? "tw-bg-green-100 tw-text-green-600" :
+                                status === "Chờ tiêm" ? "tw-bg-[#ddf1f9] tw-text-blue-600" :
+                                status === "Trễ hẹn"  ? "tw-bg-red-100 tw-text-red-600"  :
+                                                        "tw-bg-orange-100 tw-text-orange-600";
+
+                            const apptStr = doseInfo?.appointmentDate ? fmtVN(doseInfo.appointmentDate) : "";
+                            const shotStr = doseInfo?.date ? fmtVN(doseInfo.date) : "";
+
+                            // Tiêu đề & dòng ngày hiển thị dưới tiêu đề
+                            const title =
+                                status === "Đã tiêm" ? "Đã tiêm" :
+                                status === "Chờ tiêm" ? "Chờ tiêm" :
+                                status === "Trễ hẹn"  ? "Trễ hẹn"  : "Chưa tiêm";
+
+                            const dateLine =
+                                status === "Đã tiêm" ? shotStr :
+                                status === "Chờ tiêm" ? (apptStr ? ` ${apptStr}` : "") :
+                                status === "Trễ hẹn"  ? (apptStr ? ` ${apptStr}` : "") :
+                                ""; // Chưa tiêm -> không hiển thị
+
+                            const openUpdate = (e) => {
+                                e?.stopPropagation?.();
+                                setSelectedDisease({ ...disease, selectedDoseNumber: i + 1 });
+                                setShowUpdate(true);
+                            };
+
                             return (
-                                <div  key={i} onClick={() => {
-                                    setSelectedDisease(disease);
-                                    if (isEditing) {
-                                    setShowUpdate(true);
-                                    } else {
-                                    setShowDetail(true);
-                                    }
+                                <div
+                                key={i}
+                                onClick={() => {
+                                    setSelectedDisease({ ...disease, selectedDoseNumber: i + 1, selectedDoseStatus: status });
+                                    isEditing ? setShowUpdate(true) : setShowDetail(true);
                                 }}
-                                className={`tw-rounded-xl tw-flex tw-flex-col tw-items-center tw-justify-center tw-h-[90px] tw-cursor-pointer
-                                    ${isVaccinated ? "tw-bg-green-100 tw-text-green-600" : "tw-bg-orange-100 tw-text-orange-600"}`} >
-                                {isVaccinated ? (
-                                    <div className="tw-flex tw-flex-col tw-items-start">
-                                        <span className="tw-font-semibold tw-text-xl">Đã tiêm</span>
-                                        <span className="tw-text-lg tw-text-gray-500"> {new Date(doseInfo.date).toLocaleDateString("vi-VN")} </span>
-                                    </div>
-                                ) : isEditing ? (
+                                className={`tw-relative tw-rounded-xl tw-h-[90px] tw-cursor-pointer ${boxClass}
+                                            tw-flex tw-items-center tw-justify-center tw-text-center`}
+                                >
+                                {/* Nội dung căn giữa */}
+                                <div className="tw-flex tw-flex-col tw-items-center tw-justify-center">
+                                    {status === "Chưa tiêm" && !isEditing ? (
+                                    <span className="tw-font-semibold tw-text-[14px]">Chưa tiêm</span>
+                                    ) : isEditing && status === "Chưa tiêm" ? (
                                     <div className="tw-w-10 tw-h-10 tw-flex tw-items-center tw-justify-center tw-rounded-full tw-border-2 tw-bg-orange-500 tw-border-orange-500">
                                         <i className="fa-solid fa-plus tw-text-lg tw-text-white"></i>
                                     </div>
-                                ) : (
-                                    "Chưa tiêm"
+                                    ) : (
+                                    <>
+                                        <span className="tw-font-semibold tw-text-[14px]">{title}</span>
+                                        {dateLine && (
+                                        <span className="tw-text-lg tw-font-medium tw-text-gray-700 tw-mt-0.5">
+                                            {dateLine}
+                                        </span>
+                                        )}
+                                    </>
+                                    )}
+                                </div>
+
+                                {/* Nút sửa/xoá – nổi góc phải, không làm lệch căn giữa */}
+                                {isEditing && status !== "Chưa tiêm" && (
+                                    <div className="tw-absolute tw-top-2 tw-right-2 tw-flex tw-gap-2">
+                                    <button title="Chỉnh sửa mũi này" onClick={openUpdate}
+                                        className="tw-text-blue-600 hover:tw-text-blue-800">
+                                        <i className="fa-solid fa-pen-to-square"></i>
+                                    </button>
+                                    <button title="Xoá mũi này" onClick={(e) => { e.stopPropagation(); deleteSingleDose(disease.id, i); }}
+                                        className="tw-text-red-600 hover:tw-text-red-700" >
+                                        <i className="fa-solid fa-trash-can"></i>
+                                    </button>
+                                    </div>
                                 )}
                                 </div>
                             );
                         })}
 
-                        {Array.from({ length: 5 - disease.doseCount }).map((_, i) => (
-                        <div key={`empty-${i}`} />
+
+
+                       {Array.from({ length: Math.max(0, 5 - disease.doseCount) }).map((_, i) => (
+                            <div key={`empty-${i}`} />
                         ))}
                     </div>
                 ))}
 
-                {showUpdate && (
-                    <UpdateDose  disease={{ 
-                        ...selectedDisease, 
-                        maxDoses: selectedDisease.doseCount 
-                        }} 
-                        onClose={() => setShowUpdate(false)}  
-                        onSave={handleSaveDose}/>
+               {showUpdate && selectedDisease && (
+                <UpdateDose
+                    disease={{ ...selectedDisease, maxDoses: selectedDisease.doseCount }}
+                    selectedDoseNumber={selectedDisease.selectedDoseNumber} // mũi cần mở sẵn
+                    initialDoses={(() => {
+                    const map = vaccinationData[activeUser]?.[selectedDisease.id] || {};
+                    // ép về mảng theo thứ tự chỉ số 0..n-1
+                    return Object.keys(map)
+                        .map(k => Number(k))
+                        .sort((a,b) => a - b)
+                        .map((k, idx) => ({
+                        id: idx + 1,
+                        date: map[k]?.date ? String(map[k].date).slice(0,10) : "",
+                        vaccine: map[k]?.vaccine || "",
+                        location: map[k]?.location || "",
+                        open: false,
+                        }));
+                    })()}
+                    onClose={() => setShowUpdate(false)}
+                    onSave={handleSaveDose}
+                />
                 )}
 
                 
@@ -483,10 +584,13 @@ export default function RecordBook() {
                 />
                 )}
 
-                {showDetail && selectedDisease && (
-                    <DetailDose disease={selectedDisease} onClose={() => setShowDetail(false)} />
+                {showDetail && selectedDisease && currentUser && (
+                <DetailDose
+                    disease={selectedDisease}
+                    memberId={currentUser.id}   
+                    onClose={() => setShowDetail(false)}
+                />
                 )}
-
 
             </div>
 
