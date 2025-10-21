@@ -1,15 +1,20 @@
-from rest_framework import serializers
-from .models import CustomUser
 import re
 from django.contrib.auth.hashers import make_password
 from rest_framework import generics
+from django.contrib.auth import get_user_model
+import random, string
+from rest_framework import serializers
 from .models import CustomUser, MedicalStaff
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
+from records.models import FamilyMember
+
+User = get_user_model()
 
 class RegisterSerializer(serializers.ModelSerializer):
     repassword = serializers.CharField(write_only=True)
+    phone = serializers.CharField(required=False, allow_blank=True) 
 
     class Meta:
         model = CustomUser
@@ -167,6 +172,7 @@ class CreateStaffView(generics.CreateAPIView):
             work_shift=self.request.data.get("work_shift", "sáng"),
             notes=self.request.data.get("notes", "")
         )
+        
 class StaffLoginSerializer(serializers.Serializer):
     identifier = serializers.CharField()
     password = serializers.CharField(write_only=True)
@@ -189,3 +195,78 @@ class StaffLoginSerializer(serializers.Serializer):
 
         data['user'] = user
         return data
+    
+# staff tạo mới khách hàng 
+class StaffCreateCustomerSerializer(serializers.Serializer):
+    full_name = serializers.CharField(max_length=255)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    phone = serializers.CharField(required=False, allow_blank=True)
+    set_password = serializers.CharField(write_only=True)       # BẮT BUỘC
+    repassword   = serializers.CharField(write_only=True)       # XÁC NHẬN
+
+    def validate(self, attrs):
+        email = (attrs.get("email") or "").strip()
+        phone = (attrs.get("phone") or "").strip()
+        pwd   = (attrs.get("set_password") or "").strip()
+        repwd = (attrs.get("repassword") or "").strip()
+
+        if not email and not phone:
+            raise serializers.ValidationError({"detail": "Cần ít nhất email hoặc số điện thoại."})
+
+        if email and User.objects.filter(email=email).exists():
+            raise serializers.ValidationError({"email": "Email đã tồn tại."})
+        if phone and User.objects.filter(phone=phone).exists():
+            raise serializers.ValidationError({"phone": "Số điện thoại đã tồn tại."})
+
+        # rule mật khẩu giống RegisterSerializer
+        import re
+        if " " in pwd:
+            raise serializers.ValidationError({"set_password":"Mật khẩu không được chứa khoảng trắng"})
+        if not re.search(r'[A-Z]', pwd):
+            raise serializers.ValidationError({"set_password":"Mật khẩu phải có ít nhất 1 chữ hoa"})
+        if not re.search(r'[a-z]', pwd):
+            raise serializers.ValidationError({"set_password":"Mật khẩu phải có ít nhất 1 chữ thường"})
+        if not re.search(r'[\W_]', pwd):
+            raise serializers.ValidationError({"set_password":"Mật khẩu phải có ít nhất 1 ký tự đặc biệt"})
+        if len(pwd) < 6:
+            raise serializers.ValidationError({"set_password":"Mật khẩu phải có ít nhất 6 ký tự"})
+        if pwd != repwd:
+            raise serializers.ValidationError({"repassword":"Mật khẩu nhập lại không khớp"})
+
+        return attrs
+
+    def create(self, validated_data):
+        full_name = validated_data["full_name"].strip()
+        email = (validated_data.get("email") or "").strip() or None
+        phone = (validated_data.get("phone") or "").strip() or None
+        raw_password = (validated_data.get("set_password") or "").strip()
+
+        user = User.objects.create_user(
+            email=email or f"user{phone}@gmail.com",
+            full_name=full_name,
+            password=raw_password,
+            phone=phone,
+            role="customer",
+            is_active=True,
+        )
+
+        # KHÔNG bắt đổi mật khẩu lần đầu
+        user.must_change_password = False
+        user.save(update_fields=["must_change_password"])
+
+        # tạo member “Bản thân”
+        from records.models import FamilyMember
+        if not FamilyMember.objects.filter(user=user, relation="Bản thân").exists():
+            FamilyMember.objects.create(
+                user=user,
+                full_name=user.full_name or user.email,
+                nickname=user.full_name or user.email,
+                relation="Bản thân",
+                gender="other",
+            )
+        return {"user": user}
+ 
+    
+    
+    
+    

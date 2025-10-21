@@ -1,7 +1,6 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
-from vaccines.models import Booking as VaccineBooking
 from .models import *
 
 User = settings.AUTH_USER_MODEL
@@ -68,8 +67,42 @@ class VaccinationRecord(models.Model):
         return f"{self.vaccine_name or (self.vaccine.name if self.vaccine else 'Vaccine?')} - {member}"
 
 
-class BookingProxy(VaccineBooking):
+class Booking(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Người đặt")
+    member = models.ForeignKey('records.FamilyMember', on_delete=models.CASCADE, verbose_name="Người tiêm")
+
+    # FK vẫn trỏ sang vaccines
+    vaccine = models.ForeignKey('vaccines.Vaccine', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Vắc xin")
+    package = models.ForeignKey('vaccines.VaccinePackage', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Gói tiêm")
+
+    appointment_date = models.DateField("Ngày hẹn tiêm", blank=True, null=True)
+    location = models.CharField("Địa điểm tiêm", max_length=255, blank=True, null=True)
+    status = models.CharField(
+        "Trạng thái lịch hẹn",
+        max_length=20,
+        choices=(("pending","Chờ xác nhận"),("confirmed","Đã xác nhận"),("completed","Đã tiêm xong"),("cancelled","Đã hủy")),
+        default="pending",
+    )
+    notes = models.TextField("Ghi chú thêm", blank=True, null=True)
+    created_at = models.DateTimeField("Ngày tạo", auto_now_add=True, null=True)
+
     class Meta:
-        proxy = True
-        verbose_name = "Lịch hẹn tiêm (Booking)"
-        verbose_name_plural = "Danh sách lịch hẹn tiêm "
+        db_table = 'vaccines_booking'         # << GIỮ NGUYÊN TÊN BẢNG!
+        verbose_name = "Lịch hẹn tiêm"
+        verbose_name_plural = "Danh sách lịch hẹn tiêm"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Lịch hẹn của {getattr(self.user, 'full_name', self.user)} - {self.appointment_date}"
+
+
+class BookingItem(models.Model):
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name="items", verbose_name="Đơn đặt hẹn")
+    vaccine = models.ForeignKey('vaccines.Vaccine', on_delete=models.CASCADE, verbose_name="Vắc xin")
+    quantity = models.PositiveIntegerField(default=1, verbose_name="Số liều")
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Đơn giá")
+
+    class Meta:
+        db_table = 'vaccines_bookingitem'     # << GIỮ NGUYÊN TÊN BẢNG!
+        verbose_name = "Mục vắc xin"
+        verbose_name_plural = "Danh sách mục vắc xin"

@@ -1,8 +1,11 @@
 from rest_framework import serializers
-from .models import FamilyMember, VaccinationRecord
-from vaccines.serializers import DiseaseSerializer, VaccineSerializer
+from .models import FamilyMember, VaccinationRecord, Booking, BookingItem
+from vaccines.serializers import DiseaseSerializer, VaccineSerializer, VaccinePackageSerializer
 from vaccines.models import Disease, Vaccine
 from datetime import date
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class FamilyMemberSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(source="user.id", read_only=True)
@@ -16,8 +19,7 @@ class FamilyMemberSerializer(serializers.ModelSerializer):
             "full_name", "nickname", "relation", "gender",
             "date_of_birth", "phone", "notes", "created_at"
         ]
-
-
+        
 class VaccinationRecordSerializer(serializers.ModelSerializer):
     family_member = FamilyMemberSerializer(read_only=True)
     family_member_id = serializers.PrimaryKeyRelatedField(queryset=FamilyMember.objects.all(), source="family_member", write_only=True)
@@ -57,3 +59,203 @@ class VaccinationRecordSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"family_member_id": "Thành viên không thuộc tài khoản này."})
         return attrs
     
+class BookingItemWriteSerializer(serializers.Serializer):
+    vaccine_id = serializers.IntegerField()
+    quantity = serializers.IntegerField(min_value=1)
+
+class BookingItemReadSerializer(serializers.ModelSerializer):
+    vaccine = VaccineSerializer(read_only=True)
+    class Meta:
+        model = BookingItem
+        fields = ["id", "vaccine", "quantity", "unit_price"]
+
+class UserSlimSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ("id", "email", "phone", "full_name",)
+
+class MemberSlimSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FamilyMember
+        fields = ("id", "full_name", "date_of_birth", "phone",)
+
+class BookingSerializer(serializers.ModelSerializer):
+    # write
+    member_id = serializers.PrimaryKeyRelatedField(queryset=FamilyMember.objects.all(), source="member", write_only=True)
+    items = BookingItemWriteSerializer(many=True, write_only=True)
+
+    # read
+    user = UserSlimSerializer(read_only=True)
+    member = MemberSlimSerializer(read_only=True)
+    items_detail = BookingItemReadSerializer(many=True, read_only=True, source="items")
+    vaccine = VaccineSerializer(read_only=True)
+    package = VaccinePackageSerializer(read_only=True)
+    items_summary = serializers.SerializerMethodField()
+    status_label = serializers.SerializerMethodField()
+
+    is_overdue = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Booking
+        fields = [
+            "id", "member_id", "appointment_date", "location", "status", "notes",
+            "vaccine", "package", "created_at", "status_label",
+            "items", "items_detail", "is_overdue",
+            "user", "member", "items_summary", 
+        ]
+
+    def get_status_label(self, obj):
+        mapping = {
+            "pending": "Chờ xác nhận",
+            "confirmed": "Đã xác nhận",
+            "completed": "Đã tiêm xong",
+            "cancelled": "Đã hủy",
+        }
+        return mapping.get(obj.status, obj.status)
+    
+    def get_vaccine_names(self, obj):
+        names = [it.vaccine.name for it in obj.items.all() if it.vaccine]
+        if names:
+            # ví dụ: "MMR, HPV"
+            return ", ".join(dict.fromkeys(names))  # unique giữ thứ tự
+        if obj.vaccine:
+            return obj.vaccine.name
+        if obj.package:
+            return f"Gói: {obj.package.name}"
+        return ""
+
+    def get_items_summary(self, obj):
+        # ví dụ: [{"name":"MMR","qty":2},{"name":"HPV","qty":1}]
+        summary = []
+        for it in obj.items.all():
+            if it.vaccine:
+                summary.append({"name": it.vaccine.name, "qty": it.quantity})
+        return summary
+    
+    def get_is_overdue(self, obj):
+        from datetime import date
+        if obj.status in ("completed", "cancelled"):
+            return False
+        return bool(obj.appointment_date and obj.appointment_date < date.today())
+
+    def validate(self, attrs):
+        user = self.context["request"].user
+        member = attrs["member"]
+        if not attrs.get("appointment_date"):
+            raise serializers.ValidationError({"appointment_date": "Vui lòng chọn ngày hẹn tiêm."})
+        if member.user != user:
+            raise serializers.ValidationError({"member_id": "Thành viên không thuộc tài khoản này."})
+
+        # gộp quantity theo vaccine & check vượt phác đồ
+        from collections import defaultdict
+        want = defaultdict(int)
+        for it in attrs["items"]:
+            want[it["vaccine_id"]] += it["quantity"]
+
+        for v_id, qty in want.items():
+            try:
+                v = Vaccine.objects.get(id=v_id)
+            except Vaccine.DoesNotExist:
+                raise serializers.ValidationError({"items": f"Vắc xin id={v_id} không tồn tại"})
+            total = v.doses_required or 1
+            used = VaccinationRecord.objects.filter(family_member=member, vaccine=v).count()
+            if used + qty > total:
+                remain = max(total - used, 0)
+                raise serializers.ValidationError({
+                    "items": f"Vắc xin {v.name}: vượt số liều tối đa ({total}). Còn có thể đặt {remain} liều."
+                })
+        return attrs
+
+    def create(self, validated_data):
+        user = self.context["request"].user
+        items_data = validated_data.pop("items", [])
+        booking = Booking.objects.create(user=user, **validated_data)
+
+        for it in items_data:
+            v = Vaccine.objects.get(id=it["vaccine_id"])
+            BookingItem.objects.create(
+                booking=booking, vaccine=v, quantity=it["quantity"], unit_price=v.price or 0
+            )
+            # ghi sổ lịch tiêm dự kiến
+            current = VaccinationRecord.objects.filter(family_member=booking.member, vaccine=v).count()
+            for i in range(it["quantity"]):
+                VaccinationRecord.objects.create(
+                    family_member=booking.member,
+                    disease=v.disease,
+                    vaccine=v,
+                    dose_number=current + i + 1,
+                    vaccination_date=None,
+                    next_dose_date=booking.appointment_date,
+                    note=f"Đặt lịch #{booking.id}",
+                )
+        return booking
+    
+    
+#  ----- thành viên gia đình ------
+class CustomerMemberSlimSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FamilyMember
+        fields = ("id", "full_name", "nickname", "date_of_birth", "gender", "relation", "phone")
+
+class AppointmentSlimSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    date = serializers.DateField()  # <<< QUAN TRỌNG: DateField (tránh lỗi utcoffset)
+    vaccine = serializers.CharField()
+    center = serializers.CharField(required=False, allow_blank=True)
+    status = serializers.CharField()
+    price = serializers.IntegerField(required=False, default=0)
+
+
+class HistorySlimSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    date = serializers.DateField() 
+    member_id = serializers.IntegerField()
+    member_name = serializers.CharField()
+    relation = serializers.CharField(allow_blank=True)
+    disease = serializers.CharField(allow_blank=True)
+    vaccine = serializers.CharField(allow_blank=True)
+    dose = serializers.IntegerField(required=False, default=1)       
+    price = serializers.IntegerField(required=False, default=0)      
+    note = serializers.CharField(required=False, allow_blank=True)
+    status_label = serializers.CharField(required=False, default="Đã tiêm")
+
+
+class CustomerListSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    code = serializers.CharField()
+    name = serializers.CharField()
+    phone = serializers.CharField(allow_blank=True)
+    email = serializers.EmailField()
+    dob = serializers.DateField(required=False, allow_null=True)
+    gender = serializers.CharField(required=False, allow_blank=True)
+    address = serializers.CharField(required=False, allow_blank=True)
+    country = serializers.CharField(required=False, allow_blank=True)
+    category = serializers.CharField(required=False, allow_blank=True)
+    doses = serializers.IntegerField(required=False)
+    appointments = AppointmentSlimSerializer(many=True)
+    history = HistorySlimSerializer(many=True)
+    # Nếu BE set include=members sẽ tự có key 'members' và FE vẫn đọc được (Serializer không cấm)
+
+
+class AppointmentCreateInSerializer(serializers.Serializer):
+    date = serializers.DateTimeField()  # FE gửi DateTime → BE .date() để gán vào DateField
+    vaccineId = serializers.CharField(required=False, allow_blank=True)
+    vaccine = serializers.CharField()
+    center = serializers.CharField(required=False, allow_blank=True)
+    category = serializers.CharField(required=False, allow_blank=True)
+    price = serializers.IntegerField(required=False, default=0)
+    doses = serializers.IntegerField(required=False, default=1)
+    note = serializers.CharField(required=False, allow_blank=True)
+
+
+class AppointmentStatusPatchSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=["pending", "confirmed", "cancelled", "completed"])
+
+
+class HistoryCreateInSerializer(serializers.Serializer):
+    date = serializers.DateField()
+    vaccine = serializers.CharField()
+    place = serializers.CharField(required=False, allow_blank=True)
+    dose = serializers.CharField(required=False, allow_blank=True)
+    batch = serializers.CharField(required=False, allow_blank=True)
+    note = serializers.CharField(required=False, allow_blank=True)

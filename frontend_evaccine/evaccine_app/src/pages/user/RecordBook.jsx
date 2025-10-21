@@ -7,6 +7,7 @@ import DetailDose from "./modal/RecordBook/DetailDose";
 import { getFamilyMembers,  getDiseases , getVaccinationRecords , updateFamilyMember} from "../../services/recordBookService";
 import { toast } from "react-toastify";
 import { getVaccinesByAge } from "../../services/recordBookService";
+import { useLocation } from "react-router-dom";
 
 export default function RecordBook() {
    
@@ -32,8 +33,8 @@ export default function RecordBook() {
             }));
             setUsers(formatted);
             // Chọn mặc định "Bản thân" nếu có, nếu không lấy thành viên đầu tiên
-            const defaultUser = formatted.find((u) => u.relation === "Bản thân") || formatted[0];
-            if (defaultUser) setActiveUser(defaultUser.id);
+            // const defaultUser = formatted.find((u) => u.relation === "Bản thân") || formatted[0];
+            // if (defaultUser) setActiveUser(defaultUser.id);
         } catch (err) {
             toast.error("Không thể tải danh sách thành viên.");
         }
@@ -59,29 +60,51 @@ export default function RecordBook() {
         };
         setUsers((prev) => [...prev, formattedMember]);
         setActiveUser(newMember.id);
+        const u = new URL(window.location.href);
+        u.searchParams.set("member", String(newMember.id));
+        window.history.replaceState({}, "", u);
         setShowAddForm(false);
     };
 
+    const location = useLocation();
+
+    useEffect(() => {
+        if (!users.length) return;
+        const params = new URLSearchParams(location.search);
+        const queryId = params.get("member");
+        const byQuery = queryId ? users.find(u => String(u.id) === String(queryId)) : null;
+        if (byQuery) {
+            setActiveUser(byQuery.id);
+            return;
+        }
+        // fallback nếu chưa có activeUser (lần đầu) mới set
+        if (!activeUser) {
+            const fallback = users.find(u => u.relation === "Bản thân") || users[0];
+            if (fallback) setActiveUser(fallback.id);
+        }
+    }, [users, location.search, activeUser]);
     // --- Load vaccination record khi activeUser thay đổi ---
     useEffect(() => {
         if (!activeUser) return;
         const fetchVaccinations = async () => {
             try {
-            const records = await getVaccinationRecords(activeUser);
-            // Chuyển dữ liệu từ API về dạng dễ render
-            // structuredData[diseaseId][doseIndex] = { date, vaccine, location, appointmentDate }
-            const structuredData = {};
-            records.forEach((rec) => {
-                const diseaseId = rec?.disease?.id || rec.disease_id || rec.vaccine_name;
-                if (!structuredData[diseaseId]) structuredData[diseaseId] = {};
-                const doseIndex = rec.dose_number ? rec.dose_number - 1  : Object.keys(structuredData[diseaseId]).length;
-                structuredData[diseaseId][doseIndex] = {
-                    date: rec.vaccination_date,
-                    vaccine: rec.vaccine?.name || rec.vaccine_name || "",
-                    location: rec.vaccine_lot,
-                    appointmentDate: rec.next_dose_date,
-                    note: rec.note,
-                };
+                const records = await getVaccinationRecords(activeUser); // đã là array
+
+                const structuredData = {};
+                records.forEach((rec) => {
+                    const diseaseId = String(rec?.disease?.id ?? rec?.disease_id ?? rec?.vaccine_name ?? "");
+                    if (!structuredData[diseaseId]) structuredData[diseaseId] = {};
+                        const rawDose = Number(rec?.dose_number);
+                        const doseIndex = Number.isFinite(rawDose) && rawDose > 0
+                            ? rawDose - 1
+                            : Object.keys(structuredData[diseaseId]).length;
+                    structuredData[diseaseId][doseIndex] = {
+                        date: rec.vaccination_date,
+                        vaccine: rec.vaccine?.name || rec.vaccine_name || "",
+                        location: rec.vaccine_lot,
+                        appointmentDate: rec.next_dose_date,
+                        note: rec.note,
+                    };
             });
 
             setVaccinationData((prev) => ({
@@ -90,8 +113,8 @@ export default function RecordBook() {
             }));
 
             } catch (err) {
-            console.error("Lỗi khi tải lịch tiêm:", err);
-            toast.error("Không thể tải dữ liệu tiêm chủng");
+              console.error("Lỗi khi tải lịch tiêm:", err?.response?.status,  err?.response?.data || err?.message );
+              toast.error( err?.response?.data?.detail ||  err?.response?.data?.error ||  "Không thể tải dữ liệu tiêm chủng"  );
             }
         };
 
@@ -144,12 +167,8 @@ export default function RecordBook() {
     useEffect(() => {
         const fetchDiseases = async () => {
             try {
-            const data = await getDiseases();
-            const normalized = (data || []).map(d => ({
-                ...d,
-                doseCount: d.dose_count || 1,  // map sang key FE đang dùng
-            }));
-            setDiseases(normalized);
+                const diseases = await getDiseases();  // đã là array & đã có doseCount
+                setDiseases(diseases);
             } catch (err) {
             toast.error("Không thể tải danh sách phòng bệnh");
             }
@@ -268,7 +287,7 @@ export default function RecordBook() {
 
   return (
     <section className="tw-bg-gray-100 tw-py-10 ">
-        <div className="tw-container tw-mx-auto tw-px-14 tw-mt-[100px]">
+        <div className=" tw-container tw-mx-auto tw-px-16 tw-max-w-[1300px] tw-mt-[100px] ">
             {/* Banner duy nhất */}
             <div className="tw-relative tw-w-full tw-h-[200px] tw-overflow-hidden tw-rounded-2xl tw-mb-12">
                 <img src="/images/banner1.jpg" alt="Banner"
@@ -284,7 +303,7 @@ export default function RecordBook() {
 
 
         {/* Khung nội dung chính */}       
-        <div className="tw-container tw-mx-auto tw-px-6 lg:tw-px-14">
+        <div className="tw-container  tw-max-w-[1300px] tw-mx-auto tw-px-6 lg:tw-px-14">
             {/* Tabs người dùng */}
             <div className="tw-flex tw-items-center tw-gap-3 tw-overflow-x-auto tw-px-3 tw-mb-[5px]">
                 <button
@@ -304,7 +323,12 @@ export default function RecordBook() {
                 </button>
 
                 {users.map((user) => (
-                    <button key={user.id} onClick={() => setActiveUser(user.id)}
+                    <button key={user.id} onClick={() => {
+                             setActiveUser(user.id);
+                             const u = new URL(window.location.href);
+                             u.searchParams.set("member", String(user.id));
+                             window.history.replaceState({}, "", u);
+                   }}
                 className={`tw-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-whitespace-nowrap transition-colors duration-200
                     ${
                         activeUser === user.id
@@ -469,7 +493,7 @@ export default function RecordBook() {
                         </div>
                         
                       {[...Array(disease.doseCount)].map((_, i) => {
-                            const doseInfo = vaccinationData[activeUser]?.[disease.id]?.[i];
+                            const doseInfo = vaccinationData[activeUser]?.[String(disease.id)]?.[i];
                             const status = getDoseStatus(doseInfo || {});
                             const boxClass =
                                 status === "Đã tiêm" ? "tw-bg-green-100 tw-text-green-600" :
@@ -558,7 +582,7 @@ export default function RecordBook() {
                     disease={{ ...selectedDisease, maxDoses: selectedDisease.doseCount }}
                     selectedDoseNumber={selectedDisease.selectedDoseNumber} // mũi cần mở sẵn
                     initialDoses={(() => {
-                    const map = vaccinationData[activeUser]?.[selectedDisease.id] || {};
+                    const map = vaccinationData[activeUser]?.[String(selectedDisease.id)] || {};
                     // ép về mảng theo thứ tự chỉ số 0..n-1
                     return Object.keys(map)
                         .map(k => Number(k))

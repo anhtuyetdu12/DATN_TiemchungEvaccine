@@ -1,62 +1,198 @@
-// src/components/ConfirmModal.jsx
-import React from "react";
+// src/pages/staff/modal/AppointmentDetailModal.jsx
+import { useEffect, useMemo} from "react";
+
+// === Helpers ===
+const formatDate = (isoStr) => {
+  if (!isoStr) return "—";
+  const d = new Date(isoStr);
+  if (Number.isNaN(d.getTime())) return String(isoStr);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+};
+
+const formatVND = (n) => {
+  if (n == null || isNaN(n)) return "—";
+  return `${Number(n).toLocaleString("vi-VN")} VNĐ`;
+};
+
+const StatusPill = ({ status }) => {
+  const s = status === "canceled" ? "cancelled" : status;
+  if (s === "pending")
+    return <span className="tw-bg-yellow-100 tw-text-yellow-700 tw-px-4 tw-py-1 tw-text-xl tw-mt-3 tw-rounded-full">Chờ xác nhận</span>;
+  if (s === "confirmed")
+    return <span className="tw-bg-green-100 tw-text-green-700 tw-px-4 tw-py-1 tw-text-xl tw-mt-3 tw-rounded-full">Đã xác nhận</span>;
+  if (s === "cancelled")
+    return <span className="tw-bg-red-100 tw-text-red-700 tw-px-4 tw-py-1 tw-text-xl tw-mt-3 tw-rounded-full">Đã hủy</span>;
+  if (s === "completed")
+    return <span className="tw-bg-blue-100 tw-text-blue-700 tw-px-4 tw-py-1 tw-text-xl tw-mt-3 tw-rounded-full">Đã tiêm xong</span>;
+  return <span className="tw-bg-gray-100 tw-text-gray-700 tw-px-4 tw-py-1 tw-text-xl tw-mt-3 tw-rounded-full">{status || "—"}</span>;
+};
 
 export default function AppointmentDetailModal({ detail, onClose }) {
-  if (!detail) return null;
+// Gọi hook MỖI LẦN render (dùng dữ liệu an toàn)
+  const dob = detail?.member?.date_of_birth;
+  const age = useMemo(() => {
+    if (!dob) return null;
+    const d = new Date(dob);
+    if (Number.isNaN(d.getTime())) return null;
+    const today = new Date();
+    let a = today.getFullYear() - d.getFullYear();
+    const m = today.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < d.getDate())) a--;
+    return a;
+  }, [dob]);
+
+  const items = detail?.items_detail || [];
+  const total = useMemo(
+    () => items.reduce((sum, it) => sum + Number(it.unit_price || 0) * Number(it.quantity || 0), 0),
+    [items]
+  );
+
+  // Chỉ gắn ESC khi modal mở (có detail)
+  useEffect(() => {
+    if (!detail) return;                
+    const handler = (e) => e.key === "Escape" && onClose?.();
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [detail, onClose]);
+
+  // Sau khi đã gọi hook, giờ mới quyết định render gì
+  if (!detail) return null;         
 
   return (
-    <div className="tw-fixed tw-inset-0 tw-bg-black/50 tw-flex tw-items-center tw-justify-center tw-pt-[80px]">
-      <div className="tw-bg-white tw-rounded-2xl tw-shadow-xl tw-p-8 tw-w-[550px] tw-animate-fadeIn">
-        <div className="tw-relative tw-flex tw-items-center tw-justify-center tw-mb-6">
-          <h2 className="tw-text-3xl tw-font-bold tw-text-blue-600">
-            <i className="fa-solid fa-calendar-check tw-mr-2"></i> Chi tiết lịch hẹn
-          </h2>
-          <button
-            onClick={onClose}
-            className="tw-absolute tw-right-0 tw-top-0 tw-flex tw-items-center tw-justify-center 
-                      tw-w-10 tw-h-10 tw-rounded-full tw-text-red-500 hover:tw-bg-gray-200 
-                      hover:tw-text-red-600 transition-colors" >
+    <div className="tw-fixed tw-inset-0 tw-bg-black/50 tw-backdrop-blur-[1px] tw-z-[999] tw-flex tw-items-start md:tw-items-center tw-justify-center tw-px-4 tw-py-6">
+      <div className="tw-bg-white tw-rounded-2xl tw-shadow-2xl tw-w-full md:tw-w-[980px] tw-max-w-[98vw] tw-animate-fadeIn tw-border
+                       tw-border-gray-100 tw-mt-[80px] tw-h-[70vh] tw-flex tw-flex-col">
+        {/* Header */}
+       <div className="tw-px-6 tw-pt-4 tw-pb-2 tw-border-b tw-border-gray-100 tw-flex tw-items-center tw-justify-between">
+          <div className="tw-flex tw-items-center tw-gap-3">
+            <div className="tw-w-10 tw-h-10 tw-rounded-xl tw-bg-gradient-to-tr tw-from-blue-500 tw-to-purple-500 tw-flex tw-items-center tw-justify-center tw-text-white">
+              <i className="fa-solid fa-calendar-check"></i>
+            </div>
+            <h2 className="tw-text-2xl tw-font-semibold tw-text-gray-800 tw-mt-3">
+              Chi tiết lịch hẹn # {detail.id}
+            </h2>
+          </div>
+          <div className="tw-flex-1 tw-flex tw-justify-center">
+            <StatusPill status={detail?.status} />
+          </div>
+
+          <button  onClick={onClose} aria-label="Đóng"
+            className="tw-w-10 tw-h-10 tw-rounded-full tw-text-gray-500 hover:tw-bg-gray-100 hover:tw-text-red-500 tw-transition" >
             <i className="fa-solid fa-xmark tw-text-2xl"></i>
           </button>
         </div>
 
-        <div className="tw-grid tw-grid-cols-2 tw-gap-y-4 tw-text-gray-700 tw-text-left tw-px-16 tw-pb-8">
-          <div className="tw-font-semibold">Khách hàng:</div>
-          <div>{detail.name}</div>
 
-          <div className="tw-font-semibold">Ngày sinh:</div>
-          <div>{detail.dob}</div>
+        {/* Body: 2 khung */}
+        <div className="tw-grid md:tw-grid-cols-2 tw-gap-5 tw-p-6 tw-flex-1 tw-overflow-hidden">
+          {/* Khung trái: Thông tin khách hàng */}
+          <section className="tw-rounded-2xl tw-border tw-border-pink-100 tw-bg-pink-50 tw-p-5">
+            <div className="tw-flex tw-items-center tw-justify-between tw-mb-4">
+              <h3 className="tw-text-[16px] tw-font-semibold tw-text-pink-700">
+                <i className="fa-solid fa-user tw-mr-2"></i> Thông tin khách hàng
+              </h3>
+            </div>
 
-          <div className="tw-font-semibold">Chiều cao / Cân nặng:</div>
-          <div>
-            {detail.height} cm / {detail.weight} kg
-          </div>
+            <div className="tw-space-y-4 tw-text-left tw-ml-20 tw-text-xl tw-mt-8">
+              <InfoRow label="Khách đặt" value={detail?.user?.email || "—"} />
+              <InfoRow label="Người tiêm" value={detail?.member?.full_name || "—"} />
+              <InfoRow
+                label="Ngày sinh"
+                value={detail?.member?.date_of_birth ? formatDate(detail.member.date_of_birth) : "—"}
+              />
+              <InfoRow label="Tuổi" value={age != null ? `${age} tuổi` : "—"} />
+              <InfoRow label="Điện thoại" value={detail?.member?.phone || detail?.user?.phone || "—"} />
+              <InfoRow label="Ngày hẹn" value={formatDate(detail?.appointment_date)} />
+              <InfoRow label="Cơ sở" value={detail?.location || "255 Lê Duẩn, Thanh Khê, Tp. Đà Nẵng"} />
+              <InfoRow label="Ghi chú" value={detail?.notes || "Không có"} multiline />
+            </div>
+          </section>
 
-          <div className="tw-font-semibold">Độ tuổi:</div>
-          <div>{detail.age} tuổi</div>
+          {/* Khung phải: Thông tin vắc xin */}
+          <section className="tw-rounded-2xl tw-border tw-border-gray-100 tw-bg-blue-50 tw-p-5 tw-flex tw-flex-col">
+            <div className="tw-flex tw-items-center tw-justify-between tw-mb-4">
+              <h3 className="tw-text-[16px] tw-font-semibold tw-text-[#46cbf3]">
+                <i className="fa-solid fa-syringe tw-mr-2"></i> Thông tin vắc xin
+              </h3>
+              {/* Badge gói/vaccine đơn (nếu có) */}
+              {detail?.package ? (
+                <span className="tw-text-[10px] tw-bg-indigo-50 tw-text-indigo-600 tw-px-3 tw-py-1 tw-rounded-full">
+                  Gói: {detail.package.name}
+                </span>
+              ) : detail?.vaccine ? (
+                <span className="tw-text-[10px] tw-bg-emerald-50 tw-text-emerald-600 tw-px-3 tw-py-1 tw-rounded-full">
+                  {detail.vaccine.name}
+                </span>
+              ) : null}
+            </div>
 
-          <div className="tw-font-semibold">Ngày giờ hẹn:</div>
-          <div>{detail.time}</div>
+            {/* Danh sách cuộn khi dài */}
+            <div className="tw-rounded-xl tw-border tw-border-gray-100 tw-overflow-hidden">
+              <div className=" tw-px-4 tw-py-2 tw-text-xl tw-font-medium tw-text-gray-600">
+                Danh sách vắc xin đã đặt
+              </div>
 
-          <div className="tw-font-semibold">Địa chỉ:</div>
-          <div>{detail.address}</div>
+              {items.length > 0 ? (
+                <div className="tw-max-h-[40vh] tw-overflow-y-auto tw-scrollbar-thin tw-scrollbar-thumb-gray-300 tw-scrollbar-track-transparent tw-rounded-xl  
+                          [&::-webkit-scrollbar]:tw-w-2 [&::-webkit-scrollbar-thumb]:tw-rounded-full
+                        [&::-webkit-scrollbar-track]:tw-bg-gray-100 [&::-webkit-scrollbar-thumb]:tw-bg-gradient-to-b
+                        [&::-webkit-scrollbar-thumb]:tw-from-cyan-400 [&::-webkit-scrollbar-thumb]:tw-to-blue-400" >
+                  <table className="tw-w-full tw-text-[10px] ">
+                    <thead className="tw-sticky tw-top-0 tw-bg-[#a6edf7] tw-border-gray-100">
+                      <tr className="tw-text-gray-700 ">
+                        <th className="tw-text-left tw-font-medium tw-px-4 tw-py-3">Vắc xin</th>
+                        <th className="tw-text-left tw-font-medium tw-px-4 tw-py-3">Số lượng</th>
+                        <th className="tw-text-right tw-font-medium tw-px-4 tw-py-3">Đơn giá</th>
+                        <th className="tw-text-right tw-font-medium tw-px-4 tw-py-3">Thành tiền</th>
+                      </tr>
+                    </thead>
+                    <tbody >
+                      {items.map((it) => {
+                        const name = it?.vaccine?.name || "Vắc xin";
+                        const qty = Number(it?.quantity || 0);
+                        const price = Number(it?.unit_price || 0);
+                        const line = qty * price;
+                        return (
+                          <tr key={it.id} className="tw-border-b tw-border-gray-50 tw-bg-white hover:tw-bg-blue-100">
+                            <td className="tw-px-4 tw-py-3 tw-text-gray-800 tw-text-left">{name}</td>
+                            <td className="tw-px-4 tw-py-3 tw-text-left">{qty}</td>
+                            <td className="tw-px-4 tw-py-3 tw-text-right">{formatVND(price)}</td>
+                            <td className="tw-px-4 tw-py-3 tw-text-right tw-font-medium">{formatVND(line)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="tw-px-4 tw-py-6 tw-text-gray-500">Không có mục vắc xin.</div>
+              )}
+            </div>
 
-          <div className="tw-font-semibold">Điện thoại:</div>
-          <div>{detail.phone}</div>
-
-          <div className="tw-font-semibold">Vắc xin:</div>
-          <div className="tw-font-medium tw-text-green-600">
-            <i className="fa-solid fa-syringe tw-mr-1"></i> {detail.vaccine}
-          </div>
-
-          <div className="tw-font-semibold">Bác sĩ:</div>
-          <div>{detail.doctor}</div>
-
-          <div className="tw-font-semibold">Ghi chú:</div>
-          <div>{detail.note || "—"}</div>
+            {/* Tổng tiền */}
+            <div className="tw-flex tw-justify-end tw-items-center tw-gap-4 tw-mt-4">
+              <div className="tw-text-gray-600">Tổng tiền : </div>
+              <div className="tw-text-2xl tw-font-semibold tw-text-orange-600">{formatVND(total)}</div>
+            </div>
+          </section>
         </div>
+       
       </div>
     </div>
   );
 }
 
+// Nhãn - Giá trị (đẹp, gọn, hỗ trợ đa dòng)
+function InfoRow({ label, value, multiline = false }) {
+  return (
+    <div className="tw-grid tw-grid-cols-5 tw-gap-2">
+      <div className="tw-col-span-2 tw-text-gray-500">{label}</div>
+      <div className={`tw-col-span-3 tw-text-gray-800 ${multiline ? "" : "tw-truncate"}`}>
+        {value}
+      </div>
+    </div>
+  );
+}

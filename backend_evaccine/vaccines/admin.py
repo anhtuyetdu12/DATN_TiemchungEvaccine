@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from .models import (
     Disease, VaccineCategory, Vaccine, VaccinePackage, VaccinePackageGroup,
-    VaccinePackageDisease, Booking, BookingItem
+    VaccinePackageDisease
 )
 
 @admin.register(Disease)
@@ -94,41 +94,4 @@ class VaccinePackageGroupAdmin(admin.ModelAdmin):
     ordering = ("order",)
     search_fields = ("title",)
 
-class BookingItemInline(admin.TabularInline):
-    model = BookingItem
-    extra = 0
-    autocomplete_fields = ["vaccine"]
-    readonly_fields = ["unit_price"]
-    verbose_name = "Mục vắc xin"
-    verbose_name_plural = "Các vắc xin đã chọn"
 
-@admin.register(Booking)
-class BookingAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "member", "status_vi", "appointment_date",  "created_at")
-    list_filter = ("status", "appointment_date", "created_at")
-    search_fields = ("user__email", "user__full_name", "member__full_name")
-    ordering = ("-created_at",)
-    inlines = [BookingItemInline]
-
-    def status_vi(self, obj):
-        # hiện label tiếng Việt của choices (đã đặt sẵn trong model)
-        return obj.get_status_display()
-    status_vi.short_description = "Trạng thái"
-    
-    def has_module_permission(self, request):
-        # Chỉ cho nhóm 'ops' hay staff đặc biệt xem mục này
-        return request.user.is_superuser or request.user.groups.filter(name="ops").exists()
-
-    def has_view_permission(self, request, obj=None):
-        return self.has_module_permission(request)
-
-    def has_add_permission(self, request):
-        # Không cho tạo từ phía vaccines admin
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        # Tuỳ bạn, có thể False để read-only
-        return self.has_module_permission(request)
-
-    def has_delete_permission(self, request, obj=None):
-        return False

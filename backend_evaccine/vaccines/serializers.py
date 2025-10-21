@@ -1,9 +1,8 @@
 from rest_framework import serializers
-from .models import  Disease, VaccineCategory, Vaccine, VaccinePackage, Booking, VaccinePackageGroup,  VaccinePackageDisease, BookingItem
+from .models import  Disease, VaccineCategory, Vaccine, VaccinePackage, VaccinePackageGroup,  VaccinePackageDisease
 from django.db.models import Max
-from records.models import FamilyMember, VaccinationRecord
-from django.core.exceptions import ObjectDoesNotExist
-from .models import BookingItem
+from django.contrib.auth import get_user_model
+User = get_user_model()
 
 class DiseaseSerializer(serializers.ModelSerializer):
     dose_count = serializers.SerializerMethodField()
@@ -86,98 +85,4 @@ class VaccinePackageGroupSerializer(serializers.ModelSerializer):
         model = VaccinePackageGroup
         fields = ["id", "title", "description", "order", "status", "packages"]
 
-class BookingItemWriteSerializer(serializers.Serializer):  # NEW
-    vaccine_id = serializers.IntegerField()
-    quantity = serializers.IntegerField(min_value=1)
-
-class BookingItemReadSerializer(serializers.ModelSerializer):
-    vaccine = VaccineSerializer(read_only=True)
-
-    class Meta:
-        model = BookingItem
-        fields = ["id", "vaccine", "quantity", "unit_price"]
-        
-class BookingSerializer(serializers.ModelSerializer):
-    # write-only
-    member_id = serializers.PrimaryKeyRelatedField(queryset=FamilyMember.objects.all(), source="member", write_only=True)
-    items = BookingItemWriteSerializer(many=True, write_only=True) 
-
-    # read-only
-    items_detail = BookingItemReadSerializer(many=True, read_only=True, source="items")
-    vaccine = VaccineSerializer(read_only=True)
-    package = VaccinePackageSerializer(read_only=True)
-
-    class Meta:
-        model = Booking
-        fields = [
-            "id", "member_id", "appointment_date",
-            "location", "status", "notes", "vaccine", "package", "created_at",
-            "items",           # gửi lên khi tạo
-            "items_detail",    # nhận về khi đọc 
-            "is_overdue",
-        ]
-        
-    def get_is_overdue(self, obj):
-        from datetime import date
-        if obj.status in ("completed", "cancelled"):
-            return False
-        return bool(obj.appointment_date and obj.appointment_date < date.today())
-
-    def validate(self, attrs):
-        user = self.context["request"].user
-        member = attrs["member"]
-
-        # BẮT BUỘC CÓ NGÀY HẸN
-        if not attrs.get("appointment_date"):
-            raise serializers.ValidationError({"appointment_date": "Vui lòng chọn ngày hẹn tiêm."})
-
-        if member.user != user:
-            raise serializers.ValidationError({"member_id": "Thành viên không thuộc tài khoản này."})
-
-        # gộp quantity theo vaccine & check vượt phác đồ
-        from collections import defaultdict
-        want = defaultdict(int)
-        for it in attrs["items"]:
-            want[it["vaccine_id"]] += it["quantity"]
-
-        for v_id, qty in want.items():
-            try:
-                v = Vaccine.objects.get(id=v_id)
-            except Vaccine.DoesNotExist:
-                raise serializers.ValidationError({"items": f"Vắc xin id={v_id} không tồn tại"})
-            total = v.doses_required or 1
-            used = VaccinationRecord.objects.filter(family_member=member, vaccine=v).count()
-            if used + qty > total:
-                remain = max(total - used, 0)
-                raise serializers.ValidationError({
-                    "items": f"Vắc xin {v.name}: vượt số liều tối đa ({total}). Còn có thể đặt {remain} liều."
-                })
-        return attrs
-    
-
-    def create(self, validated_data):
-        user = self.context["request"].user
-        items_data = validated_data.pop("items", [])
-        booking = Booking.objects.create(user=user, **validated_data)
-
-        for it in items_data:
-            v = Vaccine.objects.get(id=it["vaccine_id"])
-            BookingItem.objects.create(
-                booking=booking, vaccine=v, quantity=it["quantity"], unit_price=v.price or 0
-            )
-            # Ghi sổ: mũi mới ở trạng thái CHỜ TIÊM = vaccination_date None, next_dose_date = ngày đặt
-            current = VaccinationRecord.objects.filter(
-                family_member=booking.member, vaccine=v
-            ).count()
-            for i in range(it["quantity"]):
-                VaccinationRecord.objects.create(
-                    family_member=booking.member,
-                    disease=v.disease,
-                    vaccine=v,
-                    dose_number=current + i + 1,
-                    vaccination_date=None,                 # <-- chưa tiêm
-                    next_dose_date=booking.appointment_date,  # <-- NGÀY ĐẶT HẸN
-                    note=f"Đặt lịch #{booking.id}",
-                )
-        return booking
 

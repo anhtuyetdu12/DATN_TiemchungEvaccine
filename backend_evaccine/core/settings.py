@@ -26,6 +26,8 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
     ),
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10,
 }
 
 DEFAULT_CHARSET = 'utf-8'
@@ -41,6 +43,10 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+LANGUAGE_CODE = "vi"
+TIME_ZONE = "Asia/Ho_Chi_Minh"
+USE_I18N = True
+USE_TZ = True
 
 # Application definition
 
@@ -57,9 +63,10 @@ INSTALLED_APPS = [
     "django_filters", 
     "nested_admin",
     # 'patients',
-    'records',
-    'users',
-    'vaccines',
+    "records.apps.RecordsConfig",
+    "users.apps.UsersConfig",
+    "vaccines.apps.VaccinesConfig",
+    "inventory.apps.InventoryConfig",
     
   
 ]

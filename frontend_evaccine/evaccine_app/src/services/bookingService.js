@@ -3,7 +3,7 @@ import api from "./axios";
 
 export async function createBooking(payload) {
   // payload: { member_id, appointment_date, appointment_time, location, notes, items: [{ vaccine_id, quantity }] }
-  const { data } = await api.post("/vaccines/bookings/", payload);
+  const { data } = await api.post("/records/bookings/", payload);
   return data;
 }
 

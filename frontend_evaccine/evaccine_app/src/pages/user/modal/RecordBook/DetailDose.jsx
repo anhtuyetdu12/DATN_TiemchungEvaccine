@@ -32,6 +32,7 @@ export default function DetailDose({ disease, onClose, memberId }) {
     const u = new URL(window.location.href);
     u.pathname = "/bookingform";
     u.searchParams.set("v", all.join(","));
+    u.searchParams.set("member", String(memberId));
     u.searchParams.delete("pkg");
     navigate(u.pathname + u.search);
   };
@@ -44,9 +45,12 @@ export default function DetailDose({ disease, onClose, memberId }) {
       (async () => {
         try {
           const records = await getVaccinationRecords(memberId);
-          // Lọc theo bệnh hiện tại
-          const rows = (records || []).filter(r => (r?.disease?.id || r?.disease_id) === disease.id);
- 
+          // Bảo đảm records là mảng dù service chưa chuẩn hoá
+          const list = Array.isArray(records)
+            ? records
+            : Array.isArray(records?.results) ? records.results : [];
+          // so sánh id phải “nới” kiểu (string/number)
+          const rows = list.filter(r => String(r?.disease?.id ?? r?.disease_id ?? "") === String(disease.id));
           // map mũi -> list bản ghi (phòng trường hợp có nhiều bản ghi)
           const byDose = new Map(); // key: doseNumber(1-based) -> array
           rows.forEach(r => {

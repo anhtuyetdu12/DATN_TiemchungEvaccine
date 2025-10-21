@@ -76,3 +76,40 @@ class MedicalStaffAdmin(admin.ModelAdmin):
     # hire_date DATE,                        -- Ngày bắt đầu làm việc
     # status NVARCHAR(20) DEFAULT 'active',   -- Trạng thái: active, inactive
 	# notes NVARCHAR(MAX)	,				  -- để quản lý thêm thông tin khác (VD: tình trạng công tác)
+
+class CustomUserAdmin(UserAdmin):
+    model = CustomUser
+    list_display = ('full_name', 'email', 'role', 'status', 'last_login')
+    list_filter = ('role', 'status')
+    search_fields = ('email', 'full_name')
+    ordering = ('email',)
+
+    inlines = [MedicalStaffInline]   # <--- THÊM DÒNG NÀY
+
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('full_name', 'email', 'password1', 'password2', 'role', 'phone', 'status', 'is_staff', 'is_superuser'),
+        }),
+    )
+    fieldsets = (
+        (None, {'fields': ('full_name', 'email', 'password', 'role', 'phone', 'status', 'is_staff', 'is_superuser')}),
+        ('Permissions', {'fields': ('groups', 'user_permissions')}),
+        ('Important dates', {'fields': ('last_login',)}),
+    )
+
+    def save_model(self, request, obj, form, change):
+        is_new = obj.pk is None
+        super().save_model(request, obj, form, change)
+        if is_new and obj.role == 'staff':
+            MedicalStaff.objects.get_or_create(
+                user=obj,
+                defaults={
+                    'department': '',
+                    'specialization': '',
+                    'license_number': '',
+                    'work_shift': 'sáng',
+                    'notes': '',
+                    'status': 'active',
+                }
+            )

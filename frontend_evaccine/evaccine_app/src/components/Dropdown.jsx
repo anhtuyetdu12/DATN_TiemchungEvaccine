@@ -38,39 +38,27 @@ export default function Dropdown({ label, value, options, onChange, className = 
       </button>
 
       {/* Danh sách dropdown */}
-     {open && (
-  <div
-    className="tw-fixed tw-left-0 tw-top-0 tw-z-[9999]"
-    style={{
-      transform: `translate(${position.x}px, ${position.y}px)`,
-      minWidth: "max-content",
-      maxWidth: "400px"
-    }}
-  >
-    <div
-      className="tw-bg-white tw-rounded-lg tw-border tw-border-gray-300 tw-shadow-xl 
-                 tw-py-2 tw-max-h-60 tw-overflow-y-auto tw-w-[min(100%,300px)]
-                 [&::-webkit-scrollbar]:tw-hidden"
-    >
-      {options.map((opt) => (
-        <div
-          key={opt.value}
-          onClick={() => {
-            onChange(opt.value);
-            setOpen(false);
-          }}
-          className={`tw-flex tw-items-center tw-justify-between tw-px-4 tw-py-2 tw-cursor-pointer 
-                      ${value === opt.value ? "tw-bg-[#e6f7fa]" : "hover:tw-bg-[#e6f7fa]"}`}
-        >
-          <span className="tw-truncate">{opt.label}</span>
-          {value === opt.value && (
-            <i className="fa-solid fa-check tw-text-[#1999ee]"></i>
-          )}
+      {open && (
+        <div className="tw-absolute tw-left-0 tw-right-0 tw-z-[60] tw-mt-1">
+          <div
+            className="tw-bg-white tw-rounded-lg tw-border tw-border-gray-300 tw-shadow-xl
+                      tw-py-2 tw-max-h-60 tw-overflow-y-auto
+                      tw-w-full [&::-webkit-scrollbar]:tw-hidden"
+          >
+            {options.map((opt) => (
+              <div
+                key={opt.value}
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                className={`tw-flex tw-items-center tw-justify-between tw-px-4 tw-py-2 tw-cursor-pointer 
+                            ${value === opt.value ? "tw-bg-[#e6f7fa]" : "hover:tw-bg-[#e6f7fa]"}`}
+              >
+                <span className="tw-truncate">{opt.label}</span>
+                {value === opt.value && <i className="fa-solid fa-check tw-text-[#1999ee]" />}
+              </div>
+            ))}
+          </div>
         </div>
-      ))}
-    </div>
-  </div>
-)}
+      )}
 
     </div>
   );

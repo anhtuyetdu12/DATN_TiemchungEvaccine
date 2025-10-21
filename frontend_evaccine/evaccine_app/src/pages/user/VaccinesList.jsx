@@ -62,6 +62,8 @@ export default function VaccinesList() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        const pickList = (res) => Array.isArray(res?.data) ? res.data : (res?.data?.results || []);
+
         const [vaccinesRes, packagesRes, categoriesRes] = await Promise.all([
           api.get("/vaccines/vaccines/"),
           api.get("/vaccines/packages/"),
@@ -69,8 +71,7 @@ export default function VaccinesList() {
         ]);
 
        // sau khi lấy vaccinesRes
-      const fetchedVaccines = (vaccinesRes.data || [])
-        .filter(v => !!v.slug)   // 👈 loại item chưa có slug
+      const fetchedVaccines = pickList(vaccinesRes)
         .map(v => ({
           ...v,
           image: v.image || "/images/no-image.jpg",
@@ -80,7 +81,7 @@ export default function VaccinesList() {
         }));
 
        // sau khi lấy packagesRes
-      const fetchedPackages = (packagesRes.data || [])
+      const fetchedPackages = pickList(packagesRes)
         .filter(p => !!p.slug)   // 👈 loại item chưa có slug
         .map(p => ({
           id: p.id,
@@ -90,7 +91,7 @@ export default function VaccinesList() {
           image: p.image || "/images/no-image.jpg",
         }));
         //lấy danh mục vắc xin
-        const fetchedCategories = categoriesRes.data.map((c) => ({
+        const fetchedCategories = pickList(categoriesRes).map((c) => ({
           ...c,
           name: c.name,
           image: c.image || "/images/no-image.jpg",
@@ -414,10 +415,11 @@ export default function VaccinesList() {
                       <h3 className="tw-text-3xl tw-font-semibold tw-mb-[5px]">Danh sách vắc xin</h3>                  
                   </div>
 
-                  <div className="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 lg:tw-grid-cols-4 tw-gap-6">     
+                  <div className="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 lg:tw-grid-cols-4 tw-gap-4">     
                      {paginatedVaccines.map((vaccine, index) => (
-                      <div key={vaccine.id || index} className="tw-bg-white tw-rounded-xl tw-shadow-sm tw-p-4 hover:tw-shadow-md tw-transition tw-relative tw-text-left tw-flex tw-flex-col tw-whitespace-nowrap">
-                        <img src={vaccine.image} alt={vaccine.title} className="tw-h-80 tw-mx-auto tw-mb-3" />
+                      <div key={vaccine.id || index} className="tw-bg-white tw-rounded-xl tw-shadow-sm tw-p-4 hover:tw-shadow-md 
+                                      tw-transition tw-relative tw-text-left tw-flex tw-flex-col ">
+                        <img src={vaccine.image} alt={vaccine.title} className="tw-h-60 tw-mx-auto tw-mb-3" />
                         <div className="tw-flex tw-flex-col tw-h-full tw-pt-2 tw-pb-3">
                           <div className="tw-min-h-[40px]">
                             <p className="tw-text-xl tw-text-gray-500 tw-font-medium tw-line-clamp-2 tw-mb-1"> {vaccine.title} </p>
@@ -425,36 +427,39 @@ export default function VaccinesList() {
                           </div>
                           <div className="tw-mt-auto">
                             <p className="mb-3 tw-text-[#fd8206] tw-font-semibold tw-text-3xl tw-my-[20px]">
-                               {/* {(Number(vaccine.price) || 0).toLocaleString("vi-VN", { style: "currency", currency: "VND" })} */}
                                {Number(vaccine.price || 0).toLocaleString("vi-VN")} VNĐ
                                <span className="tw-text-2xl tw-text-gray-500 tw-font-normal" >/{vaccine.unit }</span>
                             </p>
-                            <div className="tw-flex tw-gap-2 tw-justify-center">
+
+                            <div className="tw-flex tw-gap-2 tw-justify-center tw-items-stretch">
                               {vaccine.slug ? (
-                                <Link to={`/vaccines/${vaccine.slug}`}  className="tw-inline-flex tw-items-center tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium tw-py-2 tw-px-6 tw-rounded-full hover:tw-bg-[#ff6600] hover:tw-text-white">
-                                  Xem chi tiết
+                                <Link to={`/vaccines/${vaccine.slug}`}
+                                  className="tw-inline-flex tw-items-center tw-justify-center tw-h-10 tw-rounded-full tw-px-4 tw-flex-1 tw-min-w-0
+                                            tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium hover:tw-bg-[#ff6600] hover:tw-text-white" >
+                                  <span className="tw-truncate tw-text-lg ">Xem chi tiết</span>
                                 </Link>
                               ) : (
-                                <button className="tw-inline-flex tw-items-center tw-bg-gray-200 tw-text-gray-500 tw-font-medium tw-py-2 tw-px-6 tw-rounded-full" disabled>
-                                  Xem chi tiết
+                                <button disabled className="tw-inline-flex tw-items-center tw-justify-center tw-h-10 tw-rounded-full
+                                           tw-px-4 tw-flex-1 tw-min-w-0 tw-bg-gray-200 tw-text-gray-500 tw-font-medium"  >
+                                  <span className="tw-truncate tw-text-lg">Xem chi tiết</span>
                                 </button>
                               )}
-                              <button
-                               onClick={() => {
-                                if (!vaccine.slug) return;
-                                addToBooking(vaccine.slug, 1);
-                                const slugs = getBookingSlugs();
-                                navigate(`/bookingform?v=${slugs.join(",")}`);
-                              }}
-                              className="tw-bg-gradient-to-r tw-from-[#1999ee] tw-to-[#56b6f7]
-                                        tw-text-white tw-font-medium tw-rounded-full tw-px-4 tw-py-2
-                                        tw-transition-all tw-duration-300 tw-shadow-md
-                                        hover:tw-from-[#1789d4] hover:tw-to-[#3aa9f0] hover:tw-shadow-lg hover:tw-scale-105" >
-                              <i className="fa-solid fa-calendar-days tw-mr-5"></i>
-                              Đặt hẹn
-                            </button>
 
+                              <button onClick={() => {
+                                  if (!vaccine.slug) return;
+                                  addToBooking(vaccine.slug, 1);
+                                  const slugs = getBookingSlugs();
+                                  navigate(`/bookingform?v=${slugs.join(",")}`);
+                                }}
+                                className="tw-inline-flex tw-items-center tw-justify-center tw-h-10 tw-rounded-full tw-px-4
+                                          tw-flex-1 tw-min-w-0 tw-bg-gradient-to-r tw-from-[#1999ee] tw-to-[#56b6f7]
+                                          tw-text-white tw-font-medium tw-transition-all tw-duration-300 tw-shadow-md
+                                          hover:tw-from-[#1789d4] hover:tw-to-[#3aa9f0] hover:tw-shadow-lg hover:tw-scale-105" >
+                                <i className="fa-solid fa-calendar-days tw-mr-2 tw-text-lg"></i>
+                                <span className="tw-truncate tw-text-lg">Đặt hẹn</span>
+                              </button>
                             </div>
+
                           </div>
                         </div>
                       </div>
@@ -592,7 +597,7 @@ export default function VaccinesList() {
 
                 {/* Header bảng */}
                 <div className="tw-px-6 tw-pt-4">
-                  <div className="tw-grid tw-grid-cols-[2fr_1fr_1fr_1fr] tw-gap-4 tw-font-semibold tw-text-gray-700 tw-border-b tw-pb-2">
+                  <div className="tw-grid tw-grid-cols-[2fr_1fr_1fr_1fr] tw-gap-2 tw-font-semibold tw-text-gray-700 tw-border-b tw-pb-2">
                     
                     {/* Cột Vắc xin với checkbox */}
                     <div className="tw-flex tw-items-center tw-gap-4">
@@ -773,22 +778,32 @@ export default function VaccinesList() {
                   <div className="tw-flex tw-gap-3 tw-mb-[10px]">
                    <button
                       onClick={() => {
-                        const slugs = (selectedPackage?.disease_groups || [])
-                          .filter(g => g.checked)
-                          .map(g => g.selectedVaccine?.slug || g.vaccines?.[0]?.slug)
-                          .filter(Boolean);
-
-                        if (slugs.length === 0) return;
-
-                        const prev = JSON.parse(localStorage.getItem("selectedVaccineSlugs") || "[]");
-                        const merged = Array.from(new Set([...prev, ...slugs]));
-
-                        localStorage.setItem("selectedVaccineSlugs", JSON.stringify(merged));
-                        navigate(`/bookingform?v=${merged.join(",")}`);
-                      }}
-                      className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
-                                tw-font-medium tw-py-2 tw-px-6 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white"
-                    >
+                          const groups = selectedPackage?.disease_groups || [];
+                          // Gom {slug, qty} cho TẤT CẢ vaccine trong gói
+                          const allItems = [];
+                          for (const g of groups) {
+                            const vs = g?.vaccines || [];
+                            for (const v of vs) {
+                              if (!v?.slug) continue;
+                              const qty = Math.max(1, Number(v?.doses_required) || 1); // hoặc 1 nếu muốn mặc định 1
+                              allItems.push({ slug: v.slug, qty });
+                            }
+                          }
+                          if (allItems.length === 0) return;
+                          // Gộp trùng slug (cộng dồn số lượng)
+                          const merged = new Map();
+                          for (const { slug, qty } of allItems) {
+                            merged.set(slug, (merged.get(slug) || 0) + qty);
+                          }
+                          // Đẩy hết vào giỏ booking (giữ nguyên các món đã có trước đó)
+                          for (const [slug, qty] of merged.entries()) {
+                            addToBooking(slug, qty);
+                          }
+                          // Điều hướng sang booking
+                          const cur = getBookingSlugs();
+                          navigate(`/bookingform?v=${cur.join(",")}`);
+                        }} className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
+                                tw-font-medium tw-py-2 tw-px-6 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white" >
                       Đặt hẹn
                     </button>
                     <button onClick={() => selectedPackage?.slug && navigate(`/packages/${selectedPackage.slug}`)}

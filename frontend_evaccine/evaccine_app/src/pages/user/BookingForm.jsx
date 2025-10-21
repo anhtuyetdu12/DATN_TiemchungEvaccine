@@ -73,25 +73,29 @@ export default function BookingForm() {
   const total = useMemo(() => subtotal, [subtotal]);
 
   // Load danh sách người tiêm (thành viên)
-   useEffect(() => {
-     (async () => {
-       try {
-         const list = await getFamilyMembers(); // [{id, full_name, gender, date_of_birth,...}]
-         const mapped = (list || []).map(m => ({
-           id: m.id,
-           name: m.full_name,
-           gender: m.gender === "male" ? "Nam" : m.gender === "female" ? "Nữ" : "Khác",
-           dob: m.date_of_birth,
-         }));
-         setCustomers(mapped);
-         setSelectedCustomer(prev => prev ?? (mapped[0] || null));
-       } catch (e) {
-         console.error(e);
-         // Không chặn booking nếu lỗi – chỉ thông báo
-         toast.error("Không tải được danh sách người tiêm.");
-       }
-     })();
-   }, []);
+    useEffect(() => {
+      (async () => {
+        try {
+          const list = await getFamilyMembers(); // [{id, full_name, gender, date_of_birth,...}]
+          const mapped = (list || []).map(m => ({
+            id: m.id,
+            name: m.full_name,
+            gender: m.gender === "male" ? "Nam" : m.gender === "female" ? "Nữ" : "Khác",
+            dob: m.date_of_birth,
+          }));
+          setCustomers(mapped);
+          // ƯU TIÊN id từ URL (?member=)
+          const params = new URLSearchParams(location.search);
+          const memberParam = params.get("member");
+          const wanted = memberParam  ? mapped.find(x => String(x.id) === String(memberParam)) : null;
+          setSelectedCustomer(prev => wanted ?? prev ?? (mapped[0] || null));
+        } catch (e) {
+          console.error(e);
+          // Không chặn booking nếu lỗi – chỉ thông báo
+          toast.error("Không tải được danh sách người tiêm.");
+        }
+        })();
+    }, [location.search])
 
   // ===== NEW: đọc giỏ + URL và fetch chi tiết
   useEffect(() => {
@@ -259,15 +263,11 @@ export default function BookingForm() {
     };
     try {
       await createBooking(payload);
-      toast("Đặt lịch thành công! Đã ghi vào Sổ tiêm (Chờ tiêm).", {
-        type: "success",
-        icon: "🎉",
-        style: { background: "#ec4899", color: "#fff" } // hồng
-      });
-      // Xoá giỏ đã chọn (nếu muốn) và bắn event để NavBar cập nhật
-      clearBooking();
-      // Chuyển về Sổ tiêm chủng (lịch sử)
-      window.location.href = "/recordbook";
+       clearBooking();
+        toast.success("Đặt lịch thành công! Đã ghi vào Sổ tiêm (Chờ tiêm).", {
+          icon: "🎉",  autoClose: 2500, pauseOnHover: true,
+          onClose: () => { window.location.href = `/recordbook?member=${selectedCustomer.id}`; }
+        });
     } catch (e) {
       const msg = e?.response?.data?.items || e?.response?.data?.detail || "Không thể đặt lịch.";
       toast.error(msg);
@@ -377,7 +377,12 @@ export default function BookingForm() {
 
                <SelectCustomerModal
                    open={openModal} onClose={() => setOpenModal(false)}
-                   customers={customers} onSelect={(c) => { setSelectedCustomer(c); setOpenModal(false); }}
+                    customers={customers} onSelect={(c) => {   
+                      setSelectedCustomer(c);   setOpenModal(false);   
+                      const u = new URL(window.location.href);   
+                      u.searchParams.set("member", String(c.id));   
+                      window.history.replaceState({}, "", u); 
+                    }}
                 />
 
               {/* Vaccines */}

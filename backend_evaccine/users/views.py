@@ -7,17 +7,17 @@ import logging
 from .serializers import LoginSerializer, StaffLoginSerializer
 from django.contrib.auth.hashers import make_password
 from django.utils.crypto import get_random_string
-from rest_framework.permissions import IsAdminUser, AllowAny  
+from rest_framework.permissions import IsAdminUser, AllowAny  , IsAuthenticated
 from django.db import IntegrityError
 from django.core.mail import send_mail
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
-from .models import CustomUser
 import random, datetime, string
 from datetime import timedelta
 from django.core.mail import EmailMultiAlternatives
 from email.mime.image import MIMEImage
-from django.conf import settings
+from rest_framework import status
+from .serializers import StaffCreateCustomerSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -234,7 +234,7 @@ class ForgotPasswordAPIView(APIView):
             }, status=200)
     
         
-# views.py
+# đặt lại pass
 class ResetPasswordAPIView(APIView):
     permission_classes = [AllowAny]
     def post(self, request):
@@ -333,3 +333,31 @@ class StaffLoginAPIView(APIView):
             }, status=status.HTTP_200_OK)
         
         return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
+    
+# tạo tài khoản mới do staff
+class StaffCreateCustomerAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        role = getattr(request.user, "role", "")
+        if role not in ("staff", "admin", "superadmin"):
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+        ser = StaffCreateCustomerSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        result = ser.save()
+        user = result["user"]
+
+        return Response({
+            "message": "Đã tạo tài khoản cho khách hàng. Khách có thể đăng nhập ngay bằng tài khoản vừa tạo.",
+            "user": {
+                "id": user.id,
+                "full_name": user.full_name,
+                "email": user.email,
+                "phone": user.phone,
+                "role": user.role,
+                "must_change_password": user.must_change_password,  # sẽ là False
+                "code": f"KH-{user.id:04d}",
+            }
+        }, status=status.HTTP_201_CREATED)
+

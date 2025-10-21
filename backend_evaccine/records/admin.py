@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import FamilyMember,  VaccinationRecord, BookingProxy 
-from vaccines.models import BookingItem
+from .models import FamilyMember,  VaccinationRecord,  Booking, BookingItem
 
 # --- Thành viên gia đình ---
 @admin.register(FamilyMember)
@@ -62,6 +61,7 @@ class VaccinationRecordAdmin(admin.ModelAdmin):
     search_fields = ("family_member__full_name", "vaccine_name", "vaccine_lot", "vaccine__name")
     ordering = ("-vaccination_date", "-id")
 
+
 class BookingItemInline(admin.TabularInline):
     model = BookingItem
     extra = 0
@@ -70,9 +70,9 @@ class BookingItemInline(admin.TabularInline):
     verbose_name = "Mục vắc xin"
     verbose_name_plural = "Các vắc xin đã chọn"
 
-@admin.register(BookingProxy)
-class BookingProxyAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "member", "status_vi", "appointment_date", "created_at")
+@admin.register(Booking)
+class BookingAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "member", "status_vi", "appointment_date",  "created_at")
     list_filter = ("status", "appointment_date", "created_at")
     search_fields = ("user__email", "user__full_name", "member__full_name")
     ordering = ("-created_at",)
@@ -82,9 +82,20 @@ class BookingProxyAdmin(admin.ModelAdmin):
         return obj.get_status_display()
     status_vi.short_description = "Trạng thái"
     
+    def has_module_permission(self, request):
+        # Chỉ cho nhóm 'ops' hay staff đặc biệt xem mục này
+        return request.user.is_superuser or request.user.groups.filter(name="ops").exists()
+
+    def has_view_permission(self, request, obj=None):
+        return self.has_module_permission(request)
+
     def has_add_permission(self, request):
-        return False  # đặt lịch qua frontend, không tạo tay
+        # Không cho tạo từ phía vaccines admin
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        # Tuỳ bạn, có thể False để read-only
+        return self.has_module_permission(request)
 
     def has_delete_permission(self, request, obj=None):
-        return False  # tránh xoá nhầm; thao tác bằng huỷ lịch
-    
+        return False

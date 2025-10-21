@@ -1,9 +1,8 @@
 from rest_framework import viewsets, permissions, status
-from .models import  Disease, VaccineCategory, Vaccine, VaccinePackage, Booking, VaccinePackageGroup
+from .models import  Disease, VaccineCategory, Vaccine, VaccinePackage, VaccinePackageGroup
 from .serializers import (
     DiseaseSerializer, VaccineCategorySerializer,
-    VaccineSerializer, VaccinePackageSerializer, BookingSerializer , VaccinePackageGroupSerializer
-)
+    VaccineSerializer, VaccinePackageSerializer, VaccinePackageGroupSerializer)
 from django.db.models import Prefetch
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -11,11 +10,13 @@ from records.models import FamilyMember
 from datetime import date
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import IntegerField, F, Case, When, Value, Q
+from rest_framework.permissions import AllowAny, IsAuthenticatedOrReadOnly
+
 
 class DiseaseViewSet(viewsets.ModelViewSet):
     queryset = Disease.objects.all()
     serializer_class = DiseaseSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [AllowAny]
     
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
@@ -25,7 +26,7 @@ class DiseaseViewSet(viewsets.ModelViewSet):
 class VaccineCategoryViewSet(viewsets.ModelViewSet):
     queryset = VaccineCategory.objects.all()
     serializer_class = VaccineCategorySerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [AllowAny]
     
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
@@ -35,7 +36,7 @@ class VaccineCategoryViewSet(viewsets.ModelViewSet):
 class VaccineViewSet(viewsets.ModelViewSet):
     queryset = Vaccine.objects.all().select_related("disease", "category").order_by('-created_at')
     serializer_class = VaccineSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [AllowAny]
     filterset_fields = ["id", "slug", "status", "disease", "category"]
     
     lookup_field = "slug"
@@ -135,12 +136,12 @@ class VaccinePackageGroupViewSet(viewsets.ReadOnlyModelViewSet):
         Prefetch("packages", queryset=VaccinePackage.objects.prefetch_related("disease_groups__vaccines"))
     ).order_by('-created_at')
     serializer_class = VaccinePackageGroupSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [AllowAny]
     
 class VaccinePackageViewSet(viewsets.ModelViewSet):
     queryset = VaccinePackage.objects.all().order_by('-created_at')
     serializer_class = VaccinePackageSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [AllowAny]
     lookup_field = "slug"
     lookup_value_regex = r"[-\w]+"
 
@@ -150,24 +151,4 @@ class VaccinePackageViewSet(viewsets.ModelViewSet):
         return context
 
 
-        
-class BookingViewSet(viewsets.ModelViewSet):
-    queryset = (Booking.objects .all() .select_related("user", "member", "vaccine", "package") .prefetch_related("items__vaccine") .order_by('-created_at'))
-    serializer_class = BookingSerializer
-    permission_classes = [permissions.IsAuthenticated]
     
-    @action(detail=True, methods=["post"])
-    def mark_completed(self, request, pk=None):
-        b = self.get_queryset().get(pk=pk)
-        VaccinationRecord.objects.filter(
-            family_member=b.member, note__icontains=f"Đặt lịch #{b.id}", vaccination_date__isnull=True
-        ).update(vaccination_date=b.appointment_date)
-        b.status = "completed"
-        b.save()
-        return Response({"ok": True})
-
-    def get_queryset(self):
-        return super().get_queryset().filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        serializer.save()  # user đã set trong serializer.create()
