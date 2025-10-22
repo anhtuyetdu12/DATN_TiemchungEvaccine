@@ -348,6 +348,13 @@ class StaffCreateCustomerAPIView(APIView):
         result = ser.save()
         user = result["user"]
 
+        member_self = None
+        try:
+            from records.models import FamilyMember
+            member_self = FamilyMember.objects.filter(user=user, relation="Bản thân").first()
+        except Exception:
+            pass
+
         return Response({
             "message": "Đã tạo tài khoản cho khách hàng. Khách có thể đăng nhập ngay bằng tài khoản vừa tạo.",
             "user": {
@@ -356,8 +363,11 @@ class StaffCreateCustomerAPIView(APIView):
                 "email": user.email,
                 "phone": user.phone,
                 "role": user.role,
-                "must_change_password": user.must_change_password,  # sẽ là False
+                "must_change_password": user.must_change_password,  # False
                 "code": f"KH-{user.id:04d}",
+                # BỔ SUNG 2 TRƯỜNG NÀY
+                "gender": getattr(user, "gender", None) or getattr(member_self, "gender", None),
+                "date_of_birth": getattr(user, "date_of_birth", None) or getattr(member_self, "date_of_birth", None),
             }
         }, status=status.HTTP_201_CREATED)
-
+        

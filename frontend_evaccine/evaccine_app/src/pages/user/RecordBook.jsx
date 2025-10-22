@@ -35,6 +35,12 @@ export default function RecordBook() {
             // Chọn mặc định "Bản thân" nếu có, nếu không lấy thành viên đầu tiên
             // const defaultUser = formatted.find((u) => u.relation === "Bản thân") || formatted[0];
             // if (defaultUser) setActiveUser(defaultUser.id);
+            const params = new URLSearchParams(window.location.search);
+            const queryId = params.get("member");
+            if (!queryId) {
+            const defaultUser = formatted.find((u) => u.relation === "Bản thân") || formatted[0];
+            if (defaultUser) setActiveUser(defaultUser.id);
+            }
         } catch (err) {
             toast.error("Không thể tải danh sách thành viên.");
         }
@@ -414,7 +420,8 @@ export default function RecordBook() {
                                                 toast.success("Cập nhật thông tin thành công!");
                                                 setUsers((prev) =>
                                                     prev.map((u) =>  u.id === currentUser.id  
-                                                    ? { ...u, dob: editDOB, gender: payload.gender,  }  
+                                                    ? { ...u, dob: editDOB, 
+                                                        gender: payload.gender === "male" ? "Nam" : payload.gender === "female" ? "Nữ" : "Khác",  }  
                                                     : u ) );
                                                 setIsEditing(false);
                                             } catch (err) {

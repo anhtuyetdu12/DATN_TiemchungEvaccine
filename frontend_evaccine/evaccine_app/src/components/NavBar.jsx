@@ -176,7 +176,7 @@ export default function NavBar({ user, setUser }) {
                         {/* Trigger */}
                         <span
                           onClick={() => setShowDropdown((prev) => !prev)}
-                          className="tw-text-[#333] tw-text-[14px] tw-font-semibold tw-cursor-pointer hover:tw-text-[#1999ee] tw-transition-colors" >
+                          className="tw-text-[#333] tw-text-[12px] tw-font-semibold tw-cursor-pointer hover:tw-text-[#1999ee] tw-transition-colors" >
                           Xin chào, {user.full_name}
                         </span>
 

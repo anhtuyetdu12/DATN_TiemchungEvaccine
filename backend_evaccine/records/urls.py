@@ -4,8 +4,8 @@ from django.urls import path
 from .views import (
     FamilyMemberViewSet, VaccinationRecordViewSet, RemainingDosesView, BookingViewSet,
     StaffCustomerListAPIView, StaffCustomerMembersAPIView,
-    StaffCreateAppointmentAPIView, StaffUpdateAppointmentStatusAPIView,
-    StaffAddHistoryAPIView, StaffListAppointmentsAPIView,
+    StaffCreateAppointmentAPIView, StaffUpdateAppointmentStatusAPIView, StaffManageMemberAPIView, 
+    StaffAddHistoryAPIView, StaffListAppointmentsAPIView, StaffUpdateCustomerProfileAPIView, 
 )
 
 
@@ -29,4 +29,7 @@ urlpatterns = [
 
     # thêm lịch sử tiêm cho 1 customer
     path("staff/customers/<int:user_id>/history", StaffAddHistoryAPIView.as_view(), name="records-staff-history-add"),
+    path("staff/customers/<int:user_id>/profile", StaffUpdateCustomerProfileAPIView.as_view(), name="records-staff-customer-profile"),
+    path("staff/customers/<int:user_id>/members", StaffManageMemberAPIView.as_view(), name="records-staff-members-create"),
+    path("staff/customers/<int:user_id>/members/<int:member_id>", StaffManageMemberAPIView.as_view(), name="records-staff-members-manage"),
 ]

@@ -203,7 +203,12 @@ class StaffCreateCustomerSerializer(serializers.Serializer):
     phone = serializers.CharField(required=False, allow_blank=True)
     set_password = serializers.CharField(write_only=True)       # BẮT BUỘC
     repassword   = serializers.CharField(write_only=True)       # XÁC NHẬN
-
+    
+    date_of_birth = serializers.DateField(required=False, allow_null=True)
+    gender = serializers.ChoiceField(
+        choices=["male","female","other"], required=False, allow_blank=True
+    )
+    
     def validate(self, attrs):
         email = (attrs.get("email") or "").strip()
         phone = (attrs.get("phone") or "").strip()
@@ -241,6 +246,9 @@ class StaffCreateCustomerSerializer(serializers.Serializer):
         phone = (validated_data.get("phone") or "").strip() or None
         raw_password = (validated_data.get("set_password") or "").strip()
 
+        dob = validated_data.get("date_of_birth")
+        gender = (validated_data.get("gender") or "other").strip()
+        
         user = User.objects.create_user(
             email=email or f"user{phone}@gmail.com",
             full_name=full_name,
@@ -248,6 +256,8 @@ class StaffCreateCustomerSerializer(serializers.Serializer):
             phone=phone,
             role="customer",
             is_active=True,
+            gender=gender if hasattr(User, "gender") else None,
+            date_of_birth=dob if hasattr(User, "date_of_birth") else None,
         )
 
         # KHÔNG bắt đổi mật khẩu lần đầu
@@ -262,7 +272,10 @@ class StaffCreateCustomerSerializer(serializers.Serializer):
                 full_name=user.full_name or user.email,
                 nickname=user.full_name or user.email,
                 relation="Bản thân",
-                gender="other",
+                gender=gender,
+                date_of_birth=dob,       
+                phone=user.phone or "",
+                is_self=True,
             )
         return {"user": user}
  

@@ -21,17 +21,6 @@ export const fetchCustomerMembers = async (userId) => {
   return data;
 };
 
-// export async function fetchCustomers(params) {
-//   const res = await api.get("/records/staff/customers/", { params });
-//   return res.data || [];
-// }
-
-
-// export async function fetchCustomerMembers(customerId) {
-//   const res = await api.get(`/records/staff/customers/${customerId}/members/`);
-//   return res.data || [];
-// }
-
 // Lấy danh sách lịch hẹn của 1 khách hàng
 export async function fetchCustomerAppointments(customerId, params = {}) {
   const res = await api.get(`/records/staff/customers/${customerId}/appointments/list`, { params });
@@ -58,4 +47,25 @@ export async function addHistory(customerId, payload) {
   return res.data;
 }
 
+// ----------cập nhật hồ sơ cá nhân (STAFF)-------------
+export async function staffUpdateCustomerProfile(userId, payload) {
+  // payload: { full_name?, phone?, date_of_birth?, gender? }
+  const { data } = await api.patch(`/records/staff/customers/${userId}/profile`, payload);
+  return data;
+}
+
+// -----------thêm /sửa/xoá thành viên cho KH (STAFF)-----------
+export async function staffCreateMember(userId, payload) {
+  // payload: { full_name, nickname?, relation?, gender?, date_of_birth?, phone? }
+  const { data } = await api.post(`/records/staff/customers/${userId}/members`, payload);
+  return data;
+}
+export async function staffUpdateMember(userId, memberId, payload) {
+  const { data } = await api.patch(`/records/staff/customers/${userId}/members/${memberId}`, payload);
+  return data;
+}
+export async function staffDeleteMember(userId, memberId) {
+  await api.delete(`/records/staff/customers/${userId}/members/${memberId}`);
+  return true;
+}
 

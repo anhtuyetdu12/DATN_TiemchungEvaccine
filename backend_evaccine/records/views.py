@@ -264,6 +264,13 @@ class StaffCustomerListAPIView(APIView):
         data = []
         for u in qs:
             code = f"KH-{u.id:04d}"
+            # LẤY MEMBER “BẢN THÂN” CHO USER HIỆN TẠI
+            m_self = (
+                FamilyMember.objects
+                .filter(user=u, relation="Bản thân")
+                .order_by("-is_self", "-created_at")
+                .first()
+            )
             # 5 lịch hẹn gần nhất
             bookings = (
                 Booking.objects.filter(user=u)
@@ -329,8 +336,8 @@ class StaffCustomerListAPIView(APIView):
                 "name": u.full_name or u.email,
                 "phone": u.phone or "",
                 "email": u.email,
-                "dob": None,
-                "gender": "",
+                "dob": m_self.date_of_birth if m_self else None, 
+                "gender": (m_self.gender or "") if m_self else "",
                 "address": "",
                 "country": "Việt Nam",
                 "category": "",
@@ -590,3 +597,120 @@ class StaffAddHistoryAPIView(APIView):
             "batch": rec.vaccine_lot or "",
             "note": rec.note or "",
         }, status=201)
+        
+# staff cập nhật tt ng dùng
+class StaffUpdateCustomerProfileAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, user_id: int):
+        role = getattr(request.user, "role", "")
+        if role not in ("staff", "admin", "superadmin"):
+            return Response({"detail": "Forbidden"}, status=403)
+
+        user = CustomUser.objects.filter(id=user_id, role="customer").first()
+        if not user:
+            return Response({"detail": "Customer không tồn tại"}, status=404)
+
+        full_name = (request.data.get("full_name") or "").strip()
+        phone     = (request.data.get("phone") or "").strip()
+        dob       = request.data.get("date_of_birth")  # "YYYY-MM-DD"
+        gender    = (request.data.get("gender") or "").strip()  # male|female|other
+
+        if full_name:
+            user.full_name = full_name
+        if phone:
+            user.phone = phone
+        user.save(update_fields=["full_name", "phone"])
+
+        m_self = FamilyMember.objects.filter(user=user, relation="Bản thân").first()
+        if not m_self:
+            m_self = FamilyMember.objects.create(
+                user=user,
+                full_name=user.full_name or user.email,
+                nickname=user.full_name or user.email,
+                relation="Bản thân",
+                gender="other",
+                date_of_birth=date(2000,1,1),
+                is_self=True
+            )
+
+        if dob:
+            m_self.date_of_birth = dob
+        if gender in ("male","female","other"):
+            m_self.gender = gender
+        m_self.full_name = user.full_name or m_self.full_name
+        m_self.phone = user.phone or m_self.phone
+        m_self.save()
+
+        return Response({
+            "user": {
+                "id": user.id,
+                "full_name": user.full_name,
+                "phone": user.phone,
+            },
+            "self_member": {
+                "id": m_self.id,
+                "date_of_birth": m_self.date_of_birth,
+                "gender": m_self.gender,
+            }
+        }, status=200)
+        
+#  staff qly thành viên 
+class StaffManageMemberAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, user_id: int):
+        role = getattr(request.user, "role", "")
+        if role not in ("staff", "admin", "superadmin"):
+            return Response({"detail": "Forbidden"}, status=403)
+        user = CustomUser.objects.filter(id=user_id, role="customer").first()
+        if not user:
+            return Response({"detail": "Customer không tồn tại"}, status=404)
+
+        payload = request.data or {}
+        fm = FamilyMember.objects.create(
+            user=user,
+            full_name=payload.get("full_name") or payload.get("name") or "",
+            nickname=payload.get("nickname") or payload.get("full_name") or "",
+            relation=payload.get("relation") or "Khác",
+            gender=payload.get("gender") or "other",
+            date_of_birth=payload.get("date_of_birth"),
+            phone=payload.get("phone") or "",
+            is_self=False,
+        )
+        return Response({
+            "id": fm.id,
+            "full_name": fm.full_name,
+            "relation": fm.relation,
+            "gender": fm.gender,
+            "date_of_birth": fm.date_of_birth,
+            "phone": fm.phone,
+        }, status=201)
+
+    def patch(self, request, user_id: int, member_id: int):
+        role = getattr(request.user, "role", "")
+        if role not in ("staff", "admin", "superadmin"):
+            return Response({"detail": "Forbidden"}, status=403)
+        fm = FamilyMember.objects.filter(id=member_id, user_id=user_id).first()
+        if not fm:
+            return Response({"detail": "Thành viên không tồn tại"}, status=404)
+        data = request.data or {}
+        for f in ["full_name", "nickname", "relation", "gender", "date_of_birth", "phone"]:
+            if f in data and data[f] is not None:
+                setattr(fm, f, data[f])
+        fm.save()
+        return Response({"detail": "Updated"}, status=200)
+
+    def delete(self, request, user_id: int, member_id: int):
+        role = getattr(request.user, "role", "")
+        if role not in ("staff", "admin", "superadmin"):
+            return Response({"detail": "Forbidden"}, status=403)
+        fm = FamilyMember.objects.filter(id=member_id, user_id=user_id).first()
+        if not fm:
+            return Response({"detail": "Thành viên không tồn tại"}, status=404)
+        if getattr(fm, "is_self", False):
+            return Response({"detail": "Không thể xoá bản thân"}, status=400)
+        fm.delete()
+        return Response(status=204)
+    
+    

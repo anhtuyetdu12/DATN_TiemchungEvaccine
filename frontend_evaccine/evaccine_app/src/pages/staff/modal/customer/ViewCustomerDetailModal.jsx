@@ -1,22 +1,47 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Clock, History, Mail, MapPin, Phone, User, X , Globe, Users  } from "lucide-react";
 import Dropdown from "../../../../components/Dropdown";
 import { fetchCustomerAppointments } from "../../../../services/customerService";
+import { toast } from "react-toastify";
 
 export default function ViewCustomerDetailModal({ customer, onClose }) {
   const [activeTab, setActiveTab] = useState("info");
   const overlayRef = useRef(null);
+
+  //click chọn thông tin cá nhân
+  const [selectedMemberId, setSelectedMemberId] = useState(null);
+  // tìm member đang chọn
+  const selectedMember = useMemo(() => {
+    const arr = customer?.members || [];
+    return arr.find(m => String(m.id) === String(selectedMemberId)) || null;
+  }, [customer, selectedMemberId]);
+
+  // chuẩn hoá trường hiển thị bên trái
+  const displayName   = selectedMember ? (selectedMember.name || selectedMember.full_name || "-") 
+                                      : (customer?.name || "-");
+  const displayDOB    = selectedMember ? (selectedMember.dob || selectedMember.date_of_birth || null)
+                                      : (customer?.dob || customer?.date_of_birth || null);
+  const displayPhone  = selectedMember?.phone ?? customer?.phone ?? "-";
+  const displayEmail  = selectedMember?.email ?? customer?.email ?? "-";
+  const displayAddr   = selectedMember?.address ?? customer?.address ?? "-";
+  const displayCountry= selectedMember?.country ?? customer?.country ?? "-";
+  const displayRelation = selectedMember?.relation || null; // để gắn badge nếu muốn
+
+  // initials nên lấy theo displayName
+  const initials = useMemo(() => {
+    const parts = (displayName || "").trim().split(/\s+/);
+    return parts.slice(0, 2).map(p => p[0]).join("").toUpperCase() || "?";
+  }, [displayName]);
+
+  const dobText = displayDOB;
+  const toVNStatus = (s) => STATUS_VN[(s || "").toLowerCase()] || "-";
+  
+
 
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose?.();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-
-  const initials = useMemo(() => {
-    const parts = (customer?.name || "").trim().split(/\s+/);
-    return parts.slice(0, 2).map(p => p[0]).join("").toUpperCase() || "?";
-  }, [customer?.name]);
 
   const safeDate = (d) => {
     try {
@@ -34,7 +59,6 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
     cancelled: "Đã hủy",
     completed: "Hoàn thành",
   };
-  const toVNStatus = (s) => STATUS_VN[(s || "").toLowerCase()] || "-";
 
   // danh sách lịch sử tiêm chủng
   const [historyMember, setHistoryMember] = useState("ALL");
@@ -57,8 +81,6 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
 
   // danh sách lịch hẹn 
   const [fullCustomer, setFullCustomer] = useState(customer); 
-  const [apptLoading, setApptLoading] = useState(false);
-  const [apptError, setApptError] = useState("");
   const [apptMember, setApptMember] = useState("ALL");
 
   //lọc dsach thành viên lịch hẹn
@@ -71,22 +93,22 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
   useEffect(() => setFullCustomer(customer), [customer]);   
 
   useEffect(() => {
-    const loadAppointments = async () => {
-      if (activeTab !== "appointments" || !fullCustomer?.id) return;
-      setApptLoading(true);
-      setApptError("");
-      try {
-        const data = await fetchCustomerAppointments(fullCustomer.id, { status: "pending,confirmed" });
-        setFullCustomer(prev => ({ ...prev, appointments: data })); 
-        console.log("Appointments:", data);
-      } catch (err) {
-        console.error(err);
-        setApptError("Không tải được lịch hẹn");
-      } finally {
-        setApptLoading(false);
-      }
-    };
-    loadAppointments();
+    if (activeTab !== "appointments" || !fullCustomer?.id) return;
+    let isMounted = true; // tránh setState khi unmount
+
+    const p = fetchCustomerAppointments(fullCustomer.id, { status: "pending,confirmed" })
+      .then((data) => {
+        if (!isMounted) return;
+        setFullCustomer(prev => ({ ...prev, appointments: data }));
+      });
+
+    toast.promise(p, {
+      pending: "Đang tải lịch hẹn...",
+      success: "Tải lịch hẹn thành công!",
+      error: "Không tải được lịch hẹn",
+    });
+
+    return () => { isMounted = false; };
   }, [activeTab, fullCustomer?.id]);
 
   const HISTORY_BADGE = {
@@ -110,7 +132,7 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
               {initials}
             </div>
             <div>
-              <p className="tw-text-lg md:tw-text-[14px] tw-font-bold tw-text-gray-900">Chi tiết khách hàng</p>
+              <p className="tw-text-lg md:tw-text-[12px] tw-font-bold tw-text-gray-900">Chi tiết khách hàng</p>
               <p className="tw-text-base tw-text-gray-500 tw-mt-0.5">
                 Mã KH: <span className="tw-font-medium tw-text-gray-700">{customer.code || "-"}</span>
               </p>
@@ -119,7 +141,7 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
 
           <button onClick={onClose} aria-label="Đóng"
             className="tw-inline-flex tw-items-center tw-justify-center tw-rounded-full tw-p-2 tw-text-gray-500 hover:tw-text-red-600 hover:tw-bg-red-50 tw-transition" >
-            <X className="tw-w-6 tw-h-6" />
+            <i className="fa-solid fa-xmark tw-text-[20px] fa-fw" />
           </button>
         </div> 
 
@@ -132,7 +154,7 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
                   "tw-inline-flex tw-items-center tw-gap-2 tw-rounded-full tw-px-4 tw-py-2 tw-text-base " +
                   (activeTab === "info" ? "tw-bg-blue-600 tw-text-white" : "tw-text-gray-600 hover:tw-bg-gray-100")
                 }  >
-                <User className="tw-w-5 tw-h-5" />
+                 <i className="fa-solid fa-user tw-text-[12px] fa-fw" />
                 <span>Thông tin</span>
               </button>
 
@@ -141,7 +163,7 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
                   "tw-inline-flex tw-items-center tw-gap-2 tw-rounded-full tw-px-4 tw-py-2 tw-text-base " +
                   (activeTab === "history" ? "tw-bg-blue-600 tw-text-white" : "tw-text-gray-600 hover:tw-bg-gray-100")
                 }>
-                <History className="tw-w-5 tw-h-5" />
+                 <i className="fa-solid fa-clock-rotate-left tw-text-[12px] fa-fw" />
                 <span>Lịch sử tiêm</span>
                 <span className={
                   "tw-ml-1 tw-inline-flex tw-items-center tw-justify-center tw-text-[11px] tw-font-semibold tw-min-w-[1.5rem] tw-h-6 tw-rounded-full " +
@@ -156,9 +178,8 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
                 className={
                   "tw-inline-flex tw-items-center tw-gap-2 tw-rounded-full tw-px-4 tw-py-2 tw-text-base " +
                   (activeTab === "appointments" ? "tw-bg-blue-600 tw-text-white" : "tw-text-gray-600 hover:tw-bg-gray-100")
-                }
-              >
-                <Clock className="tw-w-5 tw-h-5" />
+                } >
+                <i className="fa-solid fa-clock tw-text-[12px] fa-fw" />
                 <span>Lịch hẹn</span>
                 <span className={
                   "tw-ml-1 tw-inline-flex tw-items-center tw-justify-center tw-text-[11px] tw-font-semibold tw-min-w-[1.5rem] tw-h-6 tw-rounded-full " +
@@ -178,60 +199,84 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
                     [&::-webkit-scrollbar-thumb]:tw-from-cyan-400  [&::-webkit-scrollbar-thumb]:tw-to-blue-400 tw-overscroll-contain">
           {activeTab === "info" && (
             <div className="tw-grid md:tw-grid-cols-2 tw-gap-4">
-              <div className="tw-rounded-2xl tw-border tw-border-gray-100 tw-shadow-sm tw-p-4 tw-bg-white">
+              <div className="tw-rounded-2xl tw-border tw-border-gray-100 tw-shadow-sm tw-p-4 tw-bg-[#fbfbe1]">
                 <h3 className="tw-text-xl tw-font-semibold tw-text-gray-700 tw-mb-3">Thông tin cá nhân</h3>
                 <div className="tw-text-base">
                   <div className="tw-grid tw-grid-cols-3 tw-gap-3 tw-py-2 tw-border-b tw-border-gray-50">
                     <div className="tw-col-span-1 tw-flex tw-items-center tw-gap-2 tw-text-gray-500">
-                      <User className="tw-w-4 tw-h-4" /> Họ tên
+                      <i className="fa-solid fa-user tw-text-[12px] fa-fw" /> Họ tên
                     </div>
-                    <div className="tw-col-span-2 tw-text-gray-900 tw-font-medium">{customer.name || '-'}</div>
+                    <div className="tw-col-span-2 tw-text-gray-900 tw-font-medium">
+                      {displayName}
+                      {displayRelation && (
+                        <span className="tw-ml-2 tw-text-xs tw-text-pink-700 tw-bg-pink-50 tw-rounded-full tw-px-2 tw-py-0.5">
+                          {displayRelation}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  {/* Mã KH */}
                   <div className="tw-grid tw-grid-cols-3 tw-gap-3 tw-py-2 tw-border-b tw-border-gray-50">
-                    <div className="tw-col-span-1 tw-flex tw-items-center tw-gap-2 tw-text-gray-500">Mã KH</div>
+                    <div className="tw-col-span-1 tw-flex tw-items-center tw-gap-2 tw-text-gray-500">
+                      <i className="fa-solid fa-rectangle-list tw-text-[12px] fa-fw "></i>Mã KH
+                    </div>
                     <div className="tw-col-span-2 tw-text-gray-900 tw-font-medium">{customer.code || '-'}</div>
                   </div>
+                  {/* Ngày sinh */}
                   <div className="tw-grid tw-grid-cols-3 tw-gap-3 tw-py-2 tw-border-b tw-border-gray-50">
                     <div className="tw-col-span-1 tw-flex tw-items-center tw-gap-2 tw-text-gray-500">
-                      <CalendarDays className="tw-w-4 tw-h-4" /> Ngày sinh
+                      <i className="fa-solid fa-calendar-days tw-text-[12px] fa-fw" /> Ngày sinh
                     </div>
-                    <div className="tw-col-span-2 tw-text-gray-900 tw-font-medium">{customer.dob ? new Date(customer.dob).toLocaleDateString('vi-VN') : '-'}</div>
+                    <div className="tw-col-span-2 tw-text-gray-900 tw-font-medium">
+                      {dobText ? new Date(dobText).toLocaleDateString('vi-VN') : '-'}
+                    </div>
                   </div>
+                  {/* Điện thoại */}
                   <div className="tw-grid tw-grid-cols-3 tw-gap-3 tw-py-2 tw-border-b tw-border-gray-50">
                     <div className="tw-col-span-1 tw-flex tw-items-center tw-gap-2 tw-text-gray-500">
-                      <Phone className="tw-w-4 tw-h-4" /> Điện thoại
+                      <i className="fa-solid fa-phone tw-text-[12px] fa-fw" /> Điện thoại
                     </div>
-                    <div className="tw-col-span-2 tw-text-gray-900 tw-font-medium">{customer.phone || '-'}</div>
+                    <div className="tw-col-span-2 tw-text-gray-900 tw-font-medium">{displayPhone || '-'}</div>
                   </div>
+                  {/* Email */}
                   <div className="tw-grid tw-grid-cols-3 tw-gap-3 tw-py-2">
                     <div className="tw-col-span-1 tw-flex tw-items-center tw-gap-2 tw-text-gray-500">
-                      <Mail className="tw-w-4 tw-h-4" /> Email
+                      <i className="fa-solid fa-envelope tw-text-[12px] fa-fw" /> Email
                     </div>
-                    <div className="tw-col-span-2 tw-text-gray-900 tw-font-medium">{customer.email || '-'}</div>
+                    <div className="tw-col-span-2 tw-text-gray-900 tw-font-medium">{displayEmail || '-'}</div>
                   </div>
+                  {/* Địa chỉ */}
                   <div className="tw-grid tw-grid-cols-3 tw-gap-3 tw-py-2">
                     <div className="tw-col-span-1 tw-flex tw-items-center tw-gap-2 tw-text-gray-500">
-                      <MapPin className="tw-w-4 tw-h-4" /> Địa chỉ
+                      <i className="fa-solid fa-location-dot tw-text-[12px] fa-fw" /> Địa chỉ
                     </div>
-                    <div className="tw-col-span-2 tw-text-gray-900 tw-font-medium">{customer.address || '-'}</div>
+                    <div className="tw-col-span-2 tw-text-gray-900 tw-font-medium">{displayAddr || '-'}</div>
                   </div>
+                  {/* Quốc gia */}
                   <div className="tw-grid tw-grid-cols-3 tw-gap-3 tw-py-2">
                     <div className="tw-col-span-1 tw-flex tw-items-center tw-gap-2 tw-text-gray-500">
-                      <Globe className="tw-w-4 tw-h-4" /> Quốc gia
+                      <i className="fa-solid fa-globe tw-text-[12px] fa-fw" /> Quốc gia
                     </div>
-                    <div className="tw-col-span-2 tw-text-gray-900 tw-font-medium">{customer.country || '-'}</div>
+                    <div className="tw-col-span-2 tw-text-gray-900 tw-font-medium">{displayCountry || '-'}</div>
                   </div>
                 </div>
               </div>
 
-              <div className="tw-rounded-2xl tw-border tw-border-gray-100 tw-shadow-sm tw-p-4 tw-bg-white">
+              <div className="tw-rounded-2xl tw-border tw-border-gray-100 tw-shadow-sm tw-p-4 tw-bg-[#fbfbe1]">
                 <h3 className="tw-text-xl tw-font-semibold tw-text-gray-700 tw-mb-3">
                   Thành viên gia đình
                   <span className="tw-text-sm tw-text-pink-700 tw-bg-pink-50 tw-rounded-full tw-px-2 tw-py-0.5 tw-ml-2">
                     {customer.members?.length || 0}
                   </span>
                 </h3>
-
+                {selectedMember && (
+                  <div className="tw-text-right tw-mb-3">
+                    <button  onClick={() => setSelectedMemberId(null)}
+                      className="tw-text-sm tw-text-blue-600 hover:tw-underline" >
+                      <i className="fa-solid fa-left-long"></i> Xem hồ sơ chủ tài khoản
+                    </button>
+                  </div>
+                )}
                 {!customer.members?.length ? (
                   <div className="tw-text-red-500 tw-text-base tw-py-6 tw-text-center tw-border tw-border-dashed tw-rounded-lg">
                     Chưa có thành viên nào !
@@ -243,31 +288,39 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
                       [&::-webkit-scrollbar-track]:tw-bg-gray-100 [&::-webkit-scrollbar-thumb]:tw-bg-gradient-to-b
                       [&::-webkit-scrollbar-thumb]:tw-from-cyan-400 [&::-webkit-scrollbar-thumb]:tw-to-blue-400 tw-overscroll-contain " >
                     <ul className="tw-grid tw-gap-3 tw-grid-cols-1 sm:tw-grid-cols-2">
-                      {customer.members.map((m) => (
-                        <li key={m.id}
-                          className="tw-border tw-rounded-xl tw-bg-white tw-p-3 tw-shadow-sm hover:tw-shadow-md tw-transition-shadow" >
-                          <div className="tw-flex tw-items-start tw-justify-between tw-gap-3">
-                            <div className="tw-min-w-0">
-                              <div className="tw-font-semibold tw-text-gray-900 tw-truncate">
-                                {m.name || m.full_name || "-"}
-                                {m.nickname ? (
-                                  <span className="tw-ml-1 tw-text-pink-500 tw-text-lg">({m.nickname})</span>
-                                ) : null}
+                      {customer.members.map((m) => {
+                        const isActive = String(selectedMemberId) === String(m.id);
+                        return (
+                          <li key={m.id} onClick={() => {
+                              setSelectedMemberId(m.id);
+                              setHistoryMember(String(m.id));
+                              setApptMember(String(m.id));
+                            }}  className={ "tw-border tw-rounded-xl tw-bg-white tw-p-3 tw-shadow-sm hover:tw-shadow-md tw-transition-shadow tw-cursor-pointer " +
+                              (isActive ? "tw-ring-2 tw-ring-[#f7ee49] tw-border-[#f7d149] " : "") } >
+                            <div className="tw-flex tw-items-start tw-justify-between tw-gap-3">
+                              <div className="tw-min-w-0">
+                                <div className="tw-font-semibold tw-text-gray-900 tw-truncate">
+                                  {m.name || m.full_name || "-"}
+                                  {m.nickname ? (
+                                    <span className="tw-ml-1 tw-text-pink-500 tw-text-lg">({m.nickname})</span>
+                                  ) : null}
+                                </div>
+                                <div className="tw-mt-1 tw-text-sm tw-text-gray-600 tw-flex tw-items-center tw-gap-3">
+                                  <span className="tw-inline-flex tw-items-center tw-gap-1">
+                                    <i className="fa-solid fa-calendar-days tw-text-[12px] tw-text-gray-400 fa-fw" />
+                                    {m.dob ? safeDate(m.dob) : (m.date_of_birth ? safeDate(m.date_of_birth) : "-")}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="tw-mt-1 tw-text-sm tw-text-gray-600 tw-flex tw-items-center tw-gap-3">
-                                <span className="tw-inline-flex tw-items-center tw-gap-1">
-                                  <CalendarDays className="tw-w-4 tw-h-4 tw-text-gray-400" />
-                                  {m.dob ? safeDate(m.dob) : (m.date_of_birth ? safeDate(m.date_of_birth) : "-")}
-                                </span>
-                              </div>
-                            </div>
 
-                            <span className="tw-shrink-0 tw-bg-pink-50 tw-text-pink-700 tw-px-2.5 tw-py-0.5 tw-rounded-full tw-text-xs tw-font-medium tw-max-w-[140px] tw-truncate">
-                              {m.relation || "-"}
-                            </span>
-                          </div>
-                        </li>
-                      ))}
+                              <span className="tw-shrink-0 tw-bg-pink-50 tw-text-pink-700 tw-px-2.5 tw-py-0.5 tw-rounded-full tw-text-xs tw-font-medium tw-max-w-[140px] tw-truncate">
+                                {m.relation || "-"}
+                              </span>
+                            </div>
+                          </li>
+                        );
+                      })}
+
                     </ul>
                   </div>
                 )}
@@ -277,17 +330,17 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
           )}
 
           {activeTab === "history" && (
-            <div className="tw-rounded-2xl tw-border tw-border-gray-100 tw-shadow-sm tw-bg-white tw-space-y-4 tw-h-full tw-overflow-y-auto  tw-scrollbar-hide tw-pr-2">
+            <div className="tw-rounded-2xl tw-border tw-border-gray-100 tw-shadow-sm tw-bg-[#e5fafa] tw-space-y-4 tw-h-full tw-overflow-y-auto  tw-scrollbar-hide tw-pr-2">
               <div className="tw-flex tw-items-center tw-justify-between tw-px-4 md:tw-px-6 tw-pt-4">
                 <div className="tw-flex tw-items-center tw-gap-2 tw-text-gray-700">
-                  <History className="tw-w-5 tw-h-5" />
+                  <i className="fa-solid fa-clock-rotate-left tw-text-[12px] fa-fw" />
                   <h3 className="tw-font-semibold tw-text-lg">Lịch sử tiêm</h3>
                   <span className="tw-text-base tw-text-gray-500">({historyFiltered.length})</span>
                 </div>
 
                 {/* Lọc theo thành viên */}
                 <div className="tw-flex tw-items-center tw-gap-4">
-                  <Users className="tw-w-5 tw-h-5 tw-text-gray-500 " />
+                  <i className="fa-solid fa-users tw-w-5 tw-h-5 tw-text-gray-500" />
                   <div className="tw-text-lg">
                     <Dropdown
                       label={null} value={String(historyMember)}  
@@ -360,7 +413,7 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
               ) : (
                 <div className="tw-px-6 tw-py-12 tw-text-center">
                   <div className="tw-inline-flex tw-items-center tw-justify-center tw-w-16 tw-h-16 tw-rounded-full tw-bg-gray-100 tw-text-gray-500 tw-mb-3">
-                    <History className="tw-w-8 tw-h-8" />
+                    <i className="fa-solid fa-clock-rotate-left tw-text-[12px] fa-fw" />
                   </div>
                   <div className="tw-text-gray-900 tw-font-medium">Chưa có lịch sử tiêm chủng</div>
                   <div className="tw-text-gray-500 tw-text-base tw-mt-1">Khi có mũi tiêm, thông tin sẽ hiển thị tại đây.</div>
@@ -370,10 +423,10 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
           )}
 
           {activeTab === "appointments" && (
-            <div className="tw-rounded-2xl tw-border tw-border-gray-100 tw-shadow-sm tw-bg-white tw-space-y-4 tw-h-full tw-overflow-y-auto  tw-scrollbar-hide tw-pr-2">
+            <div className="tw-rounded-2xl tw-border tw-border-gray-100 tw-shadow-sm tw-bg-[#e4fbe1] tw-space-y-4 tw-h-full tw-overflow-y-auto  tw-scrollbar-hide tw-pr-2">
               <div className="tw-flex tw-items-center tw-justify-between tw-px-4 md:tw-px-6 tw-pt-4">
                 <div className="tw-flex tw-items-center tw-gap-2 tw-text-gray-700">
-                  <Clock className="tw-w-5 tw-h-5" />
+                  <i className="fa-solid fa-clock tw-text-[12px] fa-fw" />
                   <h3 className="tw-font-semibold tw-text-lg">Lịch hẹn</h3>
                   <span className="tw-text-base tw-text-gray-500">
                     ({apptFiltered.length})
@@ -381,7 +434,7 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
                 </div>
 
                 <div className="tw-flex tw-items-center tw-gap-4">
-                  <Users className="tw-w-5 tw-h-5 tw-text-gray-500" />
+                  <i className="fa-solid fa-users tw-text-[12px] fa-fw tw-text-gray-500" />
                   <Dropdown
                     label={null} value={String(apptMember)}
                     options={memberOptions}  onChange={(val) => setApptMember(val)}
@@ -399,16 +452,16 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
                                 [&::-webkit-scrollbar-thumb]:tw-from-cyan-400 [&::-webkit-scrollbar-thumb]:tw-to-blue-400">
                     <table className="tw-w-full tw-text-sm tw-border-collapse">
                       <thead>
-                        <tr className="tw-text-left tw-text-green-600 tw-text-lg">
-                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100">Người tiêm</th>
-                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100">Mối quan hệ</th>
-                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100">Ngày hẹn</th>
-                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100">Phòng bệnh</th>
-                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100">Vắc xin</th>
-                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100">Mũi thứ</th>
-                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100">Đơn giá</th>
-                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100">Trạng thái</th>
-                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100">Ghi chú</th>
+                        <tr className="tw-text-left tw-text-green-700 tw-text-lg">
+                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100 tw-w-1/9">Người tiêm</th>
+                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100 tw-w-1/9">Mối quan hệ</th>
+                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100 tw-w-1/9">Ngày hẹn</th>
+                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100 tw-w-1/9">Phòng bệnh</th>
+                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100 tw-w-1/9">Vắc xin</th>
+                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100 tw-w-1/9">Mũi thứ</th>
+                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100 tw-w-1/9">Đơn giá</th>
+                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100 tw-w-1/8">Trạng thái</th>
+                          <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100 tw-w-1/9">Ghi chú</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -458,7 +511,7 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
               ) : (
                 <div className="tw-px-6 tw-py-12 tw-text-center">
                   <div className="tw-inline-flex tw-items-center tw-justify-center tw-w-16 tw-h-16 tw-rounded-full tw-bg-gray-100 tw-text-gray-500 tw-mb-3">
-                    <CalendarDays className="tw-w-8 tw-h-8" />
+                    <i className="fa-solid fa-calendar-days tw-text-[12px] tw-text-gray-400 fa-fw" />
                   </div>
                   <div className="tw-text-gray-900 tw-font-medium">Chưa có lịch hẹn</div>
                   <div className="tw-text-gray-500 tw-text-base tw-mt-1">Tạo lịch hẹn mới để theo dõi tiến độ.</div>

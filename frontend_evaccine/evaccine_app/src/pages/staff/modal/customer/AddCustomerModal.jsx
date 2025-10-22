@@ -16,6 +16,8 @@ export default function AddCustomerModal({ show, onClose, onAdd }) {
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
   const [result, setResult] = useState(null);
+  const [showPwd, setShowPwd] = useState(false);
+  const [showRePwd, setShowRePwd] = useState(false);
 
   const validate = () => {
     if (!form.full_name.trim()) return "Vui lòng nhập họ tên";
@@ -54,14 +56,13 @@ export default function AddCustomerModal({ show, onClose, onAdd }) {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const mapGender = (g) => (g === "Nam" ? "male" : g === "Nữ" ? "female" : "other");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const err = validate();
-    if (err) {
-      setError(err);
-      return;
-    }
+    if (err) { setError(err); return; }
+
     try {
       setCreating(true);
       setError("");
@@ -71,21 +72,25 @@ export default function AddCustomerModal({ show, onClose, onAdd }) {
         full_name: form.full_name,
         email: form.email || undefined,
         phone: form.phone || undefined,
-        set_password: setPassword,   
-        repassword: repassword,      
+        date_of_birth: form.dob || undefined,       
+        gender: mapGender(form.gender),         
+        address: form.address || undefined,         
+        set_password: setPassword,
+        repassword,                                
       };
-      const res = await createCustomerByStaff(payload);
 
+      const res = await createCustomerByStaff(payload);
       setResult(res);
+
       const newRow = {
         id: res.user.id,
         code: res.user.code,
         name: res.user.full_name,
         phone: res.user.phone || "",
         email: res.user.email,
-        dob: null,
-        gender: "",
-        address: form.address || "",
+        dob: res.user.date_of_birth || form.dob || null,   
+        gender: res.user.gender || mapGender(form.gender),
+        address: res.user.address || form.address || "",
         country: "Việt Nam",
         category: "",
         doses: 0,
@@ -93,6 +98,7 @@ export default function AddCustomerModal({ show, onClose, onAdd }) {
         history: [],
         members: [],
       };
+
       onAdd(newRow);
     } catch (e2) {
       const msg =
@@ -219,42 +225,50 @@ export default function AddCustomerModal({ show, onClose, onAdd }) {
             </div>
 
            {/* Đăng nhập cho khách hàng */}
-            <div className="tw-col-span-1 sm:tw-col-span-2 tw-mt-1 tw-bg-slate-50 tw-border tw-rounded-lg tw-p-2.5">
-              <div className="tw-flex tw-flex-col tw-gap-2">
-                <label className="tw-text-base tw-font-medium">Đặt mật khẩu đăng nhập cho khách hàng</label>
+           <div className="tw-col-span-1 sm:tw-col-span-2 tw-mt-1 tw-bg-slate-50 tw-border tw-rounded-lg tw-p-2.5">
+            <div className="tw-flex tw-flex-col tw-gap-2">
+              <label className="tw-text-base tw-font-medium">Đặt mật khẩu đăng nhập cho khách hàng</label>
 
-                <div className="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 tw-gap-2">
-                  <div className="tw-flex tw-flex-col">
-                    <label className="tw-text-sm tw-font-medium">Mật khẩu</label>
-                    <input
-                      type="password"
-                      value={setPassword}
-                      onChange={(e) => setSetPassword(e.target.value)}
-                      placeholder="Nhập mật khẩu"
-                      className="tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-1.5 tw-text-base
-                                focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                      required
-                    />
-                  </div>
-                  <div className="tw-flex tw-flex-col">
-                    <label className="tw-text-sm tw-font-medium">Nhập lại mật khẩu</label>
-                    <input
-                      type="password"
-                      value={repassword}
-                      onChange={(e) => setRepassword(e.target.value)}
-                      placeholder="Nhập lại mật khẩu"
-                      className="tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-1.5 tw-text-base
-                                focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                      required
-                    />
+              <div className="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 tw-gap-2">
+                {/* Password */}
+                <div className="tw-flex tw-flex-col">
+                  <label className="tw-text-base tw-font-medium">Mật khẩu</label>
+                  <div className="tw-relative">
+                    <input  type={showPwd ? "text" : "password"} value={setPassword}
+                      onChange={(e) => setSetPassword(e.target.value)} required
+                      placeholder="Nhập mật khẩu"  autoComplete="new-password"
+                      className="tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-1.5 tw-text-base focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
+                    <button  type="button" aria-label={showPwd ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                      onClick={() => setShowPwd((s) => !s)}
+                      className="tw-absolute tw-right-3 tw-top-1/2 -tw-translate-y-1/2 tw-text-gray-500 hover:tw-text-gray-700" >
+                      <i className={`fa-solid ${showPwd ? "fa-eye-slash" : "fa-eye"} tw-text-lg`}></i>
+                    </button>
                   </div>
                 </div>
 
-                <p className="tw-text-[10px] tw-text-slate-600">
-                  Khách hàng sẽ đăng nhập bằng <b>Email</b> (nếu có) hoặc <b>Số điện thoại</b> kèm mật khẩu vừa đặt.
-                </p>
+                {/* Re-password */}
+                <div className="tw-flex tw-flex-col">
+                  <label className="tw-text-base tw-font-medium">Nhập lại mật khẩu</label>
+                  <div className="tw-relative">
+                    <input  type={showRePwd ? "text" : "password"} value={repassword}
+                      onChange={(e) => setRepassword(e.target.value)}  required
+                      placeholder="Nhập lại mật khẩu"  autoComplete="new-password"
+                      className="tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-1.5 tw-text-base focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"  />
+                    <button type="button" aria-label={showRePwd ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                      onClick={() => setShowRePwd((s) => !s)}
+                      className="tw-absolute tw-right-3 tw-top-1/2 -tw-translate-y-1/2 tw-text-gray-500 hover:tw-text-gray-700" >
+                      <i className={`fa-solid ${showRePwd ? "fa-eye-slash" : "fa-eye"} tw-text-lg`}></i>
+                    </button>
+                  </div>
+                </div>
               </div>
+
+              <p className="tw-text-[10px] tw-text-slate-600">
+                Khách hàng sẽ đăng nhập bằng <b>Email</b> (nếu có) hoặc <b>Số điện thoại</b> kèm mật khẩu vừa đặt.
+              </p>
             </div>
+          </div>
+
 
 
             <div className="tw-col-span-1 sm:tw-col-span-2 tw-mt-3 tw-sticky tw-bottom-0 tw-z-10 tw-bg-white tw-p-3 tw-border-t">
