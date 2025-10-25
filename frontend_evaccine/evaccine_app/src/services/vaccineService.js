@@ -8,7 +8,6 @@ export async function getVaccineBySlug(slug) {
 }
 
 /** Nếu bạn lưu ID thay vì slug */
-// vaccineService.js
 export async function getVaccinesByIds(ids = []) {
   const { data } = await api.get(`/vaccines/vaccines/?ids=${ids.join(",")}`);
   return data;
@@ -19,4 +18,18 @@ export async function getVaccinesByIds(ids = []) {
 export async function getPackageBySlug(slug) {
   const { data } = await api.get(`/vaccines/packages/${slug}/`);
   return data;
+}
+
+/** ⬇️ LẤY TOÀN BỘ VACCINE (có disease, doses_required, price, ...) */
+export async function getAllVaccines(params = {}) {
+  const { data } = await api.get("/vaccines/vaccines/", { params });
+  const list = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
+  return list;
+}
+
+/** ⬇️ LẤY TOÀN BỘ DISEASES (có dose_count) */
+export async function getAllDiseases() {
+  const { data } = await api.get("/vaccines/diseases/");
+  const list = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
+  return list;
 }

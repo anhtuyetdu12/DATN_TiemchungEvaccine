@@ -2,9 +2,8 @@ import { Link  } from "react-router-dom";
 import { useEffect, useState } from "react";
 // import api from "../services/axios";
 import axios from "axios";
-import { clearAllAuth, getStorage } from "../utils/authStorage";
+import { clearAllAuth, getStorage , loadAuth} from "../utils/authStorage";
 import { SELECTED_EVENT} from "../utils/selectedVaccines";
-import { loadAuth } from "../utils/authStorage";
 import { readBooking } from "../utils/bookingStorage";
 
 export default function NavBar({ user, setUser }) {

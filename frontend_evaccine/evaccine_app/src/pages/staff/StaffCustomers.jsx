@@ -201,8 +201,8 @@ export default function StaffCustomers() {
     setCustomers((prev) =>
       prev.map((c) =>
         c.id === custId
-          ? { ...c, appointments: c.appointments.map((a) => (a.id === apptId ? { ...a, status: "confirmed" } : a)) }
-          : c
+        ? { ...c, appointments: c.appointments.map((a) => (a.id === apptId ? { ...a, status: "confirmed" } : a)) }
+        : c
       )
     );
   };
@@ -211,8 +211,8 @@ export default function StaffCustomers() {
     setCustomers((prev) =>
       prev.map((c) =>
         c.id === custId
-          ? { ...c, appointments: c.appointments.map((a) => (a.id === apptId ? { ...a, status: "cancelled" } : a)) }
-          : c
+        ? { ...c, appointments: c.appointments.map((a) => (a.id === apptId ? { ...a, status: "cancelled" } : a)) }
+        : c
       )
     );
   };
@@ -325,11 +325,15 @@ export default function StaffCustomers() {
                           )}
                         </td>
 
-                        <td className="tw-px-4 tw-py-2">
+                        <td className="tw-px-4 tw-py-2 tw-max-w-[220px] tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap" title={c.phone || c.email || "-"} >
                           {term ? <Highlight text={c.phone || c.email || "-"} q={term} /> : (c.phone || c.email || "-")}
                         </td>
-                        <td>{appt?.date ? toLocalDate(appt.date).toLocaleDateString("vi-VN") : "-"}</td>
-                        <td>{appt?.vaccine || "-"}</td>
+                        <td className="tw-whitespace-nowrap">
+                          {appt?.date ? toLocalDate(appt.date).toLocaleDateString("vi-VN") : "-"}
+                        </td>
+                        <td className="tw-px-4 tw-py-2 tw-max-w-[260px] tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap"  title={appt?.vaccine || "-"}>
+                          {appt?.vaccine || "-"}
+                        </td>
                         <td className="tw-px-4 tw-py-2">{c.country || "-"}</td>
                         <td>{c.doses != null ? c.doses : "-"}</td>
                         <td>{appt?.price != null ? appt.price.toLocaleString("vi-VN") : "-"}</td>

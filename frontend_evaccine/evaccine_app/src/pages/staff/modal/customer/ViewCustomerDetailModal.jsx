@@ -22,8 +22,6 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
                                       : (customer?.dob || customer?.date_of_birth || null);
   const displayPhone  = selectedMember?.phone ?? customer?.phone ?? "-";
   const displayEmail  = selectedMember?.email ?? customer?.email ?? "-";
-  const displayAddr   = selectedMember?.address ?? customer?.address ?? "-";
-  const displayCountry= selectedMember?.country ?? customer?.country ?? "-";
   const displayRelation = selectedMember?.relation || null; // để gắn badge nếu muốn
 
   // initials nên lấy theo displayName
@@ -122,8 +120,8 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
 
   return (
     <div ref={overlayRef} onClick={(e) => e.target === overlayRef.current && onClose?.()}
-      className="tw-fixed tw-inset-0 tw-bg-black/50 tw-backdrop-blur-[2px] tw-flex tw-items-center tw-justify-center tw-z-50 tw-px-4 tw-mt-[50px]">
-      <div className="tw-bg-white tw-rounded-2xl tw-shadow-2xl tw-w-[920px] tw-max-w-[95vw] tw-h-[65vh] tw-ring-1 tw-ring-black/5 tw-flex tw-flex-col">
+      className="tw-fixed tw-inset-0 tw-bg-black/50 tw-backdrop-blur-[2px] tw-flex tw-items-center tw-justify-center tw-z-50 tw-px-4 ">
+      <div className="tw-bg-white tw-rounded-2xl tw-shadow-2xl tw-w-[920px] tw-max-w-[95vw] tw-h-[65vh] tw-ring-1 tw-ring-black/5 tw-flex tw-flex-col tw-mt-[100px]">
         
         {/* Header */}
         <div className="tw-flex tw-items-center tw-justify-between  tw-rounded-2xl tw-px-6 tw-pt-5 tw-pb-4 tw-border-b tw-border-gray-100 tw-bg-gradient-to-b tw-from-gray-50 tw-to-white">
@@ -244,20 +242,6 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
                       <i className="fa-solid fa-envelope tw-text-[12px] fa-fw" /> Email
                     </div>
                     <div className="tw-col-span-2 tw-text-gray-900 tw-font-medium">{displayEmail || '-'}</div>
-                  </div>
-                  {/* Địa chỉ */}
-                  <div className="tw-grid tw-grid-cols-3 tw-gap-3 tw-py-2">
-                    <div className="tw-col-span-1 tw-flex tw-items-center tw-gap-2 tw-text-gray-500">
-                      <i className="fa-solid fa-location-dot tw-text-[12px] fa-fw" /> Địa chỉ
-                    </div>
-                    <div className="tw-col-span-2 tw-text-gray-900 tw-font-medium">{displayAddr || '-'}</div>
-                  </div>
-                  {/* Quốc gia */}
-                  <div className="tw-grid tw-grid-cols-3 tw-gap-3 tw-py-2">
-                    <div className="tw-col-span-1 tw-flex tw-items-center tw-gap-2 tw-text-gray-500">
-                      <i className="fa-solid fa-globe tw-text-[12px] fa-fw" /> Quốc gia
-                    </div>
-                    <div className="tw-col-span-2 tw-text-gray-900 tw-font-medium">{displayCountry || '-'}</div>
                   </div>
                 </div>
               </div>

@@ -3,6 +3,7 @@ from .models import FamilyMember, VaccinationRecord, Booking, BookingItem
 from vaccines.serializers import DiseaseSerializer, VaccineSerializer, VaccinePackageSerializer
 from vaccines.models import Disease, Vaccine
 from datetime import date
+from django.db.models import Q
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -40,7 +41,7 @@ class VaccinationRecordSerializer(serializers.ModelSerializer):
         ]
         
     def get_status_label(self, obj):
-        # Chỉ dùng NGÀY
+        # Đúng cho VaccinationRecord: dựa vào vaccination_date & next_dose_date
         if obj.vaccination_date:
             return "Đã tiêm"
         if obj.next_dose_date:
@@ -49,9 +50,10 @@ class VaccinationRecordSerializer(serializers.ModelSerializer):
                 return "Chờ tiêm"
             if obj.next_dose_date < today:
                 return "Trễ hẹn"
-            return "Chờ tiêm"  # đúng ngày hôm nay -> chưa trễ
+            return "Chờ tiêm"
+        # Không có ngày tiêm & không còn ngày hẹn (ví dụ sau khi bị hủy)
         return "Chưa tiêm"
-    
+        
     def validate(self, attrs):
         request = self.context["request"]
         fm = attrs.get("family_member")
@@ -61,7 +63,7 @@ class VaccinationRecordSerializer(serializers.ModelSerializer):
     
 class BookingItemWriteSerializer(serializers.Serializer):
     vaccine_id = serializers.IntegerField()
-    quantity = serializers.IntegerField(min_value=1)
+    quantity = serializers.IntegerField(min_value=1, max_value=1)
 
 class BookingItemReadSerializer(serializers.ModelSerializer):
     vaccine = VaccineSerializer(read_only=True)
@@ -92,7 +94,6 @@ class BookingSerializer(serializers.ModelSerializer):
     package = VaccinePackageSerializer(read_only=True)
     items_summary = serializers.SerializerMethodField()
     status_label = serializers.SerializerMethodField()
-
     is_overdue = serializers.SerializerMethodField()
 
     class Meta:
@@ -103,6 +104,12 @@ class BookingSerializer(serializers.ModelSerializer):
             "items", "items_detail", "is_overdue",
             "user", "member", "items_summary", 
         ]
+        
+    def _acting_user(self):
+         # Staff đặt thay: context có "acting_user" (chính là customer)
+        # KH tự đặt: mặc định là request.user
+        return self.context.get("acting_user") or self.context["request"].user
+
 
     def get_status_label(self, obj):
         mapping = {
@@ -116,7 +123,6 @@ class BookingSerializer(serializers.ModelSerializer):
     def get_vaccine_names(self, obj):
         names = [it.vaccine.name for it in obj.items.all() if it.vaccine]
         if names:
-            # ví dụ: "MMR, HPV"
             return ", ".join(dict.fromkeys(names))  # unique giữ thứ tự
         if obj.vaccine:
             return obj.vaccine.name
@@ -125,7 +131,6 @@ class BookingSerializer(serializers.ModelSerializer):
         return ""
 
     def get_items_summary(self, obj):
-        # ví dụ: [{"name":"MMR","qty":2},{"name":"HPV","qty":1}]
         summary = []
         for it in obj.items.all():
             if it.vaccine:
@@ -137,13 +142,15 @@ class BookingSerializer(serializers.ModelSerializer):
         if obj.status in ("completed", "cancelled"):
             return False
         return bool(obj.appointment_date and obj.appointment_date < date.today())
-
+    
     def validate(self, attrs):
-        user = self.context["request"].user
+        acting_user = self._acting_user()
         member = attrs["member"]
+
         if not attrs.get("appointment_date"):
             raise serializers.ValidationError({"appointment_date": "Vui lòng chọn ngày hẹn tiêm."})
-        if member.user != user:
+
+        if member.user != acting_user:
             raise serializers.ValidationError({"member_id": "Thành viên không thuộc tài khoản này."})
 
         # gộp quantity theo vaccine & check vượt phác đồ
@@ -158,7 +165,7 @@ class BookingSerializer(serializers.ModelSerializer):
             except Vaccine.DoesNotExist:
                 raise serializers.ValidationError({"items": f"Vắc xin id={v_id} không tồn tại"})
             total = v.doses_required or 1
-            used = VaccinationRecord.objects.filter(family_member=member, vaccine=v).count()
+            used = VaccinationRecord.objects.filter(family_member=member, vaccine=v,  vaccination_date__isnull=False).count()
             if used + qty > total:
                 remain = max(total - used, 0)
                 raise serializers.ValidationError({
@@ -166,30 +173,54 @@ class BookingSerializer(serializers.ModelSerializer):
                 })
         return attrs
 
+    # def create(self, validated_data):
+    #     acting_user = self._acting_user()
+    #     items_data = validated_data.pop("items", [])
+    #     booking = Booking.objects.create(user=acting_user, **validated_data)
+
+    #     for it in items_data:
+    #         v = Vaccine.objects.get(id=it["vaccine_id"])
+    #         BookingItem.objects.create(
+    #             booking=booking, vaccine=v, quantity=it["quantity"], unit_price=v.price or 0
+    #         )
+    #         current = VaccinationRecord.objects.filter(family_member=booking.member, vaccine=v).count()
+    #         for i in range(it["quantity"]):
+    #             VaccinationRecord.objects.create(
+    #                 family_member=booking.member,
+    #                 disease=v.disease,
+    #                 vaccine=v,
+    #                 dose_number=current + i + 1,
+    #                 vaccination_date=None,
+    #                 next_dose_date=booking.appointment_date,
+    #                 note=f"Đặt lịch #{booking.id}",
+    #             )
+    #     return booking
     def create(self, validated_data):
-        user = self.context["request"].user
+        acting_user = self._acting_user()
         items_data = validated_data.pop("items", [])
-        booking = Booking.objects.create(user=user, **validated_data)
+        booking = Booking.objects.create(user=acting_user, **validated_data)
 
         for it in items_data:
             v = Vaccine.objects.get(id=it["vaccine_id"])
+            qty = int(it["quantity"] or 1)
             BookingItem.objects.create(
-                booking=booking, vaccine=v, quantity=it["quantity"], unit_price=v.price or 0
+                booking=booking, vaccine=v, quantity=qty, unit_price=v.price or 0
             )
-            # ghi sổ lịch tiêm dự kiến
-            current = VaccinationRecord.objects.filter(family_member=booking.member, vaccine=v).count()
-            for i in range(it["quantity"]):
-                VaccinationRecord.objects.create(
-                    family_member=booking.member,
-                    disease=v.disease,
-                    vaccine=v,
-                    dose_number=current + i + 1,
-                    vaccination_date=None,
-                    next_dose_date=booking.appointment_date,
-                    note=f"Đặt lịch #{booking.id}",
-                )
+            current = VaccinationRecord.objects.filter(
+                family_member=booking.member,
+                vaccine=v
+            ).filter(Q(vaccination_date__isnull=False) | Q(next_dose_date__isnull=False)).count()
+            VaccinationRecord.objects.create(
+                family_member=booking.member,
+                disease=v.disease,
+                vaccine=v,
+                dose_number=current + 1,
+                vaccination_date=None,
+                next_dose_date=booking.appointment_date,
+                note=f"Đặt lịch #{booking.id}",
+                source_booking=booking,    
+            )
         return booking
-    
     
 #  ----- thành viên gia đình ------
 class CustomerMemberSlimSerializer(serializers.ModelSerializer):
@@ -259,3 +290,12 @@ class HistoryCreateInSerializer(serializers.Serializer):
     dose = serializers.CharField(required=False, allow_blank=True)
     batch = serializers.CharField(required=False, allow_blank=True)
     note = serializers.CharField(required=False, allow_blank=True)
+    
+class StaffBookingCreateInSerializer(serializers.Serializer):
+    member_id = serializers.PrimaryKeyRelatedField(
+        queryset=FamilyMember.objects.all(), source="member"
+    )
+    appointment_date = serializers.DateField()
+    items = BookingItemWriteSerializer(many=True)  
+    location = serializers.CharField(required=False, allow_blank=True)
+    notes = serializers.CharField(required=False, allow_blank=True)

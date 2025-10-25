@@ -1,8 +1,9 @@
 // DetailCustomerModal.jsx
 import { useState, useEffect, useMemo } from "react";
 import Dropdown from "../../../../components/Dropdown";
-// import QuantityPicker from "../../../../components/QuantityPicker";
+import QuantityPicker from "../../../../components/QuantityPicker";
 import DeleteCustomerModal from "./DeleteCustomerModal";
+import { getAllVaccines, getAllDiseases } from "../../../../services/vaccineService";
 import {
   staffUpdateCustomerProfile,
   createAppointment,
@@ -16,24 +17,25 @@ import { toast } from "react-toastify";
 export default function EditCustomerModal({
   show,
   customer,
-  vaccines = [],
   onClose,
   center,
   onConfirmAppointment = () => {},
   onCancelAppointment = () => {},
-  onAddAppointment = () => {},
-  onRecordVaccine = () => {},
   setCustomers,
   setSelectedCustomer,
 }) {
   // ---------------- Hooks: luôn khai báo trước mọi early return ----------------
   const [deleteModal, setDeleteModal] = useState({ open: false, member: null });
   const [deleting, setDeleting] = useState(false);
+  const [vaccinesDb, setVaccinesDb] = useState([]);   
+  const [diseasesDb, setDiseasesDb] = useState([]);  
+  const [loadingDicts, setLoadingDicts] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   const [newAppointment, setNewAppointment] = useState({
     date: "",
     memberId: "",
-    items: [], // [{ disease, vaccineId, vaccineName, price, doseQty }]
+    items: [],
     note: "",
     total: 0,
   });
@@ -43,7 +45,10 @@ export default function EditCustomerModal({
   const [detailTab, setDetailTab] = useState("info");
   const [newVaccineRecord, setNewVaccineRecord] = useState({
     date: "",
-    vaccine: "",
+    disease: "",   
+    vaccine: "",   
+    dose: "",      
+    price: "",     
     batch: "",
     note: "",
   });
@@ -53,19 +58,18 @@ export default function EditCustomerModal({
   const appointmentsList = customer?.appointments ?? [];
   const historyList = customer?.history ?? [];
 
-  // Options chọn người tiêm (owner + members) — dùng useMemo và KHÔNG đặt sau early return
+  // Options chọn người tiêm (owner + members)
   const memberSelectOptions = useMemo(() => {
-    if (!customer) return [];
-    const owner = {
-      value: String(customer.id),
-      label: `${customer.name} (Chủ TK)`,
-    };
-    const others = membersList.map((m) => ({
-      value: String(m.id),
-      label: `${m.name}${m.relation ? ` (${m.relation})` : ""}`,
-    }));
-    return [owner, ...others];
-  }, [customer, membersList]);
+    const list = membersList || [];
+    return list.map((m) => {
+      const displayName = m.name || m.full_name || "";
+      return {
+        value: String(m.id),
+        label: `${displayName}${m.relation ? ` (${m.relation})` : ""}`,
+        title: `${displayName}${m.relation ? ` (${m.relation})` : ""}`,
+      };
+    });
+  }, [membersList]);
 
   // danh sách mối quan hệ — cũng đưa lên trước guard
   const relationships = useMemo(
@@ -111,12 +115,28 @@ export default function EditCustomerModal({
     };
   }, [show]);
 
-  const mapCodeToLabel = (c) =>
-    String(c).toLowerCase() === "male"
-      ? "Nam"
-      : String(c).toLowerCase() === "female"
-      ? "Nữ"
-      : "Khác";
+    // LOASD ds vaccine bệnh
+  useEffect(() => {
+    if (!show) return;
+    let mounted = true;
+    (async () => {
+      try {
+        setLoadingDicts(true);
+        const [vList, dList] = await Promise.all([getAllVaccines(), getAllDiseases()]);
+        if (!mounted) return;
+        setVaccinesDb(vList || []);
+        setDiseasesDb(dList || []);
+      } catch (e) {
+        console.error(e);
+        toast.error("Không tải được danh mục vắc xin/phòng bệnh");
+      } finally {
+        if (mounted) setLoadingDicts(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [show]);
+
+  const mapCodeToLabel = (c) => String(c).toLowerCase() === "male" ? "Nam" : String(c).toLowerCase() === "female" ? "Nữ" : "Khác";
 
   const mapLabelToCode = (l) => (l === "Nam" ? "male" : l === "Nữ" ? "female" : "other");
 
@@ -136,14 +156,22 @@ export default function EditCustomerModal({
     }
   }, [customer]);
 
-  // diseaseOptions — PHẢI ở trước early return (là một Hook)
-  const diseaseOptions = useMemo(
-    () =>
-      Array.from(
-        new Set((vaccines || []).map((v) => v.disease || v.category).filter(Boolean))
-      ).map((d) => ({ value: d, label: d })),
-    [vaccines]
-  );
+  // Lấy tên bệnh từ object vaccine
+  const getDiseaseName = (v) => v?.disease?.name ?? "";
+  // Tìm vaccine theo id trong vaccinesDb
+  const findVaccine = (id) =>
+    (vaccinesDb || []).find((v) => String(v.id) === String(id));
+  // Lấy vaccine theo disease_id
+  const vaccinesByDiseaseId = (diseaseId) =>
+    (vaccinesDb || []).filter((v) => String(v?.disease?.id) === String(diseaseId));
+  // Max mũi = min(doses_required, 5), fallback 1
+  const getMaxDose = (vId) =>
+    Math.max(1, Math.min(findVaccine(vId)?.doses_required ?? 1, 5));
+
+  // lấy bệnh
+  const diseaseOptions = useMemo(() => {
+    return (diseasesDb || []).map((d) => ({ value: String(d.id), label: d.name }));
+  }, [diseasesDb]);
 
   // ---------------- Early return: đặt SAU khi đã khai báo tất cả hooks ----------------
   if (!show || !customer) return null;
@@ -155,11 +183,6 @@ export default function EditCustomerModal({
     { label: "Khác", icon: "fa-solid fa-venus-mars", color: "tw-text-orange-500" },
   ];
 
-  const vaccinesByDisease = (d) =>
-    (vaccines || []).filter((v) => (v.disease || v.category) === d);
-  const findVaccine = (id) =>
-    (vaccines || []).find((v) => String(v.id) === String(id));
-
   const formatDate = (dateString) => {
     if (!dateString) return "-";
     const d = new Date(dateString);
@@ -169,6 +192,8 @@ export default function EditCustomerModal({
     const year = d.getFullYear();
     return `${day}/${month}/${year}`;
   };
+
+  const formatMoney = (n) => (n != null ? Number(n).toLocaleString("vi-VN") : "0");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -191,8 +216,7 @@ export default function EditCustomerModal({
       setCustomers((prev) =>
         prev.map((c) =>
           c.id === customer.id
-            ? {
-                ...c,
+            ? { ...c,
                 ...toSave,
                 gender_text: mapCodeToLabel(toSave.gender),
                 dob: toSave.dob,
@@ -214,41 +238,83 @@ export default function EditCustomerModal({
     }
   };
 
-  // thêm lịch hẹn mới (version cũ — nếu còn dùng)
-  const handleAddAppointment = async () => {
-    if (!newAppointment.date || !newAppointment.vaccineId) return;
-    try {
-      const payload = {
-        date: new Date(newAppointment.date).toISOString(),
-        vaccineId: String(newAppointment.vaccineId),
-        vaccine: newAppointment.vaccine,
-        center: newAppointment.center || "",
-        category: newAppointment.category || "",
-        price: Number(newAppointment.price || 0),
-        doses: Number(newAppointment.doses || 1),
-        note: newAppointment.note || "",
-      };
-      const appt = await createAppointment(customer.id, payload);
+  const mapBookingToUi = (b) => {
+    const price = (b.items_detail || []).reduce(
+      (s, it) => s + Number(it.unit_price || 0) * Number(it.quantity || 0),
+      0
+    );
+    const vaccineLabel =
+      (b.items_summary || [])
+        .map((x) => `${x.name} x${x.qty}`)
+        .join(", ") ||
+      (b.vaccine?.name || (b.package ? `Gói: ${b.package.name}` : ""));
 
-      const updated = [...appointmentsList, appt];
+    return {
+      id: String(b.id),
+      date: b.appointment_date,   // UI dùng 'date'
+      vaccine: vaccineLabel,
+      center: b.location || "",
+      status: b.status,
+      price,
+    };
+  };
+
+  // thêm lịch hẹn mới (version cũ — nếu còn dùng)
+  const handleCreateAppointments = async () => {
+    try {
+      setCreating(true);
+      if (!newAppointment.date) {
+        toast.error("Chọn ngày hẹn");
+        return;
+      }
+      if (!newAppointment.memberId) {
+        toast.error("Chọn người tiêm");
+        return;
+      }
+      const want = {};
+      for (const it of (newAppointment.items || [])) {
+        if (!it.vaccineId) continue;
+        const key = String(it.vaccineId);
+        want[key] = (want[key] || 0) + Number(it.doseQty || 1);
+      }
+      const items = Object.entries(want).map(([vaccine_id, quantity]) => ({
+        vaccine_id: Number(vaccine_id),
+        quantity,
+      }));
+      if (!items.length) {
+        toast.error("Chọn ít nhất 1 vắc xin");
+        return;
+      }
+      const payload = {
+        member_id: Number(newAppointment.memberId || 0),
+        appointment_date: newAppointment.date || "",
+        items,
+        location: center?.name || "",
+        notes: newAppointment.note || "",
+      };
+      const created = await createAppointment(customer.id, payload);
+      const slim = mapBookingToUi(created);
+      const updated = [...appointmentsList, slim];
       setCustomers((prev) =>
         prev.map((c) => (c.id === customer.id ? { ...c, appointments: updated } : c))
       );
       setSelectedCustomer((prev) => ({ ...prev, appointments: updated }));
-      setNewAppointment({
-        date: "",
-        vaccine: "",
-        vaccineId: "",
-        center: "",
-        category: "",
-        price: "",
-        doses: 1,
-        note: "",
-        total: 0,
-      });
+      setNewAppointment({ date: "", memberId: "", items: [], note: "", total: 0 });
       toast.success("Đã tạo lịch hẹn");
     } catch (e) {
-      toast.error(e?.detail || e?.response?.data?.detail || "Không tạo được lịch hẹn");
+      const detail = e?.response?.data?.detail;
+      if (detail) return toast.error(detail);
+      const data = e?.response?.data;
+      if (data && typeof data === "object") {
+        try {
+          const firstField = Object.keys(data)[0];
+          const msg = Array.isArray(data[firstField]) ? data[firstField][0] : String(data[firstField]);
+          return toast.error(msg || "Không tạo được lịch hẹn");
+        } catch {}
+      }
+      toast.error("Không tạo được lịch hẹn");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -258,25 +324,12 @@ export default function EditCustomerModal({
       await setAppointmentStatus(customerId, apptId, status); // PATCH staff
       setCustomers((prev) =>
         prev.map((c) =>
-          c.id !== customerId
-            ? c
-            : {
-                ...c,
-                appointments: (c.appointments || []).map((a) =>
-                  a.id === apptId ? { ...a, status } : a
-                ),
-              }
+          c.id !== customerId ? c
+          : { ...c, appointments: (c.appointments || []).map((a) => a.id === apptId ? { ...a, status } : a ), }
         )
       );
       setSelectedCustomer((prev) =>
-        !prev
-          ? prev
-          : {
-              ...prev,
-              appointments: (prev.appointments || []).map((a) =>
-                a.id === apptId ? { ...a, status } : a
-              ),
-            }
+        !prev ? prev : { ...prev, appointments: (prev.appointments || []).map((a) =>  a.id === apptId ? { ...a, status } : a ), }
       );
       toast.success(
         status === "confirmed"
@@ -306,21 +359,18 @@ export default function EditCustomerModal({
     } catch {}
   };
 
+
+
   // ---------------- Render ----------------
   return (
     <div className="tw-fixed tw-inset-0 tw-flex tw-items-start tw-justify-center tw-pt-24 tw-bg-black/40">
       <div className="tw-bg-white tw-w-[700px] tw-h-[400px] tw-rounded-xl tw-shadow-xl tw-flex tw-flex-col tw-mt-[50px]">
         <div className="tw-flex tw-justify-between tw-items-center tw-p-4 tw-border-b">
           <div>
-            <h3 className="tw-text-2xl tw-font-semibold">Hồ sơ: {customer.name}</h3>
-            <div className="tw-text-lg tw-text-gray-500">
-              {customer.code} — {customer.address}
-            </div>
+            <h3 className="tw-text-xl tw-font-semibold">Hồ sơ: {customer.name}</h3>
+            <div className="tw-text-lg tw-text-gray-500">  {customer.code}   </div>
           </div>
-          <button
-            onClick={onClose}
-            className="tw-text-white tw-bg-red-500 hover:tw-bg-red-600 tw-rounded-full tw-px-3 tw-py-2"
-          >
+          <button onClick={onClose}  className="tw-text-white tw-text-xl tw-bg-red-500 hover:tw-bg-red-600 tw-rounded-full tw-px-3 tw-py-2" >
             Đóng ✕
           </button>
         </div>
@@ -329,45 +379,28 @@ export default function EditCustomerModal({
           <div className="tw-col-span-1 tw-border-r tw-p-4 ">
             <div className="tw-mb-4">
               <div className="tw-text-xl tw-text-gray-500">Thông tin cơ bản</div>
-              <div className="tw-font-medium">{customer.name}</div>
-              <div className="tw-text-lg tw-text-gray-600">
+              <div className="tw-font-medium tw-text-[12px]">{customer.name}</div>
+              <div className="tw-text-[10px] tw-text-gray-600">
                 {customer.phone} • {formatDate(customer.dob || customer.date_of_birth)} •{" "}
                 {mapCodeToLabel(form.gender)}
               </div>
-              <div className="tw-text-lg tw-text-gray-600">{customer.address}</div>
             </div>
 
             <div className="tw-space-y-4 tw-mt-20">
-              <button
-                onClick={() => setDetailTab("info")}
-                className={`tw-w-full tw-text-left tw-py-2 tw-px-2 tw-rounded ${
-                  detailTab === "info" ? "tw-bg-cyan-200" : "hover:tw-bg-blue-50"
-                }`}
-              >
+              <button onClick={() => setDetailTab("info")}
+                className={`tw-w-full tw-text-left tw-py-2 tw-px-2 tw-rounded ${ detailTab === "info" ? "tw-bg-cyan-200" : "hover:tw-bg-blue-50" }`} >
                 Thông tin
               </button>
-              <button
-                onClick={() => setDetailTab("family")}
-                className={`tw-w-full tw-text-left tw-py-2 tw-px-2 tw-rounded ${
-                  detailTab === "family" ? "tw-bg-cyan-200" : "hover:tw-bg-blue-50"
-                }`}
-              >
+              <button onClick={() => setDetailTab("family")}
+                className={`tw-w-full tw-text-left tw-py-2 tw-px-2 tw-rounded ${  detailTab === "family" ? "tw-bg-cyan-200" : "hover:tw-bg-blue-50"}`} >
                 Gia đình
               </button>
-              <button
-                onClick={() => setDetailTab("appointments")}
-                className={`tw-w-full tw-text-left tw-py-2 tw-px-2 tw-rounded ${
-                  detailTab === "appointments" ? "tw-bg-cyan-200" : "hover:tw-bg-blue-50"
-                }`}
-              >
+              <button onClick={() => setDetailTab("appointments")}
+                className={`tw-w-full tw-text-left tw-py-2 tw-px-2 tw-rounded ${ detailTab === "appointments" ? "tw-bg-cyan-200" : "hover:tw-bg-blue-50" }`} >
                 Lịch hẹn
               </button>
-              <button
-                onClick={() => setDetailTab("history")}
-                className={`tw-w-full tw-text-left tw-py-2 tw-px-2 tw-rounded ${
-                  detailTab === "history" ? "tw-bg-cyan-200" : "hover:tw-bg-blue-50"
-                }`}
-              >
+              <button onClick={() => setDetailTab("history")}
+                className={`tw-w-full tw-text-left tw-py-2 tw-px-2 tw-rounded ${  detailTab === "history" ? "tw-bg-cyan-200" : "hover:tw-bg-blue-50" }`} >
                 Lịch sử tiêm
               </button>
             </div>
@@ -378,126 +411,73 @@ export default function EditCustomerModal({
 
           <div className="tw-col-span-2 tw-p-4 tw-overflow-y-auto">
             {detailTab === "info" && (
-              <div className="tw-space-y-2 tw-text-left">
-                <p className="tw-font-semibold tw-text-[17px] tw-text-center tw-text-blue-400">
-                  <i className="fa-solid fa-circle-info tw-mr-3"></i>Thông tin cơ bản
-                </p>
-                <div className="tw-grid tw-grid-cols-2 tw-gap-4">
-                  <div>
-                    <label className="tw-text-lg tw-font-medium">Mã khách hàng</label>
-                    <div className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-bg-gray-50">
-                      {form.code}
+              <div className="tw-flex tw-flex-col tw-min-h-full tw-text-left">
+                <div className="tw-flex-1 tw-space-y-4">
+                  <p className="tw-font-semibold tw-text-[17px] tw-text-center tw-text-blue-400">
+                    <i className="fa-solid fa-circle-info tw-mr-3"></i>Thông tin cơ bản
+                  </p>
+
+                  <div className="tw-grid tw-grid-cols-2 tw-gap-4">
+                    <div>
+                      <label className="tw-text-lg tw-font-medium">Mã khách hàng</label>
+                      <div className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-bg-gray-50">{form.code}</div>
+                    </div>
+                    <div>
+                      <label className="tw-text-lg tw-font-medium">Họ tên</label>
+                      <input name="name" value={form.name || ""} onChange={handleChange} 
+                      className="tw-text-lg tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="tw-text-lg tw-font-medium">Họ tên</label>
-                    <input
-                      name="name"
-                      value={form.name || ""}
-                      onChange={handleChange}
-                      className="tw-text-lg tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 
-                              focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                    />
-                  </div>
-                </div>
-
-                <div className="tw-grid tw-grid-cols-2 tw-gap-4">
-                  <div>
-                    <label className="tw-text-lg tw-font-medium">Số điện thoại</label>
-                    <input
-                      name="phone"
-                      value={form.phone || ""}
-                      onChange={handleChange}
-                      className="tw-text-lg tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 
-                              focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                    />
+                  <div className="tw-grid tw-grid-cols-2 tw-gap-4">
+                    <div>
+                      <label className="tw-text-lg tw-font-medium">Số điện thoại</label>
+                      <input name="phone" value={form.phone || ""} onChange={handleChange} 
+                      className="tw-text-lg tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
+                    </div>
+                    <div>
+                      <label className="tw-text-lg tw-font-medium">Email</label>
+                      <input name="email" value={form.email || ""} onChange={handleChange} 
+                      className="tw-text-lg tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="tw-text-lg tw-font-medium">Email</label>
-                    <input
-                      name="email"
-                      value={form.email || ""}
-                      onChange={handleChange}
-                      className="tw-text-lg tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 
-                              focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                    />
-                  </div>
-                </div>
-
-                <div className="tw-grid tw-grid-cols-2 tw-gap-4">
-                  <div>
-                    <label className="tw-text-lg tw-font-medium">Địa chỉ</label>
-                    <input
-                      name="address"
-                      value={form.address || ""}
-                      onChange={handleChange}
-                      className="tw-text-lg tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 
-                              focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="tw-text-lg tw-font-medium">Giới tính</label>
-                    <div className="tw-grid tw-grid-cols-3 tw-gap-3 mt-2">
-                      {genderOptions.map((opt) => {
-                        const optCode = mapLabelToCode(opt.label);
-                        const isActive = (form.gender || "").toLowerCase() === optCode;
-
-                        return (
-                          <button
-                            key={opt.label}
-                            type="button"
-                            onClick={() =>
-                              setForm((prev) => ({ ...prev, gender: optCode }))
-                            }
-                            className={`tw-flex tw-items-center tw-justify-center tw-gap-2 tw-px-3 tw-py-2 
-                                        tw-rounded-lg tw-border tw-transition tw-text-lg
-                                        ${
-                                          isActive
-                                            ? "tw-border-cyan-500 tw-bg-cyan-50"
-                                            : "tw-border-gray-300 tw-bg-white"
-                                        }`}
-                          >
-                            <i className={`${opt.icon} ${opt.color}`}></i>
-                            <span>{opt.label}</span>
-                          </button>
-                        );
-                      })}
+                  <div className="tw-grid tw-grid-cols-2 tw-gap-4">
+                    <div>
+                      <label className="tw-text-lg tw-font-medium">Ngày sinh</label>
+                      <input name="dob" type="date" max={new Date().toISOString().split("T")[0]} value={form.dob || ""} 
+                      onChange={handleChange} className="tw-text-lg tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2
+                                                     focus:tw-ring-blue-300 focus:tw-border-blue-800" />
+                    </div>
+                    <div>
+                      <label className="tw-text-lg tw-font-medium">Giới tính</label>
+                      <div className="tw-grid tw-grid-cols-3 tw-gap-3 tw-mt-2">
+                        {genderOptions.map((opt) => {
+                          const optCode = mapLabelToCode(opt.label);
+                          const isActive = (form.gender || "").toLowerCase() === optCode;
+                          return (
+                            <button key={opt.label} type="button" onClick={() => setForm((prev) => ({ ...prev, gender: optCode }))} 
+                                className={`tw-flex tw-items-center tw-justify-center tw-gap-2 tw-px-3 tw-py-2 tw-rounded-lg tw-border tw-transition tw-text-lg 
+                                ${isActive ? "tw-border-cyan-500 tw-bg-cyan-50" : "tw-border-gray-300 tw-bg-white"}`}>
+                              <i className={`${opt.icon} ${opt.color}`}></i>
+                              <span>{opt.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="tw-grid tw-grid-cols-2 tw-gap-4">
-                  <div>
-                    <label className="tw-text-lg tw-font-medium">Ngày sinh</label>
-                    <input
-                      name="dob"
-                      type="date"
-                      max={new Date().toISOString().split("T")[0]}
-                      className="tw-text-lg tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-                      value={form.dob || ""}
-                      onChange={handleChange}
-                    />
+                <div className="tw-sticky tw-bottom-0 tw-mt-auto tw-pt-3 tw-pb-3 tw-bg-white tw-border-t">
+                  <div className="tw-flex tw-justify-end tw-gap-3">
+                    <button type="button" onClick={onClose} className="tw-bg-red-600 tw-text-white tw-text-xl tw-px-6 tw-py-2 tw-rounded-full hover:tw-bg-red-500">
+                      Hủy
+                    </button>
+                    <button type="button" onClick={handleSave} className="tw-bg-green-600 tw-text-white tw-text-xl tw-px-6 tw-py-2 tw-rounded-full hover:tw-bg-green-500">
+                      Lưu thay đổi
+                    </button>
                   </div>
-                </div>
-
-                <div className="tw-flex tw-justify-end tw-gap-3 tw-mt-6 tw-py-3">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="tw-bg-red-600 tw-text-white tw-text-xl tw-px-6 tw-py-2 tw-rounded-full hover:tw-bg-red-500"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    className="tw-bg-green-600 tw-text-white tw-text-xl tw-px-6 tw-py-2 tw-rounded-full hover:tw-bg-green-500"
-                  >
-                    Lưu thay đổi
-                  </button>
                 </div>
               </div>
             )}
@@ -512,61 +492,34 @@ export default function EditCustomerModal({
                 {/* Form thêm thành viên mới */}
                 <div className="tw-border tw-p-5 tw-mb-4 tw-space-y-2 tw-bg-pink-100 tw-rounded-lg tw-text-lg">
                   <div className="tw-grid tw-grid-cols-2 tw-gap-4">
-                    <input
-                      placeholder="Tên thân mật"
-                      value={newMember?.nickname || ""}
-                      onChange={(e) =>
-                        setNewMember((s) => ({ ...s, nickname: e.target.value }))
-                      }
+                    <input placeholder="Tên thân mật"  value={newMember?.nickname || ""}
+                      onChange={(e) => setNewMember((s) => ({ ...s, nickname: e.target.value })) }
                       className="tw-border tw-rounded-lg tw-px-3 tw-py-2 
                             focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
                     />
-                    <input
-                      placeholder="Họ và tên"
-                      value={newMember?.name || ""}
-                      onChange={(e) =>
-                        setNewMember((s) => ({ ...s, name: e.target.value }))
-                      }
+                    <input  placeholder="Họ và tên"  value={newMember?.name || ""}
+                      onChange={(e) => setNewMember((s) => ({ ...s, name: e.target.value })) }
                       className="tw-border tw-rounded-lg tw-px-3 tw-py-2 
                             focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
                     />
 
                     {/* Dropdown Mối quan hệ */}
                     <div>
-                      <label className="tw-block tw-mb-3 tw-text-lg tw-font-medium tw-text-left ">
-                        Mối quan hệ
-                      </label>
+                      <label className="tw-block tw-mb-3 tw-text-lg tw-font-medium tw-text-left ">  Mối quan hệ  </label>
                       <Dropdown
-                        className="tw-text-lg"
-                        value={newMember.relation}
-                        options={relationships}
-                        onChange={(val) =>
-                          setNewMember((s) => ({ ...s, relation: val }))
-                        }
+                        className="tw-text-lg" value={newMember.relation}  options={relationships}
+                        onChange={(val) =>setNewMember((s) => ({ ...s, relation: val })) }
                       />
                     </div>
 
                     {/* Nút chọn Giới tính */}
                     <div className="tw-flex tw-flex-col tw-items-start">
-                      <label className="tw-block tw-text-lg tw-font-medium tw-text-left ">
-                        Giới tính
-                      </label>
+                      <label className="tw-block tw-text-lg tw-font-medium tw-text-left "> Giới tính  </label>
                       <div className="tw-grid tw-grid-cols-3 tw-gap-3 ">
                         {genderOptions.map((opt) => (
-                          <button
-                            key={opt.label}
-                            type="button"
-                            onClick={() =>
-                              setNewMember((s) => ({ ...s, sex: opt.label }))
-                            }
-                            className={`tw-flex tw-items-center tw-justify-center tw-gap-2 tw-px-3 tw-py-2 
-                                        tw-rounded-lg tw-border-2 tw-transition 
-                                        ${
-                                          newMember?.sex === opt.label
-                                            ? "tw-border-cyan-500 tw-bg-cyan-50"
-                                            : "tw-border-gray-300 tw-bg-white"
-                                        }`}
-                          >
+                          <button key={opt.label} type="button" onClick={() => setNewMember((s) => ({ ...s, sex: opt.label }))}
+                            className={`tw-flex tw-items-center tw-justify-center tw-gap-2 tw-px-3 tw-py-2  tw-rounded-lg tw-border-2 tw-transition 
+                                        ${ newMember?.sex === opt.label  ? "tw-border-cyan-500 tw-bg-cyan-50" : "tw-border-gray-300 tw-bg-white" }`} >
                             <i className={`${opt.icon} ${opt.color}`}></i>
                             <span>{opt.label}</span>
                           </button>
@@ -575,25 +528,17 @@ export default function EditCustomerModal({
                     </div>
 
                     <div className="tw-flex tw-flex-col">
-                      <label className=" tw-text-lg tw-font-medium tw-text-left">
-                        Ngày sinh
-                      </label>
-                      <input
-                        type="date"
-                        max={new Date().toISOString().split("T")[0]}
-                        placeholder="Ngày sinh"
-                        value={newMember?.dob || ""}
-                        onChange={(e) =>
-                          setNewMember((s) => ({ ...s, dob: e.target.value }))
-                        }
+                      <label className=" tw-text-lg tw-font-medium tw-text-left">  Ngày sinh </label>
+                      <input type="date" max={new Date().toISOString().split("T")[0]}
+                        placeholder="Ngày sinh" value={newMember?.dob || ""}
+                        onChange={(e) =>setNewMember((s) => ({ ...s, dob: e.target.value })) }
                         className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-h-[35px] 
                                   focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
                       />
                     </div>
                   </div>
 
-                  <button
-                    className="tw-bg-green-600 tw-text-white tw-px-6 tw-py-2 tw-rounded-full tw-mt-4"
+                  <button className="tw-bg-green-600 tw-text-white tw-px-6 tw-py-2 tw-rounded-full tw-mt-4"
                     onClick={async () => {
                       if (!newMember?.name) return;
                       try {
@@ -616,24 +561,14 @@ export default function EditCustomerModal({
                           expanded: false,
                         };
                         const updated = [...membersList, member];
-                        setCustomers((prev) =>
-                          prev.map((c) =>
-                            c.id === customer.id ? { ...c, members: updated } : c
-                          )
-                        );
-                        setSelectedCustomer((prev) => ({
-                          ...prev,
-                          members: updated,
-                        }));
+                        setCustomers((prev) => prev.map((c) => c.id === customer.id ? { ...c, members: updated } : c ) );
+                        setSelectedCustomer((prev) => ({ ...prev, members: updated,}));
                         setNewMember({});
                         toast.success("Đã thêm thành viên");
                       } catch (e) {
-                        toast.error(
-                          e?.response?.data?.detail || "Không thêm được thành viên"
-                        );
+                        toast.error( e?.response?.data?.detail || "Không thêm được thành viên" );
                       }
-                    }}
-                  >
+                    }} >
                     Thêm thành viên mới
                   </button>
                 </div>
@@ -646,59 +581,29 @@ export default function EditCustomerModal({
                       <div key={f.id} className="tw-border tw-rounded tw-p-2">
                         <div className="tw-flex tw-justify-between tw-items-center ">
                           {/* Thông tin + toggle */}
-                          <div
-                            className="tw-flex-1 tw-cursor-pointer tw-text-left  tw-text-blue-600"
+                          <div className="tw-flex-1 tw-cursor-pointer tw-text-left  tw-text-blue-600"
                             onClick={() => {
-                              const updated = membersList.map((m) =>
-                                m.id === f.id ? { ...m, expanded: !m.expanded } : m
-                              );
-                              setCustomers((prev) =>
-                                prev.map((c) =>
-                                  c.id === customer.id
-                                    ? { ...c, members: updated }
-                                    : c
-                                )
-                              );
-                            }}
-                          >
-                            {f.name} - {f.relation} - {formatDate(f.dob)}
+                              const updated = membersList.map((m) => m.id === f.id ? { ...m, expanded: !m.expanded } : m);
+                              setCustomers((prev) =>  prev.map((c) => c.id === customer.id ? { ...c, members: updated }  : c ));
+                            }}>
+                            {(f.name || f.full_name) ?? ""} - {f.relation} - {formatDate(f.dob || f.date_of_birth)}
                           </div>
 
                           {/* Nút xóa */}
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteModal({ open: true, member: f });
-                            }}
-                            className="tw-text-red-500 hover:tw-text-red-700 tw-ml-3"
-                            title="Xóa thành viên"
-                          >
+                            onClick={(e) => { e.stopPropagation(); setDeleteModal({ open: true, member: f }); }}
+                            className="tw-text-red-500 hover:tw-text-red-700 tw-ml-3" title="Xóa thành viên" >
                             <i className="fa-solid fa-trash"></i>
                           </button>
 
                           {/* Icon expand */}
-                          <div
-                            className="tw-ml-3 tw-cursor-pointer"
+                          <div  className="tw-ml-3 tw-cursor-pointer"
                             onClick={() => {
-                              const updated = membersList.map((m) =>
-                                m.id === f.id ? { ...m, expanded: !m.expanded } : m
-                              );
-                              setCustomers((prev) =>
-                                prev.map((c) =>
-                                  c.id === customer.id
-                                    ? { ...c, members: updated }
-                                    : c
-                                )
-                              );
-                              setSelectedCustomer((prev) => ({
-                                ...prev,
-                                members: updated,
-                              }));
-                            }}
-                          >
-                            {f.expanded ? (
-                              <i className="fa-solid fa-angles-up  tw-text-blue-500"></i>
-                            ) : (
+                              const updated = membersList.map((m) => m.id === f.id ? { ...m, expanded: !m.expanded } : m );
+                              setCustomers((prev) =>  prev.map((c) => c.id === customer.id ? { ...c, members: updated } : c ) );
+                              setSelectedCustomer((prev) => ({ ...prev, members: updated, }));
+                            }} >
+                            {f.expanded ? ( <i className="fa-solid fa-angles-up  tw-text-blue-500"></i> ) : (
                               <i className="fa-solid fa-angles-down tw-text-blue-500"></i>
                             )}
                           </div>
@@ -708,43 +613,31 @@ export default function EditCustomerModal({
                           <div className="tw-mt-4 tw-space-y-2 tw-space-x-[100px]">
                             <div className="tw-flex tw-justify-start ">
                               <div className="tw-flex tw-items-center tw-gap-[15px] tw-ml-[100px]">
-                                <span className="tw-w-[120px] tw-font-medium tw-text-left">
-                                  Tên thân mật:
-                                </span>
+                                <span className="tw-w-[120px] tw-font-medium tw-text-left"> Tên thân mật: </span>
                                 <span className="tw-text-left">{f.nickname}</span>
                               </div>
                             </div>
                             <div className="tw-flex tw-justify-start">
                               <div className="tw-flex tw-items-center tw-gap-[15px]">
-                                <span className="tw-w-[120px] tw-font-medium tw-text-left">
-                                  Họ và tên:
-                                </span>
+                                <span className="tw-w-[120px] tw-font-medium tw-text-left">  Họ và tên:  </span>
                                 <span className="tw-text-left">{f.name}</span>
                               </div>
                             </div>
                             <div className="tw-flex tw-justify-start">
                               <div className="tw-flex tw-items-center tw-gap-[15px]">
-                                <span className="tw-w-[120px] tw-font-medium tw-text-left">
-                                  Ngày sinh:
-                                </span>
-                                <span className="tw-text-left">
-                                  {formatDate(f.dob)}
-                                </span>
+                                <span className="tw-w-[120px] tw-font-medium tw-text-left">  Ngày sinh:  </span>
+                                <span className="tw-text-left"> {formatDate(f.dob)} </span>
                               </div>
                             </div>
                             <div className="tw-flex tw-justify-start">
                               <div className="tw-flex tw-items-center tw-gap-[15px]">
-                                <span className="tw-w-[120px] tw-font-medium tw-text-left">
-                                  Giới tính:
-                                </span>
+                                <span className="tw-w-[120px] tw-font-medium tw-text-left"> Giới tính:  </span>
                                 <span className="tw-text-left">{f.sex}</span>
                               </div>
                             </div>
                             <div className="tw-flex tw-justify-start">
                               <div className="tw-flex tw-items-center tw-gap-[15px]">
-                                <span className="tw-w-[120px] tw-font-medium tw-text-left">
-                                  Mối quan hệ:
-                                </span>
+                                <span className="tw-w-[120px] tw-font-medium tw-text-left"> Mối quan hệ: </span>
                                 <span className="tw-text-left">{f.relation}</span>
                               </div>
                             </div>
@@ -772,347 +665,236 @@ export default function EditCustomerModal({
                       {/* Ngày */}
                       <div className="tw-flex tw-flex-col">
                         <label className="tw-text-lg tw-font-medium tw-mb-2">Ngày</label>
-                        <input
-                          type="date"
-                          min={new Date().toISOString().split("T")[0]}
-                          value={newAppointment.date}
-                          onChange={(e) =>
-                            setNewAppointment((s) => ({ ...s, date: e.target.value }))
-                          }
-                          className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-text-lg focus:tw-ring-2 focus:tw-ring-blue-300"
+                        <input type="date"  min={new Date().toISOString().split("T")[0]}  value={newAppointment.date}
+                          onChange={(e) => setNewAppointment((s) => ({ ...s, date: e.target.value }))  }
+                          className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-text-lg focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
                         />
                       </div>
 
                       {/* Người tiêm */}
                       <div className="tw-flex tw-flex-col">
                         <label className="tw-text-lg tw-font-medium tw-mb-2">Người tiêm</label>
-                        <Dropdown
-                          value={newAppointment.memberId}
-                          options={memberSelectOptions}
-                          onChange={(val) =>
-                            setNewAppointment((s) => ({ ...s, memberId: val }))
-                          }
-                          className="tw-text-lg"
+                        <Dropdown value={newAppointment.memberId} options={memberSelectOptions}
+                          onChange={(val) => setNewAppointment((s) => ({ ...s, memberId: val })) }
+                          className="tw-text-lg "
                         />
                       </div>
+                      
                     </div>
 
                     {/* Danh sách ITEMS vắc xin */}
-                    <div className="tw-mt-6 tw-space-y-3">
-                      <div className="tw-flex tw-justify-between tw-items-center">
-                        <div className="tw-text-lg tw-font-semibold">
-                          Danh sách vắc xin sẽ tiêm
+                    <div className="tw-mt-6 tw-space-y-4">
+                      <div className="tw-flex tw-items-center tw-justify-between">
+                        <div className="tw-flex tw-items-baseline tw-gap-3">
+                          <h6 className="tw-text-lg tw-font-semibold">Danh sách vắc xin sẽ tiêm</h6>
+                          <span className="tw-text-base tw-text-gray-500">
+                            Tổng tiền: <strong className="tw-text-orange-600">{formatMoney(newAppointment.total)} VNĐ</strong>
+                          </span>
                         </div>
-                        <button
+
+                        <button type="button"
                           onClick={() => {
-                            setNewAppointment((s) => ({
-                              ...s,
-                              items: [
-                                ...(s.items || []),
-                                {
-                                  disease: "",
+                            setNewAppointment((s) => ({  ...s,
+                              items: [  ...(s.items || []),
+                                { diseaseId: "",
                                   vaccineId: "",
                                   vaccineName: "",
                                   price: "",
                                   doseQty: 1,
-                                },
-                              ],
+                                  doseWarn: false,
+                                },],
                             }));
-                          }}
-                          className="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded hover:tw-bg-blue-700"
-                        >
-                          + Thêm vắc xin
+                          }} className="tw-inline-flex tw-items-center tw-gap-2 tw-bg-cyan-500 hover:tw-bg-cyan-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-full tw-shadow" >
+                          <i className="fa-solid fa-square-plus"></i>
+                          Thêm vắc xin
                         </button>
                       </div>
-
                       {!newAppointment.items?.length && (
-                        <div className="tw-text-gray-500 tw-italic">
-                          Chưa có vắc xin nào — bấm “+ Thêm vắc xin”.
-                        </div>
+                        <div className="tw-text-gray-500 tw-italic tw-text-base">  Chưa có vắc xin nào — hãy bấm “ + Thêm vắc xin”. </div>
                       )}
 
-                      {(newAppointment.items || []).map((it, idx) => (
-                        <div
-                          key={idx}
-                          className="tw-grid lg:tw-grid-cols-5 md:tw-grid-cols-4 tw-grid-cols-1 tw-gap-3 tw-p-3 tw-border tw-rounded-xl tw-bg-yellow-50"
-                        >
-                          {/* Phòng bệnh */}
-                          <div className="tw-flex tw-flex-col">
-                            <label className="tw-text-left tw-text-lg tw-font-medium tw-mb-1">
-                              Phòng bệnh
-                            </label>
-                            <Dropdown
-                              value={it.disease}
-                              options={diseaseOptions}
-                              onChange={(val) => {
-                                setNewAppointment((s) => {
-                                  const clone = [...(s.items || [])];
-                                  clone[idx] = {
-                                    ...clone[idx],
-                                    disease: val,
-                                    vaccineId: "",
-                                    vaccineName: "",
-                                    price: "",
-                                  };
-                                  return { ...s, items: clone };
-                                });
-                              }}
-                              className="tw-text-lg"
-                            />
+                      {/* Items */}
+                     {(newAppointment.items || []).map((it, idx) => {
+                        const maxDose = it.vaccineId ? getMaxDose(it.vaccineId) : 5;
+                        const itemSubtotal = Number(it.price || 0) * Math.max(1, Number(it.doseQty || 1));
+                        return (
+                          <div key={idx} className="tw-rounded-xl tw-border tw-bg-[#ffefe5] tw-shadow-sm tw-ring-1 tw-ring-gray-100 tw-p-4 tw-text-left" >
+                            <div className="tw-flex tw-items-start tw-gap-3">
+                              <div className="tw-shrink-0 tw-w-7 tw-h-7 tw-rounded-full tw-text-base tw-bg-yellow-100 tw-text-yellow-700 tw-flex tw-items-center tw-justify-center tw-font-semibold">
+                                {idx + 1}
+                              </div>
+                              <button  type="button"
+                                onClick={() => {
+                                  setNewAppointment((s) => {
+                                    const clone = [...(s.items || [])];
+                                    clone.splice(idx, 1);
+                                    return { ...s, items: clone };
+                                  });
+                                }} className="tw-text-red-600 hover:tw-text-red-700 tw-ml-auto tw-p-2" title="Xoá vắc xin này" >
+                                <i className="fa-solid fa-trash"></i>
+                              </button>
+                            </div>
+                            <div className="tw-grid md:tw-grid-cols-2 tw-grid-cols-1 tw-gap-4">
+                              {/* Phòng bệnh */}
+                              <div>
+                                <label className="tw-block tw-text-base tw-font-medium tw-text-gray-700 tw-mb-1"> Phòng bệnh  </label>
+                                <Dropdown disabled={loadingDicts} value={it.diseaseId} options={diseaseOptions}
+                                  onChange={(val) => {
+                                    setNewAppointment((s) => {
+                                      const clone = [...(s.items || [])];
+                                      clone[idx] = {
+                                        diseaseId: val,
+                                        vaccineId: "",
+                                        vaccineName: "",
+                                        price: "",
+                                        doseQty: 1,
+                                        doseWarn: false,
+                                      };
+                                      return { ...s, items: clone };
+                                    });
+                                  }}  className="tw-text-base"
+                                />
+                                {loadingDicts && ( <div className="tw-text-xs tw-text-gray-400 tw-mt-1"> Đang tải danh mục… </div> )}
+                              </div>
+
+                              {/* Vắc xin */}
+                              <div>
+                                <label className="tw-block tw-text-base tw-font-medium tw-text-gray-700 tw-mb-1"> Vắc xin </label>
+                                <Dropdown  disabled={!it.diseaseId || loadingDicts} value={it.vaccineId}
+                                  options={(  it.diseaseId ? vaccinesByDiseaseId(it.diseaseId) : vaccinesDb
+                                  ).map((v) => ({
+                                    value: String(v.id),
+                                    label: `${v.name} (${formatMoney(v.price || 0)} đ)`,
+                                    title: v.name,
+                                  }))}
+                                  onChange={(val) => {
+                                    const v = findVaccine(val);
+                                    setNewAppointment((s) => {
+                                      const clone = [...(s.items || [])];
+                                      clone[idx] = {
+                                        ...clone[idx],
+                                        vaccineId: String(v?.id || ""),
+                                        vaccineName: v?.name || "",
+                                        price: v?.price || 0,
+                                        doseQty: 1,
+                                        doseWarn: false,
+                                      };
+                                      return { ...s, items: clone };
+                                    });
+                                  }} className="tw-text-base"
+                                />
+                                {!it.diseaseId && ( <div className="tw-text-xs tw-text-orange-500 tw-mt-1"> Chọn phòng bệnh trước để lọc vắc xin phù hợp. </div> )}
+                              </div>
+                            </div>
+
+                            <div className=" tw-grid md:tw-grid-cols-3 tw-grid-cols-1 tw-gap-4">
+                              <div className="md:tw-col-span-1">
+                                <label className="tw-block tw-text-base tw-font-medium tw-text-gray-700 tw-mb-1">  Đơn giá  </label>
+                                <input  readOnly  value={it.price ? `${formatMoney(it.price)} VNĐ` : ""} placeholder="—"
+                                  className="tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-bg-cyan-100 tw-text-base focus:tw-outline-none"
+                                />
+                              </div>
+                              <div className="md:tw-col-span-1">
+                                <label className="tw-block tw-text-base tw-font-medium tw-text-gray-700 tw-mb-1"> Số mũi  </label>
+                                <div className="tw-inline-block tw-origin-left tw-scale-90">
+                                  <QuantityPicker  value={it.doseQty || 1}  min={1}  max={maxDose}
+                                    onChange={(val) => {
+                                      setNewAppointment((s) => {
+                                        const clone = [...(s.items || [])];
+                                        clone[idx] = {
+                                          ...clone[idx],
+                                          doseQty: val,
+                                          doseWarn: Number(val) > Number(maxDose),
+                                        };
+                                        return { ...s, items: clone };
+                                      });
+                                    }}
+                                  />
+                                </div>
+                                {it.vaccineId && (
+                                  <div className="tw-mt-1">
+                                    <span className="tw-inline-flex tw-items-center tw-gap-2 tw-text-xs tw-text-orange-600 tw-bg-orange-100 tw-rounded-full tw-px-3 tw-py-1">
+                                      <i className="fa-solid fa-circle-info"></i>
+                                      Phác đồ: tối đa {maxDose} mũi
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="md:tw-col-span-1 tw-ml-10 tw-text-center">
+                                <div>
+                                  <div className="tw-text-base tw-text-gray-600 tw-mt-2">Tạm tính</div>
+                                  <div className="tw-text-base tw-font-semibold tw-text-orange-500">  {formatMoney(itemSubtotal)} VNĐ </div>
+                                </div>
+                              </div>
+                              {it.doseWarn && (
+                                <div className="tw-col-span-full tw-text-xs tw-text-red-600">
+                                  Đã vượt số liều tối đa có thể đặt cho vắc xin này.
+                                </div>
+                              )}
+                            </div>
+
                           </div>
-
-                          {/* Vắc xin */}
-                          <div className="tw-flex tw-flex-col">
-                            <label className="tw-text-left tw-text-lg tw-font-medium tw-mb-1">
-                              Vắc xin
-                            </label>
-                            <Dropdown
-                              value={it.vaccineId}
-                              options={(
-                                it.disease ? vaccinesByDisease(it.disease) : vaccines
-                              ).map((v) => ({
-                                value: String(v.id),
-                                label: `${v.name} (${(v.price || 0).toLocaleString()} đ)`,
-                              }))}
-                              onChange={(val) => {
-                                const v = findVaccine(val);
-                                setNewAppointment((s) => {
-                                  const clone = [...(s.items || [])];
-                                  clone[idx] = {
-                                    ...clone[idx],
-                                    vaccineId: String(v?.id || ""),
-                                    vaccineName: v?.name || "",
-                                    price: v?.price || 0,
-                                  };
-                                  return { ...s, items: clone };
-                                });
-                              }}
-                              className="tw-text-lg"
-                            />
-                          </div>
-
-                          {/* Đơn giá */}
-                          <div className="tw-flex tw-flex-col">
-                            <label className="tw-text-left tw-text-lg tw-font-medium tw-mb-1">
-                              Đơn giá
-                            </label>
-                            <input
-                              readOnly
-                              className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-bg-gray-100 tw-text-lg"
-                              value={
-                                it.price ? Number(it.price).toLocaleString("vi-VN") : ""
-                              }
-                            />
-                          </div>
-
-                          {/* Số mũi */}
-                          <div className="tw-flex tw-flex-col">
-                            <label className="tw-text-left tw-text-lg tw-font-medium tw-mb-1">
-                              Số mũi
-                            </label>
-                            <input
-                              type="number"
-                              min={1}
-                              className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-text-lg"
-                              value={it.doseQty || 1}
-                              onChange={(e) => {
-                                const val = Math.max(1, Number(e.target.value || 1));
-                                setNewAppointment((s) => {
-                                  const clone = [...(s.items || [])];
-                                  clone[idx] = { ...clone[idx], doseQty: val };
-                                  return { ...s, items: clone };
-                                });
-                              }}
-                            />
-                          </div>
-
-                          {/* Xoá item */}
-                          <div className="tw-flex tw-items-end">
-                            <button
-                              onClick={() => {
-                                setNewAppointment((s) => {
-                                  const clone = [...(s.items || [])];
-                                  clone.splice(idx, 1);
-                                  return { ...s, items: clone };
-                                });
-                              }}
-                              className="tw-text-red-600 hover:tw-text-red-700 tw-ml-auto"
-                              title="Xoá vắc xin này"
-                            >
-                              <i className="fa-solid fa-trash"></i>
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-
-                      {/* Ghi chú + Thành tiền */}
-                      <div className="tw-grid md:tw-grid-cols-3 tw-gap-4 tw-mt-2">
-                        <div className="md:tw-col-span-2 tw-flex tw-flex-col">
-                          <label className="tw-text-lg tw-text-left tw-font-medium tw-mb-2">
-                            Ghi chú (Bệnh nền)
-                          </label>
-                          <textarea
-                            value={newAppointment.note || ""}
-                            onChange={(e) =>
-                              setNewAppointment((s) => ({ ...s, note: e.target.value }))
-                            }
-                            className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-min-h-[80px] tw-text-lg focus:tw-ring-2 focus:tw-ring-blue-300"
-                          />
-                        </div>
-                        <div className="tw-flex tw-flex-col">
-                          <label className="tw-text-lg tw-text-left tw-font-medium tw-mb-2">
-                            Thành tiền
-                          </label>
-                          <input
-                            readOnly
-                            className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-text-lg tw-bg-gray-100 tw-font-semibold"
-                            value={
-                              newAppointment.total
-                                ? `${newAppointment.total.toLocaleString("vi-VN")} VNĐ`
-                                : ""
-                            }
-                          />
-                        </div>
-                      </div>
-
-                      <div className="tw-mt-4">
-                        <button
-                          onClick={async () => {
-                            if (!newAppointment.date) return toast.error("Chọn ngày hẹn");
-                            if (!newAppointment.memberId)
-                              return toast.error("Chọn người tiêm");
-                            if (!newAppointment.items?.length)
-                              return toast.error("Thêm ít nhất 1 vắc xin");
-
-                            try {
-                              const payload = {
-                                date: new Date(newAppointment.date).toISOString(),
-                                member_id: String(newAppointment.memberId),
-                                items: newAppointment.items.map((it) => ({
-                                  disease: it.disease || "",
-                                  vaccine_id: String(it.vaccineId),
-                                  vaccine: it.vaccineName,
-                                  price: Number(it.price || 0),
-                                  qty: Number(it.doseQty || 1),
-                                })),
-                                note: newAppointment.note || "",
-                              };
-                              const appt = await createAppointment(customer.id, payload);
-
-                              const updated = [...appointmentsList, appt];
-                              setCustomers((prev) =>
-                                prev.map((c) =>
-                                  c.id === customer.id
-                                    ? { ...c, appointments: updated }
-                                    : c
-                                )
-                              );
-                              setSelectedCustomer((prev) => ({
-                                ...prev,
-                                appointments: updated,
-                              }));
-                              setNewAppointment({
-                                date: "",
-                                memberId: "",
-                                items: [],
-                                note: "",
-                                total: 0,
-                              });
-                              toast.success("Đã tạo lịch hẹn");
-                            } catch (e) {
-                              toast.error(
-                                e?.response?.data?.detail || "Không tạo được lịch hẹn"
-                              );
-                            }
-                          }}
-                          className="tw-bg-green-600 hover:tw-bg-green-500 tw-text-white tw-px-6 tw-py-3 tw-rounded-full tw-shadow-md tw-text-xl"
-                        >
-                          💾 Lưu lịch hẹn
+                        );
+                      })}
+                      <div className="tw-flex tw-justify-center tw-pt-2 ">
+                        <button  type="button" disabled={creating}  onClick={handleCreateAppointments}   title="Tạo lịch hẹn"
+                          className="tw-inline-flex tw-items-center tw-gap-2 tw-px-5 tw-py-2 tw-rounded-full tw-shadow tw-bg-green-600 hover:tw-bg-green-700 tw-text-white disabled:tw-opacity-70" >
+                          <i className="fa-solid fa-calendar-check"></i>
+                          {creating ? "Đang tạo..." : "Tạo lịch hẹn"}
                         </button>
                       </div>
                     </div>
+
                   </div>
 
                   {/* Danh sách lịch hẹn */}
-                  <div
-                    className="tw-max-h-[300px] tw-overflow-y-auto tw-pr-2 tw-space-y-4 tw-mb-6 tw-mt-8 tw-border-t tw-pt-6 
+                  <div  className="tw-max-h-[300px] tw-overflow-y-auto tw-pr-2 tw-space-y-4 tw-mb-6 tw-mt-8 tw-border-t tw-pt-6 
                                     tw-scrollbar-thin tw-scrollbar-thumb-gray-300 tw-scrollbar-track-transparent
                                     [&::-webkit-scrollbar]:tw-h-2 [&::-webkit-scrollbar]:tw-w-2 [&::-webkit-scrollbar-thumb]:tw-rounded-full
                                     [&::-webkit-scrollbar-track]:tw-bg-gray-100 [&::-webkit-scrollbar-thumb]:tw-bg-gradient-to-b
-                                  [&::-webkit-scrollbar-thumb]:tw-from-cyan-400 [&::-webkit-scrollbar-thumb]:tw-to-blue-400"
-                  >
+                                  [&::-webkit-scrollbar-thumb]:tw-from-cyan-400 [&::-webkit-scrollbar-thumb]:tw-to-blue-400" >
                     {appointmentsList.length > 0 ? (
                       <div className="tw-space-y-4">
                         {appointmentsList.map((a) => (
-                          <div
-                            key={a.id}
-                            className="tw-p-4 tw-border tw-rounded-xl tw-bg-yellow-100 tw-shadow-sm hover:tw-shadow-md tw-transition"
-                          >
+                          <div  key={a.id} className="tw-p-4 tw-border tw-rounded-xl tw-bg-yellow-100 tw-shadow-sm hover:tw-shadow-md tw-transition">
                             <div className="tw-flex tw-justify-between tw-items-start">
                               <div>
                                 <div className="tw-font-semibold tw-text-lg tw-text-gray-800">
                                   {a.vaccine} <span className="tw-text-gray-400"></span>
                                 </div>
-                                <div className="tw-text-sm tw-text-gray-600 tw-mt-1">
-                                  Ngày hẹn : {formatDate(a.date)}
-                                </div>
-
-                                <span
-                                  className={`tw-inline-block tw-mt-2 tw-text-base tw-font-semibold tw-px-3 tw-py-1 tw-rounded-full
-                                  ${
-                                    a.status === "pending"
-                                      ? "tw-bg-cyan-100 tw-text-cyan-700"
-                                      : a.status === "confirmed"
-                                      ? "tw-bg-green-100 tw-text-green-700"
-                                      : a.status === "cancelled"
-                                      ? "tw-bg-red-100 tw-text-red-700"
-                                      : a.status === "done"
-                                      ? "tw-bg-blue-100 tw-text-blue-600"
-                                      : "tw-bg-gray-100 tw-text-gray-600"
-                                  }`}
-                                >
-                                  {a.status === "pending"
-                                    ? "Chờ xác nhận"
-                                    : a.status === "confirmed"
-                                    ? "Đã xác nhận"
-                                    : a.status === "cancelled"
-                                    ? "Đã hủy"
-                                    : a.status === "done"
-                                    ? "Thành công"
-                                    : a.status}
+                                <div className="tw-text-sm tw-text-gray-600 tw-mt-1"> Ngày hẹn : {formatDate(a.date)} </div>
+                                <span className={`tw-inline-block tw-mt-2 tw-text-base tw-font-semibold tw-px-3 tw-py-1 tw-rounded-full
+                                 ${ a.status === "pending"   ? "tw-bg-cyan-100 tw-text-cyan-700" :
+                                  a.status === "confirmed" ? "tw-bg-green-100 tw-text-green-700" :
+                                  a.status === "cancelled" ? "tw-bg-red-100 tw-text-red-700" :
+                                  a.status === "completed" ? "tw-bg-blue-100 tw-text-blue-600" :
+                                                              "tw-bg-gray-100 tw-text-gray-600"
+                                }`}>
+                                  {a.status === "pending"   ? "Chờ xác nhận" :
+                                  a.status === "confirmed" ? "Đã xác nhận" :
+                                  a.status === "cancelled" ? "Đã hủy" :
+                                  a.status === "completed" ? "Đã tiêm xong" :
+                                  a.status}
                                 </span>
                               </div>
 
                               <div className="tw-flex tw-gap-2">
                                 {a.status === "pending" && (
                                   <>
-                                    <button
-                                      onClick={() =>
-                                        handleConfirmAppointmentLocal(customer.id, a.id)
-                                      }
-                                      className="tw-bg-blue-600 hover:tw-bg-blue-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow"
-                                    >
+                                    <button onClick={() => handleConfirmAppointmentLocal(customer.id, a.id) }
+                                      className="tw-bg-blue-600 hover:tw-bg-blue-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow" >
                                       Xác nhận
                                     </button>
-
-                                    <button
-                                      onClick={() =>
-                                        handleCancelAppointmentLocal(customer.id, a.id)
-                                      }
-                                      className="tw-bg-red-600 hover:tw-bg-red-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow"
-                                    >
+                                    <button onClick={() => handleCancelAppointmentLocal(customer.id, a.id) }
+                                      className="tw-bg-red-600 hover:tw-bg-red-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow" >
                                       Hủy
                                     </button>
                                   </>
                                 )}
 
                                 {a.status === "confirmed" && (
-                                  <button
-                                    onClick={() =>
-                                      handleCancelAppointmentLocal(customer.id, a.id)
-                                    }
-                                    className="tw-bg-red-600 hover:tw-bg-red-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow"
-                                  >
+                                  <button  onClick={() => handleCancelAppointmentLocal(customer.id, a.id) }
+                                    className="tw-bg-red-600 hover:tw-bg-red-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow" >
                                     Hủy
                                   </button>
                                 )}
@@ -1122,9 +904,7 @@ export default function EditCustomerModal({
                         ))}
                       </div>
                     ) : (
-                      <p className="tw-text-center tw-text-red-500 tw-font-medium tw-py-4 tw-italic">
-                        Chưa có lịch hẹn nào
-                      </p>
+                      <p className="tw-text-center tw-text-red-500 tw-font-medium tw-py-4 tw-italic"> Chưa có lịch hẹn nào </p>
                     )}
                   </div>
                 </div>
@@ -1148,12 +928,8 @@ export default function EditCustomerModal({
                     {/* Người tiêm */}
                     <div className="tw-flex tw-flex-col">
                       <label className="tw-text-lg tw-font-medium tw-mb-2">Người tiêm</label>
-                      <Dropdown
-                        value={newVaccineRecord.memberId}
-                        options={memberSelectOptions}
-                        onChange={(val) =>
-                          setNewVaccineRecord((s) => ({ ...s, memberId: val }))
-                        }
+                      <Dropdown value={newVaccineRecord.memberId} options={memberSelectOptions}
+                        onChange={(val) =>setNewVaccineRecord((s) => ({ ...s, memberId: val }))}
                         className="tw-text-lg"
                       />
                     </div>
@@ -1161,115 +937,58 @@ export default function EditCustomerModal({
                     {/* Ngày tiêm */}
                     <div className="tw-flex tw-flex-col">
                       <label className="tw-text-lg tw-font-medium tw-mb-2">Ngày tiêm</label>
-                      <input
-                        type="date"
-                        max={new Date().toISOString().split("T")[0]}
+                      <input  type="date"  max={new Date().toISOString().split("T")[0]}
                         value={newVaccineRecord.date || ""}
-                        onChange={(e) =>
-                          setNewVaccineRecord((s) => ({ ...s, date: e.target.value }))
-                        }
-                        className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-h-[35px] tw-text-lg focus:tw-ring-2 focus:tw-ring-blue-300"
+                        onChange={(e) => setNewVaccineRecord((s) => ({ ...s, date: e.target.value })) }
+                        className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-h-[35px] tw-text-lg focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
                       />
                     </div>
 
                     {/* Phòng bệnh */}
                     <div className="tw-flex tw-flex-col">
                       <label className="tw-text-lg tw-font-medium tw-mb-2">Phòng bệnh</label>
-                      <Dropdown
-                        value={newVaccineRecord.disease}
-                        options={diseaseOptions}
-                        onChange={(val) =>
-                          setNewVaccineRecord((s) => ({
-                            ...s,
-                            disease: val,
-                            vaccineId: "",
-                            vaccine: "",
-                            price: "",
-                          }))
-                        }
-                        className="tw-text-lg"
-                      />
+                      <input value={newVaccineRecord.disease || ""}   placeholder="VD: Cúm, Viêm gan B..."
+                          onChange={(e) => setNewVaccineRecord(s => ({ ...s, disease: e.target.value }))}
+                          className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-h-[35px] tw-text-lg focus:tw-outline-none  focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
+                        />
                     </div>
 
                     {/* Vắc xin */}
                     <div className="tw-flex tw-flex-col">
                       <label className="tw-text-lg tw-font-medium tw-mb-2">Vắc xin</label>
-                      <Dropdown
-                        value={newVaccineRecord.vaccineId}
-                        options={(
-                          newVaccineRecord.disease
-                            ? vaccinesByDisease(newVaccineRecord.disease)
-                            : vaccines
-                        ).map((v) => ({
-                          value: String(v.id),
-                          label: `${v.name} (${(v.price || 0).toLocaleString()} đ)`,
-                        }))}
-                        onChange={(val) => {
-                          const v = findVaccine(val);
-                          setNewVaccineRecord((s) => ({
-                            ...s,
-                            vaccineId: String(v?.id || ""),
-                            vaccine: v?.name || "",
-                            price: v?.price || 0,
-                          }));
-                        }}
-                        className="tw-text-lg"
+                      <input  value={newVaccineRecord.vaccine || ""}  placeholder="VD: Influvac Tetra, Engerix-B..."
+                        onChange={(e) => setNewVaccineRecord(s => ({ ...s, vaccine: e.target.value }))}
+                        className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-h-[35px] tw-text-lg focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
                       />
                     </div>
 
                     {/* Mũi thứ */}
                     <div className="tw-flex tw-flex-col">
                       <label className="tw-text-lg tw-font-medium tw-mb-2">Mũi thứ</label>
-                      <Dropdown
-                        value={newVaccineRecord.dose}
-                        onChange={(val) =>
-                          setNewVaccineRecord((s) => ({ ...s, dose: val }))
-                        }
-                        options={[1, 2, 3, 4, 5].map((n) => ({
-                          value: String(n),
-                          label: `Mũi ${n}`,
-                        }))}
-                        className="tw-text-lg"
-                      />
+                      <Dropdown value={String(newVaccineRecord.dose || "")}
+                          onChange={(val) => setNewVaccineRecord((s) => ({ ...s, dose: val }))}
+                          options={Array.from({ length: Math.max(1, newVaccineRecord.maxDose || 5) }, (_, i) => ({
+                            value: String(i + 1),
+                            label: `Mũi ${i + 1}`,
+                          }))} className="tw-text-lg"
+                        />
                     </div>
-
-                    {/* Đơn giá */}
-                    <div className="tw-flex tw-flex-col">
-                      <label className="tw-text-lg tw-font-medium tw-mb-2">Đơn giá</label>
-                      <input
-                        readOnly
-                        value={
-                          newVaccineRecord.price
-                            ? Number(newVaccineRecord.price).toLocaleString("vi-VN")
-                            : ""
-                        }
-                        className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-h-[35px] tw-text-lg tw-bg-gray-100"
-                      />
-                    </div>
-
+                   
                     {/* Cơ sở tiêm */}
                     <div className="tw-flex tw-flex-col">
                       <label className="tw-text-lg tw-font-medium tw-mb-2">Cơ sở tiêm</label>
-                      <input
-                        value={newVaccineRecord.place || ""}
-                        onChange={(e) =>
-                          setNewVaccineRecord((s) => ({ ...s, place: e.target.value }))
-                        }
-                        className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-text-lg focus:tw-ring-2 focus:tw-ring-blue-300"
+                      <input value={newVaccineRecord.place || ""}  
+                        onChange={(e) => setNewVaccineRecord((s) => ({ ...s, place: e.target.value }))}
+                        className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-text-lg focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
                       />
                     </div>
 
                     {/* Ghi chú */}
                     <div className="tw-flex tw-flex-col md:tw-col-span-2">
-                      <label className="tw-text-lg tw-font-medium tw-mb-2">
-                        Ghi chú (Bệnh nền)
-                      </label>
-                      <textarea
-                        value={newVaccineRecord.note || ""}
-                        onChange={(e) =>
-                          setNewVaccineRecord((s) => ({ ...s, note: e.target.value }))
-                        }
-                        className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-h-[60px] tw-text-lg tw-resize-none focus:tw-ring-2 focus:tw-ring-blue-300"
+                      <label className="tw-text-lg tw-font-medium tw-mb-2"> Ghi chú (Bệnh nền)</label>
+                      <textarea value={newVaccineRecord.note || ""}
+                        onChange={(e) =>  setNewVaccineRecord((s) => ({ ...s, note: e.target.value })) }
+                        className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-h-[40px] tw-text-lg tw-resize-none focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
                       />
                     </div>
                   </div>
@@ -1278,44 +997,23 @@ export default function EditCustomerModal({
                   <div className="tw-mt-4">
                     <button
                       onClick={async () => {
-                        if (!newVaccineRecord.memberId)
-                          return toast.error("Chọn người tiêm");
-                        if (!newVaccineRecord.date)
-                          return toast.error("Chọn ngày tiêm");
-                        if (!newVaccineRecord.vaccineId)
-                          return toast.error("Chọn vắc xin");
-
+                        if (!newVaccineRecord.memberId) return toast.error("Chọn người tiêm");
+                        if (!newVaccineRecord.date) return toast.error("Chọn ngày tiêm");
+                        if (!newVaccineRecord.vaccine) return toast.error("Nhập tên vắc xin");
                         const rec = {
-                          member_id: String(newVaccineRecord.memberId),
                           date: newVaccineRecord.date,
-                          disease: newVaccineRecord.disease || "",
-                          vaccine_id: String(newVaccineRecord.vaccineId),
                           vaccine: newVaccineRecord.vaccine,
-                          dose: Number(newVaccineRecord.dose || 1),
-                          price: Number(newVaccineRecord.price || 0),
                           batch: newVaccineRecord.batch || "",
                           note: newVaccineRecord.note || "",
-                          place:
-                            newVaccineRecord.place ||
-                            center?.name ||
-                            "Trung tâm tiêm chủng Evaccine",
+                          place: newVaccineRecord.place || center?.name || "Trung tâm tiêm chủng Evaccine",
                         };
-
                         try {
                           const created = await addHistory(customer.id, rec);
                           const record = { id: created.id, ...created };
-
                           setCustomers((prev) =>
-                            prev.map((c) =>
-                              c.id === customer.id
-                                ? { ...c, history: [record, ...(c.history || [])] }
-                                : c
-                            )
+                            prev.map((c) => c.id === customer.id ? { ...c, history: [record, ...(c.history || [])] } : c )
                           );
-                          setSelectedCustomer((prev) => ({
-                            ...prev,
-                            history: [record, ...(prev.history || [])],
-                          }));
+                          setSelectedCustomer((prev) => ({ ...prev, history: [record, ...(prev.history || [])], }));
                           setNewVaccineRecord({
                             date: "",
                             memberId: "",
@@ -1330,13 +1028,10 @@ export default function EditCustomerModal({
                           });
                           toast.success("Đã ghi nhận mũi tiêm");
                         } catch (e) {
-                          toast.error(
-                            e?.response?.data?.detail || "Ghi nhận thất bại"
-                          );
+                          toast.error(e?.response?.data?.detail || "Ghi nhận thất bại");
                         }
                       }}
-                      className="tw-bg-blue-600 hover:tw-bg-blue-700 tw-text-xl tw-text-white tw-font-medium tw-px-6 tw-py-2 tw-rounded-full tw-shadow"
-                    >
+                      className="tw-bg-blue-600 hover:tw-bg-blue-700 tw-text-xl tw-text-white tw-font-medium tw-px-6 tw-py-2 tw-rounded-full tw-shadow" >
                       <i className="fa-solid fa-save tw-mr-2"></i>Ghi nhận
                     </button>
                   </div>
@@ -1350,13 +1045,10 @@ export default function EditCustomerModal({
                     </div>
                   ) : (
                     historyList.map((h) => (
-                      <div
-                        key={h.id}
-                        className="tw-bg-cyan-50 tw-shadow-md tw-rounded-xl tw-p-4 tw-flex tw-justify-between tw-items-center hover:tw-shadow-lg tw-transition"
-                      >
+                      <div key={h.id}
+                        className="tw-bg-cyan-50 tw-shadow-md tw-rounded-xl tw-p-4 tw-flex tw-justify-between tw-items-center hover:tw-shadow-lg tw-transition" >
                         <div>
-                          <div className="tw-text-lg tw-font-semibold tw-text-gray-800">
-                            {h.vaccine}
+                          <div className="tw-text-lg tw-font-semibold tw-text-gray-800"> {h.vaccine}
                             <span className="tw-text-lg tw-text-gray-500"> ({h.date})</span>
                           </div>
                           <div className="tw-text-base tw-text-gray-600 tw-mt-1">
@@ -1366,7 +1058,7 @@ export default function EditCustomerModal({
                           </div>
                           <div className="tw-text-base tw-text-gray-600 mt-1">
                             <span className="tw-inline-block tw-bg-yellow-100 tw-px-3 tw-py-1 tw-rounded-full tw-mr-2">
-                              Lô: {h.batch} - Mũi thứ
+                              Lô: {h.batch} - Mũi thứ {h.dose || "-"}
                             </span>
                             <span className="tw-text-gray-500 tw-text-base">
                               📝 {h.note || "Không có ghi chú"}
@@ -1383,9 +1075,7 @@ export default function EditCustomerModal({
               </div>
             )}
 
-            <DeleteCustomerModal
-              show={deleteModal.open}
-              customer={{ name: deleteModal.member?.name }}
+            <DeleteCustomerModal  show={deleteModal.open}  customer={{ name: deleteModal.member?.name }}
               title="Xác nhận xóa thành viên"
               description={
                 <>
@@ -1396,29 +1086,19 @@ export default function EditCustomerModal({
               }
               confirmText={deleting ? "Đang xóa..." : "Xóa"}
               cancelText="Hủy"
-              onClose={() =>
-                !deleting && setDeleteModal({ open: false, member: null })
-              }
+              onClose={() => !deleting && setDeleteModal({ open: false, member: null }) }
               onConfirm={async () => {
                 if (!deleteModal.member || deleting) return;
                 setDeleting(true);
                 try {
                   await staffDeleteMember(customer.id, deleteModal.member.id);
-                  const updated = (customer.members || []).filter(
-                    (m) => m.id !== deleteModal.member.id
-                  );
-                  setCustomers((prev) =>
-                    prev.map((c) =>
-                      c.id === customer.id ? { ...c, members: updated } : c
-                    )
-                  );
+                  const updated = (customer.members || []).filter( (m) => m.id !== deleteModal.member.id );
+                  setCustomers((prev) =>  prev.map((c) => c.id === customer.id ? { ...c, members: updated } : c ) );
                   setSelectedCustomer((prev) => ({ ...prev, members: updated }));
                   toast.success("Đã xóa thành viên");
                   setDeleteModal({ open: false, member: null });
                 } catch (err) {
-                  toast.error(
-                    err?.response?.data?.detail || "Không thể xóa thành viên"
-                  );
+                  toast.error( err?.response?.data?.detail || "Không thể xóa thành viên" );
                 } finally {
                   setDeleting(false);
                 }

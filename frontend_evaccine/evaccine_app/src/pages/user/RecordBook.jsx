@@ -97,21 +97,28 @@ export default function RecordBook() {
                 const records = await getVaccinationRecords(activeUser); // đã là array
 
                 const structuredData = {};
-                records.forEach((rec) => {
-                    const diseaseId = String(rec?.disease?.id ?? rec?.disease_id ?? rec?.vaccine_name ?? "");
-                    if (!structuredData[diseaseId]) structuredData[diseaseId] = {};
-                        const rawDose = Number(rec?.dose_number);
-                        const doseIndex = Number.isFinite(rawDose) && rawDose > 0
-                            ? rawDose - 1
-                            : Object.keys(structuredData[diseaseId]).length;
-                    structuredData[diseaseId][doseIndex] = {
-                        date: rec.vaccination_date,
-                        vaccine: rec.vaccine?.name || rec.vaccine_name || "",
-                        location: rec.vaccine_lot,
-                        appointmentDate: rec.next_dose_date,
-                        note: rec.note,
-                    };
-            });
+               records.forEach((rec) => {
+                // BỎ QUA RECORD RỖNG (không hẹn, không tiêm)
+                if (!rec.vaccination_date && !rec.next_dose_date) return;
+
+                const diseaseId = String(rec?.disease?.id ?? rec?.disease_id ?? rec?.vaccine_name ?? "");
+                if (!structuredData[diseaseId]) structuredData[diseaseId] = {};
+
+                const rawDose = Number(rec?.dose_number);
+                const doseIndex = Number.isFinite(rawDose) && rawDose > 0
+                    ? rawDose - 1
+                    : Object.keys(structuredData[diseaseId]).length;
+
+                structuredData[diseaseId][doseIndex] = {
+                    date: rec.vaccination_date,
+                    vaccine: rec.vaccine?.name || rec.vaccine_name || "",
+                    location: rec.vaccine_lot,
+                    appointmentDate: rec.next_dose_date,
+                    note: rec.note,
+                    status_label: rec.status_label,
+                };
+                });
+
 
             setVaccinationData((prev) => ({
                 ...prev,
@@ -266,28 +273,28 @@ export default function RecordBook() {
 
     // Trạng thái mũi
     const getDoseStatus = (dose) => {
+        // Ưu tiên trạng thái từ BE (có thể là "Đã hủy")
+        if (dose?.status_label) return dose.status_label;
+
         const shot = dose?.date ? toYMD(dose.date) : "";
         if (shot) return "Đã tiêm";
 
         const appt = dose?.appointmentDate ? toYMD(dose.appointmentDate) : "";
         if (appt) {
-            if (appt > todayYMD) return "Chờ tiêm";  
-            if (appt < todayYMD) return "Trễ hẹn";   
-            return "Chờ tiêm";                      
+            if (appt > todayYMD) return "Chờ tiêm";
+            if (appt < todayYMD) return "Trễ hẹn";
+            return "Chờ tiêm";
         }
         return "Chưa tiêm";
     };
 
     const getStatusStyle = (status) => {
         switch (status) {
-            case "Đã tiêm":
-            return "tw-bg-green-100 tw-text-green-700";
-            case "Chờ tiêm":
-            return "tw-bg-blue-100 tw-text-blue-700";
-            case "Trễ hẹn":
-            return "tw-bg-red-100 tw-text-red-700";
-            default:
-            return "tw-bg-orange-100 tw-text-orange-700"; // Chưa tiêm
+            case "Đã tiêm":   return "tw-bg-green-100 tw-text-green-700";
+            case "Chờ tiêm":  return "tw-bg-blue-100 tw-text-blue-700";
+            case "Trễ hẹn":   return "tw-bg-red-100 tw-text-red-700";
+            case "Đã hủy":    return "tw-bg-gray-200 tw-text-gray-700"; // NEW
+            default:          return "tw-bg-orange-100 tw-text-orange-700";
         }
     };
 
@@ -478,8 +485,6 @@ export default function RecordBook() {
                 </div>
             )}
 
-            
-
             {/* Lịch tiêm */}
             <div className="tw-bg-white  tw-my-[30px] tw-p-5  tw-shadow tw-rounded-2xl tw-px-[20px]">
                 <div className="tw-grid tw-grid-cols-6 tw-text-center tw-font-medium tw-text-gray-600 tw-text-xl tw-pb-3 tw-border-b">
@@ -490,7 +495,6 @@ export default function RecordBook() {
                     <span>Mũi 4</span>
                     <span>Mũi 5</span>
                 </div>
-
                 {diseases.map((disease) => (
                     <div  key={disease.id}
                         className="tw-grid tw-grid-cols-6 tw-gap-4 tw-text-center tw-items-center tw-border-b tw-border-gray-200 tw-py-3">
@@ -576,8 +580,6 @@ export default function RecordBook() {
                             );
                         })}
 
-
-
                        {Array.from({ length: Math.max(0, 5 - disease.doseCount) }).map((_, i) => (
                             <div key={`empty-${i}`} />
                         ))}
@@ -596,35 +598,30 @@ export default function RecordBook() {
                         .sort((a,b) => a - b)
                         .map((k, idx) => ({
                         id: idx + 1,
-                        date: map[k]?.date ? String(map[k].date).slice(0,10) : "",
-                        vaccine: map[k]?.vaccine || "",
-                        location: map[k]?.location || "",
-                        open: false,
+                            date: map[k]?.date ? String(map[k].date).slice(0,10) : "",
+                            vaccine: map[k]?.vaccine || "",
+                            location: map[k]?.location || "",
+                            open: false,
                         }));
                     })()}
                     onClose={() => setShowUpdate(false)}
                     onSave={handleSaveDose}
                 />
                 )}
-
-                
                 {showDiseaseModal && selectedDisease && (
-                <DiseaseModal
-                    selectedDisease={selectedDisease}
-                    setShowDiseaseModal={setShowDiseaseModal}
-                />
+                    <DiseaseModal
+                        selectedDisease={selectedDisease}
+                        setShowDiseaseModal={setShowDiseaseModal}
+                    />
                 )}
-
                 {showDetail && selectedDisease && currentUser && (
-                <DetailDose
-                    disease={selectedDisease}
-                    memberId={currentUser.id}   
-                    onClose={() => setShowDetail(false)}
-                />
+                    <DetailDose
+                        disease={selectedDisease}
+                        memberId={currentUser.id}   
+                        onClose={() => setShowDetail(false)}
+                    />
                 )}
-
             </div>
-
             </div>
         </div>
     </section>

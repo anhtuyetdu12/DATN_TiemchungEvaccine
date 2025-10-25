@@ -1,21 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import AppointmentDetailModal from "./modal/AppointmentDetailModal";
+import AppointmentDetailModal from "./modal/appointment/AppointmentDetailModal";
 import ConfirmModal from "../../components/ConfirmModal";
+import CompleteBookingModal from "./modal/appointment/CompleteBookingModal";
 import { toast } from "react-toastify";
 import api from "../../services/axios";
 
-/**
- * Thay đổi chính:
- * 1) Lọc theo **một ngày duy nhất** (appointment_date) thay vì khoảng ngày.
- *    - Thêm nút "Lọc" để chủ động gọi API (không auto-fetch khi user chọn ngày).
- * 2) Thêm nút **Xuất PFX** và **Xuất Excel** theo các tham số lọc hiện tại.
- *    - Giả định endpoint:
- *        - GET /records/bookings/export/excel
- *        - GET /records/bookings/export/pfx
- *      Trả về blob file để tải xuống. Bạn có thể chỉnh sửa URL theo backend thực tế.
- * 3) Ẩn cột **Cơ sở** và thay bằng **Loại vắc xin**.
- *    - Hiển thị theo thứ tự ưu tiên các field: item.vaccine_type || item.vaccine?.name || item.vaccine_name.
- */
 export default function StaffAppointments() {
   // --- state dữ liệu & điều khiển ---
   const [appointments, setAppointments] = useState([]); // list (page hiện tại)
@@ -32,12 +21,24 @@ export default function StaffAppointments() {
 
   const [detail, setDetail] = useState(null); // đối tượng booking để xem modal
   const [confirmAction, setConfirmAction] = useState(null); // { action: 'confirm'|'cancel', item }
+  const [reactionNote, setReactionNote] = useState("");
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [completingItem, setCompletingItem] = useState(null);
+  const [submittingComplete, setSubmittingComplete] = useState(false);
+
+  
+  const openCompleteModal = (item) => {
+    setCompletingItem(item);
+    setReactionNote("");
+    setShowCompleteModal(true);
+  };
 
   const statusOptions = [
     { value: "all", label: "Tất cả trạng thái" },
     { value: "confirmed", label: "Đã xác nhận" },
     { value: "pending", label: "Chờ xác nhận" },
     { value: "cancelled", label: "Đã hủy" },
+    { value: "completed", label: "Đã tiêm xong" },
   ];
 
   // --- gọi API list ---
@@ -79,9 +80,7 @@ export default function StaffAppointments() {
   }, [search]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(count / perPage)), [count]);
-
-  // --- hành động staff ---
-  const openConfirm = (action, item) => setConfirmAction({ action, item });
+  const openConfirm = (action, item) => { setConfirmAction({ action, item });  };
 
   const doAction = async () => {
     if (!confirmAction) return;
@@ -109,6 +108,7 @@ export default function StaffAppointments() {
       "Đã xác nhận":  "tw-bg-green-100 tw-text-green-700",
       "Đã tiêm xong": "tw-bg-blue-100 tw-text-blue-700",
       "Đã hủy":       "tw-bg-red-100 tw-text-red-700",
+      "Trễ hẹn":      "tw-bg-orange-100 tw-text-orange-700",
     };
     const cls = map[label] || "tw-bg-gray-100 tw-text-gray-700";
     return <span className={`${cls} tw-px-3 tw-py-1 tw-rounded-full`}>{label || "—"}</span>;
@@ -130,7 +130,10 @@ export default function StaffAppointments() {
     const params = new URLSearchParams();
     if (filter !== "all") params.set("status", filter);
     if (search) params.set("search", search.trim());
-    if (selectedDate) params.set("date", selectedDate);
+    if (selectedDate) {
+      params.set("date_from", selectedDate);
+      params.set("date_to", selectedDate);
+    }
     if (page) params.set("page", String(page));
     return params.toString();
   };
@@ -215,10 +218,31 @@ export default function StaffAppointments() {
     );
   };
 
+  //xác nhận phản ứng sau tiêm
+  const submitComplete = async () => {
+    if (!completingItem || submittingComplete) return;
+    setSubmittingComplete(true);
+    try {
+      await api.post(`/records/bookings/${completingItem.id}/complete/`, {
+        reaction_note: reactionNote || undefined,
+      });
+      toast.success(`Đã tiêm xong lịch #${completingItem.id}`);
+      await fetchAppointments();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Hoàn thành thất bại");
+    } finally {
+      setSubmittingComplete(false);
+      setShowCompleteModal(false);
+      setCompletingItem(null);
+      setReactionNote("");
+    }
+  };
+
+
   // Định dạng ngày về dd/mm/yyyy
   const formatDate = (isoStr) => {
     if (!isoStr) return "—";
-    const d = new Date(isoStr);
+    const d = new Date(`${isoStr}T00:00:00`);
     if (Number.isNaN(d.getTime())) return isoStr; // fallback nếu chuỗi không phải ISO
     const dd = `${d.getDate()}`.padStart(2, "0");
     const mm = `${d.getMonth() + 1}`.padStart(2, "0");
@@ -374,12 +398,18 @@ export default function StaffAppointments() {
                     <i className="fa-solid fa-eye tw-mr-2"></i>
                     Xem
                   </button>
-                  <a  href="/staff/notifications"
+                  <button
+                     onClick={() => openCompleteModal(item)}  disabled={item.status !== "confirmed"}
+                    className="tw-bg-blue-100 tw-text-blue-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-blue-200 disabled:tw-opacity-50" >
+                    <i className="fa-solid fa-syringe tw-mr-2"></i>
+                    Hoàn thành
+                  </button>
+                  {/* <a  href="/staff/notifications"
                     className="tw-bg-orange-100 tw-text-orange-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-orange-200 hover:tw-text-orange-600 tw-border tw-border-transparent 
                                     hover:tw-border-orange-600" >
                     <i className="fa-solid fa-bell tw-mr-2"></i>
                     Gửi thông báo
-                  </a>
+                  </a> */}
                 </td>
               </tr>
             ))}
@@ -389,35 +419,22 @@ export default function StaffAppointments() {
         {/* Phân trang */}
         {count > perPage && (
           <div className="tw-flex tw-justify-center tw-items-center tw-gap-2 tw-py-4">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50"
-            >
+            <button  onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
+              className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50" >
               <i className="fa-solid fa-angles-left"></i>
             </button>
 
             {Array.from({ length: totalPages }, (_, i) => i + 1)
               .slice(Math.max(0, page - 2), Math.min(totalPages, page + 1) + 1)
               .map((num) => (
-                <button
-                  key={num}
-                  onClick={() => setPage(num)}
-                  className={`tw-px-4 tw-py-1 tw-rounded ${
-                    num === page
-                      ? "tw-bg-blue-500 tw-text-white"
-                      : "tw-bg-gray-100 hover:tw-bg-gray-200"
-                  }`}
-                >
+                <button  key={num} onClick={() => setPage(num)}
+                  className={`tw-px-4 tw-py-1 tw-rounded ${ num === page ? "tw-bg-blue-500 tw-text-white"  : "tw-bg-gray-100 hover:tw-bg-gray-200" }`}  >
                   {num}
                 </button>
               ))}
 
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50"
-            >
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+              className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50" >
               <i className="fa-solid fa-angles-right"></i>
             </button>
           </div>
@@ -456,9 +473,17 @@ export default function StaffAppointments() {
             </>
           )
         }
-
         onCancel={() => setConfirmAction(null)}
         onConfirm={doAction}
+      />
+
+      <CompleteBookingModal
+        show={showCompleteModal}
+        booking={completingItem}
+        note={reactionNote}
+        setNote={setReactionNote}
+        onCancel={() => { setShowCompleteModal(false); setCompletingItem(null); setReactionNote(""); }}
+        onConfirm={submitComplete}
       />
     </div>
   );

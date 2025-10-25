@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
-import AppointmentDetailModal from "./modal/AppointmentDetailModal";
+import AppointmentDetailModal from "./modal/appointment/AppointmentDetailModal";
 import ConfirmModal from "../../components/ConfirmModal";
 import { toast } from "react-toastify";
 

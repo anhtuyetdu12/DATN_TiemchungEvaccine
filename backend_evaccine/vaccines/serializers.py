@@ -43,10 +43,17 @@ class VaccineSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
     def get_image(self, obj):
-        request = self.context.get('request')
-        if obj.image:
-            return request.build_absolute_uri(obj.image.url)
-        return None
+        # nếu không có ảnh → trả None
+        if not getattr(obj, "image", None):
+            return None
+        try:
+            url = obj.image.url
+        except Exception:
+            return None
+
+        request = self.context.get("request")
+        # nếu có request → build absolute uri, ngược lại trả relative
+        return request.build_absolute_uri(url) if request else url
 
     def get_formatted_price(self, obj):
         if obj.price is not None:
@@ -59,7 +66,7 @@ class VaccinePackageDiseaseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = VaccinePackageDisease
-        fields = ["id", "disease", "vaccines"]
+        fields = ["id", "disease","vaccines"]
 
 
 class VaccinePackageSerializer(serializers.ModelSerializer):

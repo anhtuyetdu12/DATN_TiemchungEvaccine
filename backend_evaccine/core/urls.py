@@ -14,7 +14,7 @@ urlpatterns = [
     path("api/users/", include("users.urls")),       # user module
     path("api/records/", include("records.urls")),   # record module
     path("api/vaccines/", include("vaccines.urls")),
-    path("api/inventory", include("inventory.urls")),
+    path("api/inventory/", include("inventory.urls")),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
 ]

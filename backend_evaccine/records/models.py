@@ -1,7 +1,6 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
-from .models import *
 
 User = settings.AUTH_USER_MODEL
 
@@ -56,7 +55,7 @@ class VaccinationRecord(models.Model):
     vaccination_date = models.DateField(null=True, blank=True, verbose_name="Ngày tiêm")
     next_dose_date = models.DateField(blank=True, null=True, verbose_name="Ngày hẹn mũi tiếp theo")
     note = models.TextField(blank=True, null=True, verbose_name="Ghi chú")
-
+    source_booking = models.ForeignKey( "Booking", null=True, blank=True, on_delete=models.SET_NULL, related_name="records" )
     class Meta:
         verbose_name = "Mũi tiêm"
         verbose_name_plural = "Lịch sử tiêm chủng"
@@ -90,6 +89,7 @@ class Booking(models.Model):
         db_table = 'vaccines_booking'         # << GIỮ NGUYÊN TÊN BẢNG!
         verbose_name = "Lịch hẹn tiêm"
         verbose_name_plural = "Danh sách lịch hẹn tiêm"
+        indexes = [models.Index(fields=["status", "appointment_date"])]
         ordering = ["-created_at"]
 
     def __str__(self):

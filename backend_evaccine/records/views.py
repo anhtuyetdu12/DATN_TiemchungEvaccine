@@ -1,7 +1,6 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .serializers import FamilyMemberSerializer, VaccinationRecordSerializer, BookingSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from vaccines.models import Vaccine
@@ -10,14 +9,14 @@ from django.db import transaction
 from django.utils import timezone
 from django.db.models import Q
 from django.utils.dateparse import parse_date
-from django.utils import timezone
 from inventory.models import VaccineStockLot, BookingAllocation
 from users.models import CustomUser 
 from .models import FamilyMember, VaccinationRecord, Booking, BookingItem
 from .serializers import ( 
+    FamilyMemberSerializer, VaccinationRecordSerializer,                      
     CustomerListSerializer, CustomerMemberSlimSerializer,
     AppointmentCreateInSerializer, AppointmentStatusPatchSerializer,
-    HistoryCreateInSerializer
+    HistoryCreateInSerializer, StaffBookingCreateInSerializer, BookingSerializer
 )
 
 class FamilyMemberViewSet(viewsets.ModelViewSet):
@@ -73,7 +72,11 @@ class VaccinationRecordViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         member_id = self.request.query_params.get("member_id")
-        queryset = VaccinationRecord.objects.filter(family_member__user=self.request.user)
+        queryset = VaccinationRecord.objects.filter(
+            family_member__user=self.request.user
+        ).filter(
+            Q(vaccination_date__isnull=False) | Q(next_dose_date__isnull=False)
+        )
         if member_id:
             queryset = queryset.filter(family_member_id=member_id)
         return queryset.order_by("-vaccination_date")
@@ -94,7 +97,7 @@ class RemainingDosesView(APIView):
         if not member or not vaccine:
             return Response({"error": "Không hợp lệ"}, status=400)
         total = vaccine.doses_required or 1
-        used = VaccinationRecord.objects.filter(family_member=member, vaccine=vaccine).count()
+        used = VaccinationRecord.objects.filter(family_member=member, vaccine=vaccine,  vaccination_date__isnull=False).count()
         return Response({"remaining": max(total - used, 0), "total": total, "used": used})
     
 # ---------- booking -----------
@@ -139,7 +142,9 @@ class BookingViewSet(viewsets.ModelViewSet):
     def confirm(self, request, pk=None):
         booking = self.get_object()
         if booking.status in ("cancelled", "completed"):
-            return Response({"detail": "Không thể xác nhận lịch đã hủy/đã tiêm."}, status=400)
+            return Response({"detail": "Không thể xác nhận lịch đã hủy/đã hoàn thành."}, status=400)
+        if booking.status == "confirmed":
+            return Response({"status": "confirmed"}, status=200)
 
         try:
             with transaction.atomic():
@@ -168,18 +173,17 @@ class BookingViewSet(viewsets.ModelViewSet):
                         raise ValueError(f"Tồn kho không đủ cho {item.vaccine.name}. Thiếu {need} liều.")
 
                 # (2) Đổi allocations sang 'consumed' (đã tiêm)
-                for item in booking.items.all():
-                    item.allocations.filter(status="reserved").update(status="consumed")
+                # for item in booking.items.all():
+                #     item.allocations.filter(status="reserved").update(status="consumed")
 
-                # (3) Cập nhật sổ tiêm: đánh dấu đã tiêm hôm nay
-                today = timezone.now().date()
-                from records.models import VaccinationRecord
-                VaccinationRecord.objects.filter(
-                    family_member=booking.member,
-                    vaccine__in=booking.items.values("vaccine_id"),
-                    next_dose_date=booking.appointment_date,
-                    vaccination_date__isnull=True,
-                ).update(vaccination_date=today, next_dose_date=None)
+                # # (3) Cập nhật sổ tiêm: đánh dấu đã tiêm hôm nay
+                # today = timezone.now().date()
+                # VaccinationRecord.objects.filter(
+                #     family_member=booking.member,
+                #     vaccine__in=booking.items.values("vaccine_id"),
+                #     next_dose_date=booking.appointment_date,
+                #     vaccination_date__isnull=True,
+                # ).update(vaccination_date=today, next_dose_date=None)
 
                 # (4) Hoàn tất booking
                 booking.status = "confirmed"
@@ -209,9 +213,9 @@ class BookingViewSet(viewsets.ModelViewSet):
             from records.models import VaccinationRecord
             VaccinationRecord.objects.filter(
                 family_member=booking.member,
-                vaccine__in=booking.items.values("vaccine_id"),
                 vaccination_date__isnull=True,
-                next_dose_date=booking.appointment_date,
+            ).filter(
+                Q(source_booking=booking) | Q(next_dose_date=booking.appointment_date)
             ).update(next_dose_date=None)
 
         booking.status = "cancelled"
@@ -225,24 +229,41 @@ class BookingViewSet(viewsets.ModelViewSet):
         if booking.status == "cancelled":
             return Response({"detail":"Lịch đã hủy không thể hoàn thành."}, status=400)
         if booking.status == "completed":
+            # Cho phép bổ sung note về sau? => PATCH riêng là đẹp hơn.
             return Response({"detail":"Lịch đã hoàn thành."}, status=200)
 
+        reaction_note = (request.data.get("reaction_note") or "").strip()
+
         with transaction.atomic():
+            # đổi allocation -> consumed
             for item in booking.items.all():
                 item.allocations.filter(status="reserved").update(status="consumed")
 
-        from records.models import VaccinationRecord
-        today = timezone.now().date()
-        updated = VaccinationRecord.objects.filter(
-            family_member=booking.member,
-            vaccine__in=booking.items.values("vaccine_id"),
-            next_dose_date=booking.appointment_date,
-            vaccination_date__isnull=True,
-        ).update(vaccination_date=today, next_dose_date=None)
+            # cập nhật sổ tiêm
+            from records.models import VaccinationRecord
+            today = timezone.now().date()
 
-        booking.status = "completed"
-        booking.save(update_fields=["status"])
-        return Response({"status":"completed","updated_records":updated})
+            # Lấy các record dự kiến ứng với lịch này
+            rec_qs = VaccinationRecord.objects.select_for_update().filter(
+                family_member=booking.member,
+                vaccine__in=booking.items.values("vaccine_id"),
+                next_dose_date=booking.appointment_date,
+                vaccination_date__isnull=True,
+            )
+
+            updated = 0
+            for rec in rec_qs:
+                rec.vaccination_date = today
+                rec.next_dose_date = None
+                if reaction_note:
+                    rec.note = (rec.note + "\n" if rec.note else "") + reaction_note
+                rec.save(update_fields=["vaccination_date","next_dose_date","note"])
+                updated += 1
+
+            booking.status = "completed"
+            booking.save(update_fields=["status"])
+
+        return Response({"status": "completed", "updated_records": updated}, status=200)
 
 
 # ---------- Trả danh sách “khách hàng”  -----------
@@ -376,65 +397,7 @@ class StaffCustomerMembersAPIView(APIView):
         ser = CustomerMemberSlimSerializer(members, many=True)
         return Response(ser.data, status=200)
 
-# ---------- Tạo booking  cho 1 customer  -----------
-class StaffCreateAppointmentAPIView(APIView):
-    """
-    POST /api/records/staff/customers/<user_id>/appointments
-    """
-    permission_classes = [IsAuthenticated]
-    def post(self, request, user_id: int):
-        role = getattr(request.user, "role", "")
-        if role not in ("staff", "admin", "superadmin") and request.user.id != user_id:
-            return Response({"detail": "Forbidden"}, status=403)
-        user = CustomUser.objects.filter(id=user_id, role="customer").first()
-        if not user:
-            return Response({"detail": "Customer không tồn tại"}, status=404)
-        ser = AppointmentCreateInSerializer(data=request.data)
-        ser.is_valid(raise_exception=True)
-        data = ser.validated_data
-        member = FamilyMember.objects.filter(user=user).order_by("-is_self", "-created_at").first()
-        if not member:
-            member = FamilyMember.objects.create(
-                user=user,
-                full_name=user.full_name or user.email,
-                nickname=user.full_name or user.email,
-                relation="Bản thân",
-                gender="other",
-                date_of_birth= date(2000, 1, 1),
-                is_self=True,
-            )
-        appt_date = data["date"].date()
-        with transaction.atomic():
-            booking = Booking.objects.create(
-                user=user,
-                member=member,
-                appointment_date=appt_date,
-                location=data.get("center") or "",
-                status="pending",
-                notes=data.get("note") or "",
-            )
-            BookingItem.objects.create(
-                booking=booking,
-                vaccine=None,
-                quantity=data.get("doses") or 1,
-                unit_price=data.get("price") or 0,
-            )
-        booking = (
-            Booking.objects.select_related("vaccine", "package")
-            .prefetch_related("items__vaccine")
-            .get(id=booking.id)
-        )
-        total_price = sum([(int(float(it.unit_price or 0))) * int(it.quantity or 0) for it in booking.items.all()])
-        names = [f"{it.vaccine.name} x{int(it.quantity or 0)}" for it in booking.items.all() if it.vaccine]
-        vaccine_label = ", ".join(names) or (booking.vaccine.name if booking.vaccine else (f"Gói: {booking.package.name}" if booking.package else data.get("vaccine", "")))
-        return Response({
-            "id": str(booking.id),
-            "date": booking.appointment_date,
-            "vaccine": vaccine_label,
-            "center": booking.location or "",
-            "status": booking.status,
-            "price": int(total_price),
-        }, status=201)
+
 
 # ---------- Lịch hẹn tiêm chủng  -----------
 
@@ -523,11 +486,8 @@ class StaffListAppointmentsAPIView(APIView):
         return Response(data, status=200)
 
 
-# ---------- cập nhật trạng thái -----------
+# ---------- cập nhật trạng thái - patch -----------
 class StaffUpdateAppointmentStatusAPIView(APIView):
-    """
-    PATCH /api/records/staff/customers/<user_id>/appointments/<appt_id>
-    """
     permission_classes = [IsAuthenticated]
     def patch(self, request, user_id: int, appt_id: str):
         role = getattr(request.user, "role", "")
@@ -539,26 +499,55 @@ class StaffUpdateAppointmentStatusAPIView(APIView):
         booking = Booking.objects.filter(id=appt_id, user_id=user_id).first()
         if not booking:
             return Response({"detail": "Lịch hẹn không tồn tại"}, status=404)
+
         if booking.status == "completed" and new_status != "completed":
             return Response({"detail": "Không thể đổi trạng thái lịch đã hoàn thành"}, status=400)
-        booking.status = new_status
-        booking.save(update_fields=["status"])
-        booking = (
-            Booking.objects.select_related("vaccine", "package")
-            .prefetch_related("items__vaccine")
-            .get(id=booking.id)
-        )
-        total_price = sum([(int(float(it.unit_price or 0))) * int(it.quantity or 0) for it in booking.items.all()])
-        names = [f"{it.vaccine.name} x{int(it.quantity or 0)}" for it in booking.items.all() if it.vaccine]
-        vaccine_label = ", ".join(names) or (booking.vaccine.name if booking.vaccine else (f"Gói: {booking.package.name}" if booking.package else ""))
-        return Response({
-            "id": str(booking.id),
-            "date": booking.appointment_date,
-            "vaccine": vaccine_label,
-            "center": booking.location or "",
-            "status": booking.status,
-            "price": int(total_price),
-        }, status=200)
+
+        with transaction.atomic():
+            if new_status == "cancelled":
+                # trả hàng & gỡ lịch dự kiến, giống BookingViewSet.cancel
+                for item in booking.items.all():
+                    for alloc in item.allocations.select_for_update().filter(status="reserved"):
+                        lot = alloc.lot
+                        lot.quantity_available += alloc.quantity
+                        lot.save(update_fields=["quantity_available"])
+                        alloc.status = "released"
+                        alloc.save(update_fields=["status"])
+
+                    VaccinationRecord.objects.filter(
+                        family_member=booking.member,
+                        vaccination_date__isnull=True,
+                    ).filter(
+                        Q(source_booking=booking) | Q(next_dose_date=booking.appointment_date)
+                    ).update(next_dose_date=None)
+
+            elif new_status == "completed":
+                today = timezone.now().date()
+                VaccinationRecord.objects.filter(
+                    family_member=booking.member,
+                    vaccine__in=booking.items.values("vaccine_id"),
+                    next_dose_date=booking.appointment_date,
+                    vaccination_date__isnull=True,
+                ).update(vaccination_date=today, next_dose_date=None)
+
+            booking.status = new_status
+            booking.save(update_fields=["status"])
+            booking = (
+                Booking.objects.select_related("vaccine", "package")
+                .prefetch_related("items__vaccine")
+                .get(id=booking.id)
+            )
+            total_price = sum([(int(float(it.unit_price or 0))) * int(it.quantity or 0) for it in booking.items.all()])
+            names = [f"{it.vaccine.name} x{int(it.quantity or 0)}" for it in booking.items.all() if it.vaccine]
+            vaccine_label = ", ".join(names) or (booking.vaccine.name if booking.vaccine else (f"Gói: {booking.package.name}" if booking.package else ""))
+            return Response({
+                "id": str(booking.id),
+                "date": booking.appointment_date,
+                "vaccine": vaccine_label,
+                "center": booking.location or "",
+                "status": booking.status,
+                "price": int(total_price),
+            }, status=200)
 
 # ---------- Lịch sử tiêm chủng -----------
 class StaffAddHistoryAPIView(APIView):
@@ -713,4 +702,41 @@ class StaffManageMemberAPIView(APIView):
         fm.delete()
         return Response(status=204)
     
+# ---------- Tạo booking  cho n customer  -----------
+class StaffCreateAppointmentAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request, user_id: int):
+        role = getattr(request.user, "role", "")
+        if role not in ("staff", "admin", "superadmin"):
+            return Response({"detail": "Forbidden"}, status=403)
+
+        user = CustomUser.objects.filter(id=user_id, role="customer").first()
+        if not user:
+            return Response({"detail": "Customer không tồn tại"}, status=404)
+
+        # staff gửi đúng shape (member_id, appointment_date, items)
+        in_ser = StaffBookingCreateInSerializer(data=request.data)
+        in_ser.is_valid(raise_exception=True)
+        data = in_ser.validated_data
+
+        # ép owner là customer này
+        if data["member"].user_id != user.id:
+            return Response({"detail": "Thành viên không thuộc tài khoản này."}, status=400)
+
+        # map sang BookingSerializer để dùng validate() có sẵn
+        payload = {
+            "member_id": data["member"].id,
+            "appointment_date": data["appointment_date"],
+            "location": data.get("location") or "",
+            "notes": data.get("notes") or "",
+            "items": [{"vaccine_id": it["vaccine_id"], "quantity": it["quantity"]} for it in data["items"]],
+        }
+        ser = BookingSerializer(
+            data=payload,
+            context={"request": request, "acting_user": user}  # user ở đây là customer đã load ở trên
+        )
+        ser.is_valid(raise_exception=True)
+        booking = ser.save()
+        return Response(BookingSerializer(booking, context={"request": request}).data, status=201)
     
+
