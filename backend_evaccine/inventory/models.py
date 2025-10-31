@@ -2,6 +2,7 @@
 from django.db import models
 from django.utils import timezone
 from vaccines.models import Vaccine
+from django.conf import settings
 
 class VaccineStockLot(models.Model):
     vaccine = models.ForeignKey(Vaccine, on_delete=models.CASCADE, related_name="stock_lots", verbose_name="Vắc xin")
@@ -41,3 +42,43 @@ class BookingAllocation(models.Model):
         verbose_name = "Phân bổ lịch hẹn"
         verbose_name_plural = "Phân bổ lịch hẹn"
         ordering = ["-reserved_at"]
+
+
+class InventoryAlert(models.Model):
+    URGENCY_CHOICES = (("low","Nhẹ"),("normal","Thường"),("high","Khẩn"))
+    STATUS_CHOICES = (("new","Mới"),("ack","Đã tiếp nhận"),("done","Đã xử lý"))
+
+    vaccine = models.ForeignKey(Vaccine, on_delete=models.SET_NULL, null=True, related_name="inventory_alerts", verbose_name="Vắc xin")
+    title = models.CharField("Tiêu đề", max_length=255)
+    message = models.TextField("Nội dung", blank=True, null=True)
+    desired_qty = models.PositiveIntegerField("Số lượng mong muốn", blank=True, null=True)
+    urgency = models.CharField("Mức độ", max_length=10, choices=URGENCY_CHOICES, default="normal")
+    status = models.CharField("Trạng thái", max_length=10, choices=STATUS_CHOICES, default="new")
+
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, verbose_name="Người tạo")
+    created_at = models.DateTimeField("Thời điểm tạo", auto_now_add=True)
+    acknowledged_at = models.DateTimeField("Tiếp nhận lúc", blank=True, null=True)
+    processed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="processed_inventory_alerts", verbose_name="Người xử lý")
+    processed_at = models.DateTimeField("Xử lý lúc", blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Thông báo tồn kho"
+        verbose_name_plural = "Thông báo tồn kho"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"[{self.get_urgency_display()}] {self.title}"
+
+    def ack(self, user=None):
+        self.status = "ack"
+        self.acknowledged_at = timezone.now()
+        if user and not self.processed_by:
+            self.processed_by = user
+        self.save(update_fields=["status","acknowledged_at","processed_by"])
+
+    def mark_done(self, user=None):
+        self.status = "done"
+        self.processed_at = timezone.now()
+        if user:
+            self.processed_by = user
+        self.save(update_fields=["status","processed_at","processed_by"])

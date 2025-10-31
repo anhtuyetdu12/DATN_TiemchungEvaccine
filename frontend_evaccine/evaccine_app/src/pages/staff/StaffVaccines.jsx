@@ -199,7 +199,8 @@ export default function StaffVaccines() {
   return (
     <div className="tw-p-6 tw-bg-red-50 tw-min-h-screen tw-pt-[150px]">
         <div className="tw-flex tw-justify-center tw-items-center  tw-mb-10 ">
-            <h1 className="tw-text-[32px] tw-pb-5 tw-ml-3 tw-font-bold tw-bg-gradient-to-r tw-from-orange-500 tw-via-yellow-500 tw-to-green-500 tw-bg-clip-text tw-text-transparent">
+            <h1 className="tw-text-[32px] tw-pb-5 tw-ml-3 tw-font-bold tw-bg-gradient-to-r tw-from-orange-500 tw-via-yellow-500
+             tw-to-green-500 tw-bg-clip-text tw-text-transparent">
                 <i className="fa-solid fa-vial-virus"></i>
                 <span className="tw-ml-5">Quản lý vắc xin</span>
             </h1>
@@ -247,7 +248,8 @@ export default function StaffVaccines() {
                 <div className="tw-flex tw-items-center tw-gap-2 tw-w-1/2">
                     <input type="text"  placeholder="Tìm kiếm theo tên hoặc nhà sản xuất..."
                     value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                    className="tw-border tw-border-gray-300 tw-px-4 tw-py-2 tw-rounded-lg tw-shadow-sm tw-flex-1 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
+                    className="tw-border tw-border-gray-300 tw-px-4 tw-py-2 tw-rounded-lg tw-shadow-sm tw-flex-1
+                     focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
                     <button  onClick={() => console.log("Tìm kiếm:", searchTerm)}
                         className="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-full tw-font-medium hover:tw-bg-blue-700 tw-shadow"  >
                         <i className="fa-solid fa-magnifying-glass tw-mr-2"></i>
@@ -272,7 +274,6 @@ export default function StaffVaccines() {
 
             <div className="tw-bg-white tw-rounded-xl tw-shadow-md tw-overflow-x-auto tw-mb-[30px]">
               <table className="tw-w-full tw-table-auto tw-border-collapse tw-text-left tw-mb-4">
-                  
                   <thead className="tw-bg-[#c4fffc] tw-text-xl">
                     <tr>
                         <th className="tw-px-4 tw-py-4 tw-w-1/13">Tên vắc xin</th>

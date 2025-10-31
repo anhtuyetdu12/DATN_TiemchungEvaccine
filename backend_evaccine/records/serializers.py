@@ -5,6 +5,7 @@ from vaccines.models import Disease, Vaccine
 from datetime import date
 from django.db.models import Q
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -45,13 +46,16 @@ class VaccinationRecordSerializer(serializers.ModelSerializer):
         if obj.vaccination_date:
             return "Đã tiêm"
         if obj.next_dose_date:
-            today = date.today()
+            today = timezone.localdate()
+            # nếu note có 'Đặt lại lịch' thì ưu tiên cho là Chờ tiêm
+            if obj.note and "Đặt lại lịch" in obj.note:
+                return "Chờ tiêm"
+
             if obj.next_dose_date > today:
                 return "Chờ tiêm"
             if obj.next_dose_date < today:
                 return "Trễ hẹn"
             return "Chờ tiêm"
-        # Không có ngày tiêm & không còn ngày hẹn (ví dụ sau khi bị hủy)
         return "Chưa tiêm"
         
     def validate(self, attrs):
@@ -110,16 +114,6 @@ class BookingSerializer(serializers.ModelSerializer):
         # KH tự đặt: mặc định là request.user
         return self.context.get("acting_user") or self.context["request"].user
 
-
-    def get_status_label(self, obj):
-        mapping = {
-            "pending": "Chờ xác nhận",
-            "confirmed": "Đã xác nhận",
-            "completed": "Đã tiêm xong",
-            "cancelled": "Đã hủy",
-        }
-        return mapping.get(obj.status, obj.status)
-    
     def get_vaccine_names(self, obj):
         names = [it.vaccine.name for it in obj.items.all() if it.vaccine]
         if names:
@@ -142,6 +136,17 @@ class BookingSerializer(serializers.ModelSerializer):
         if obj.status in ("completed", "cancelled"):
             return False
         return bool(obj.appointment_date and obj.appointment_date < date.today())
+    
+    def get_status_label(self, obj):
+        if self.get_is_overdue(obj):
+            return "Trễ hẹn"
+        mapping = {
+            "pending": "Chờ xác nhận",
+            "confirmed": "Đã xác nhận",
+            "completed": "Đã tiêm xong",
+            "cancelled": "Đã hủy",
+        }
+        return mapping.get(obj.status, obj.status)
     
     def validate(self, attrs):
         acting_user = self._acting_user()
@@ -199,27 +204,78 @@ class BookingSerializer(serializers.ModelSerializer):
         acting_user = self._acting_user()
         items_data = validated_data.pop("items", [])
         booking = Booking.objects.create(user=acting_user, **validated_data)
+        today = timezone.localdate()
 
         for it in items_data:
             v = Vaccine.objects.get(id=it["vaccine_id"])
             qty = int(it["quantity"] or 1)
+
             BookingItem.objects.create(
-                booking=booking, vaccine=v, quantity=qty, unit_price=v.price or 0
-            )
-            current = VaccinationRecord.objects.filter(
-                family_member=booking.member,
-                vaccine=v
-            ).filter(Q(vaccination_date__isnull=False) | Q(next_dose_date__isnull=False)).count()
-            VaccinationRecord.objects.create(
-                family_member=booking.member,
-                disease=v.disease,
+                booking=booking,
                 vaccine=v,
-                dose_number=current + 1,
-                vaccination_date=None,
-                next_dose_date=booking.appointment_date,
-                note=f"Đặt lịch #{booking.id}",
-                source_booking=booking,    
+                quantity=qty,
+                unit_price=v.price or 0,
             )
+
+           # TÌM NHỮNG BẢN GHI TRỄ CŨ CẦN CẬP NHẬT
+            overdue_qs = (
+                VaccinationRecord.objects
+                .filter(
+                    family_member=booking.member,
+                    vaccination_date__isnull=True,
+                    # 👇 nới thành <= cho chắc
+                    next_dose_date__lte=today,
+                )
+                .filter(
+                    # 1) trùng bệnh
+                    Q(disease=v.disease)
+                    # 2) hoặc trùng vaccine
+                    | Q(vaccine=v)
+                    # 3) hoặc record cũ chỉ lưu tên vắc xin / tên bệnh dạng text
+                    | (
+                        Q(vaccine__isnull=True) & Q(disease__isnull=True) & (
+                            Q(vaccine_name__iexact=v.name)              # trùng hẳn tên vaccine
+                            | Q(vaccine_name__icontains=v.name)         # chứa tên vaccine
+                            | (v.disease and Q(vaccine_name__icontains=v.disease.name))  # chứa tên bệnh: "Thủy đậu"
+                        )
+                    )
+                )
+                .order_by("next_dose_date")
+            )
+
+            if overdue_qs.exists():
+                target = overdue_qs.first()   # bản trễ cũ nhất/đúng nhất
+                target.next_dose_date = booking.appointment_date
+                target.note = f"Đặt lại lịch #{booking.id}"
+                update_fields = ["next_dose_date", "note"]
+                if not target.disease_id and v.disease_id:
+                    target.disease = v.disease
+                    update_fields.append("disease")
+                if not target.vaccine_id:
+                    target.vaccine = v
+                    update_fields.append("vaccine")
+                target.save(update_fields=update_fields)
+
+                # dọn phần còn lại để FE không thấy 2 mũi cùng bệnh
+                overdue_qs.exclude(id=target.id).update(next_dose_date=None, note="")  # hoặc giữ nguyên note
+            else:
+                # không có mũi trễ -> tạo mới như cũ
+                current = VaccinationRecord.objects.filter(
+                    family_member=booking.member,
+                    vaccine=v,
+                ).filter(
+                    Q(vaccination_date__isnull=False) | Q(next_dose_date__isnull=False)
+                ).count()
+
+                VaccinationRecord.objects.create(
+                    family_member=booking.member,
+                    disease=v.disease,
+                    vaccine=v,
+                    dose_number=current + 1,
+                    vaccination_date=None,
+                    next_dose_date=booking.appointment_date,
+                    note=f"Đặt lại lịch #{booking.id}",
+                )
         return booking
     
 #  ----- thành viên gia đình ------

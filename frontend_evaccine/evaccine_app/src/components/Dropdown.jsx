@@ -1,6 +1,6 @@
 import { useState ,useEffect, useRef } from "react";
 
-export default function Dropdown({ label, value, options, onChange, className = "" }) {
+export default function Dropdown({ label, value, options, onChange, className = ""   }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const btnRef = useRef(null);
@@ -26,7 +26,7 @@ export default function Dropdown({ label, value, options, onChange, className = 
                    hover:tw-border-[#56b6f7] hover:tw-ring-1 hover:tw-ring-[#56b6f7]
                    focus:tw-outline-none focus:tw-border-[#1999ee] focus:tw-ring-2 focus:tw-ring-[#1999ee]/40" >
         <span className="tw-truncate">
-          {value  ? options.find((opt) => opt.value === value)?.label  : "-- chọn --"}
+          {value  ? options.find((opt) => opt.value === value)?.label  : "-- Chọn --"}
         </span>
         <i className={`fa-solid ${open ? "fa-angle-up" : "fa-angle-down"}`}></i>
       </button>

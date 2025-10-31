@@ -1,5 +1,5 @@
 // Sổ tiêm chủng  
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import UpdateDose from "./modal/RecordBook/UpdateDose";
 import AddUserForm from "./modal/RecordBook/AddUserForm";
 import DiseaseModal from "./modal/RecordBook/DiseaseModal";
@@ -9,15 +9,78 @@ import { toast } from "react-toastify";
 import { getVaccinesByAge } from "../../services/recordBookService";
 import { useLocation } from "react-router-dom";
 
+
+const buildVaccinationMap = (records) => {
+  const structuredData = {};
+  records.forEach((rec) => {
+    if (!rec.vaccination_date && !rec.next_dose_date) return;
+    const diseaseId =
+      rec?.disease?.id ??
+      rec?.disease_id ??
+      rec?.vaccine?.disease?.id ??
+      rec?.vaccine_name ??
+      "";
+    if (!structuredData[diseaseId]) structuredData[diseaseId] = {};
+
+    const rawDose = Number(rec?.dose_number);
+    const doseIndex =
+      Number.isFinite(rawDose) && rawDose > 0
+        ? rawDose - 1
+        : 0; // 👈 cho mũi không có dose_number dồn về mũi 1
+
+    const current = structuredData[diseaseId][doseIndex];
+    // nếu chưa có thì gán luôn
+    if (!current) {
+      structuredData[diseaseId][doseIndex] = {
+        date: rec.vaccination_date,
+        vaccine: rec.vaccine?.name || rec.vaccine_name || "",
+        location: rec.vaccine_lot,
+        appointmentDate: rec.next_dose_date,
+        note: rec.note,
+        status_label: rec.status_label,
+      };
+      return;
+    }
+    // Nếu bản mới là "Đặt lại lịch" ⇒ luôn ghi đè
+    if (rec.note && rec.note.includes("Đặt lại lịch")) {
+      structuredData[diseaseId][doseIndex] = {
+        date: rec.vaccination_date,
+        vaccine: rec.vaccine?.name || rec.vaccine_name || "",
+        location: rec.vaccine_lot,
+        appointmentDate: rec.next_dose_date,
+        note: rec.note,
+        status_label: rec.status_label,
+      };
+      return;
+    }
+    // Hoặc bản mới có ngày hẹn mới hơn
+    if (
+      rec.next_dose_date &&
+      (!current.appointmentDate || rec.next_dose_date > current.appointmentDate)
+    ) {
+      structuredData[diseaseId][doseIndex] = {
+        date: rec.vaccination_date,
+        vaccine: rec.vaccine?.name || rec.vaccine_name || "",
+        location: rec.vaccine_lot,
+        appointmentDate: rec.next_dose_date,
+        note: rec.note,
+        status_label: rec.status_label,
+      };
+    }
+  });
+
+  return structuredData;
+};
+
+
 export default function RecordBook() {
-   
 
     // Danh sách thành viên trong sổ tiêm chủng
-  const [users, setUsers] = useState([]);
-  const [activeUser, setActiveUser] = useState(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [showDetail, setShowDetail] = useState(false);
-  const [isEditing, setIsEditing] = useState(false); // nút chỉnh sửa
+    const [users, setUsers] = useState([]);
+    const [activeUser, setActiveUser] = useState(null);
+    const [showAddForm, setShowAddForm] = useState(false);
+    const [showDetail, setShowDetail] = useState(false);
+    const [isEditing, setIsEditing] = useState(false); // nút chỉnh sửa
 
     // Gọi API lấy danh sách thành viên
     useEffect(() => {
@@ -90,51 +153,50 @@ export default function RecordBook() {
         }
     }, [users, location.search, activeUser]);
     // --- Load vaccination record khi activeUser thay đổi ---
-    useEffect(() => {
-        if (!activeUser) return;
-        const fetchVaccinations = async () => {
-            try {
-                const records = await getVaccinationRecords(activeUser); // đã là array
+    // useEffect(() => {
+    //     if (!activeUser) return;
+    //     const fetchVaccinations = async () => {
+    //         try {
+    //             const records = await getVaccinationRecords(activeUser); // đã là array
 
-                const structuredData = {};
-               records.forEach((rec) => {
-                // BỎ QUA RECORD RỖNG (không hẹn, không tiêm)
-                if (!rec.vaccination_date && !rec.next_dose_date) return;
+    //             const structuredData = {};
+    //            records.forEach((rec) => {
+    //             // BỎ QUA RECORD RỖNG (không hẹn, không tiêm)
+    //             if (!rec.vaccination_date && !rec.next_dose_date) return;
 
-                const diseaseId = String(rec?.disease?.id ?? rec?.disease_id ?? rec?.vaccine_name ?? "");
-                if (!structuredData[diseaseId]) structuredData[diseaseId] = {};
+    //             const diseaseId = String(rec?.disease?.id ?? rec?.disease_id ?? rec?.vaccine_name ?? "");
+    //             if (!structuredData[diseaseId]) structuredData[diseaseId] = {};
 
-                const rawDose = Number(rec?.dose_number);
-                const doseIndex = Number.isFinite(rawDose) && rawDose > 0
-                    ? rawDose - 1
-                    : Object.keys(structuredData[diseaseId]).length;
-
-                structuredData[diseaseId][doseIndex] = {
-                    date: rec.vaccination_date,
-                    vaccine: rec.vaccine?.name || rec.vaccine_name || "",
-                    location: rec.vaccine_lot,
-                    appointmentDate: rec.next_dose_date,
-                    note: rec.note,
-                    status_label: rec.status_label,
-                };
-                });
+    //             const rawDose = Number(rec?.dose_number);
+    //             const doseIndex = Number.isFinite(rawDose) && rawDose > 0
+    //                 ? rawDose - 1
+    //                 : Object.keys(structuredData[diseaseId]).length;
 
 
-            setVaccinationData((prev) => ({
-                ...prev,
-                [activeUser]: structuredData,
-            }));
+    //             structuredData[diseaseId][doseIndex] = {
+    //                 date: rec.vaccination_date,
+    //                 vaccine: rec.vaccine?.name || rec.vaccine_name || "",
+    //                 location: rec.vaccine_lot,
+    //                 appointmentDate: rec.next_dose_date,
+    //                 note: rec.note,
+    //                 status_label: rec.status_label,
+    //             };
+    //             });
 
-            } catch (err) {
-              console.error("Lỗi khi tải lịch tiêm:", err?.response?.status,  err?.response?.data || err?.message );
-              toast.error( err?.response?.data?.detail ||  err?.response?.data?.error ||  "Không thể tải dữ liệu tiêm chủng"  );
-            }
-        };
+    //         setVaccinationData((prev) => ({
+    //             ...prev,
+    //             [activeUser]: structuredData,
+    //         }));
 
-        fetchVaccinations();
-    }, [activeUser]);
+    //         } catch (err) {
+    //           console.error("Lỗi khi tải lịch tiêm:", err?.response?.status,  err?.response?.data || err?.message );
+    //           toast.error( err?.response?.data?.detail ||  err?.response?.data?.error ||  "Không thể tải dữ liệu tiêm chủng"  );
+    //         }
+    //     };
 
-   
+    //     fetchVaccinations();
+    // }, [activeUser]);
+
 
   //  Hàm tính tuổi hiển thị
   const getAgeText = (dob) => {
@@ -195,18 +257,18 @@ export default function RecordBook() {
     useEffect(() => {
         if (!activeUser || !currentUser?.dob) return;
         (async () => {
-        try {
-            const data = await getVaccinesByAge(activeUser); // không truyền diseaseId -> list tổng quát
-            setAgeVaccines(data?.vaccines || []);
-        } catch (err) {
-            console.error("by-age error:", err?.response || err);
-            setAgeVaccines([]);
-            const msg =
-            err?.response?.data?.error ||
-            err?.response?.data?.detail ||
-            (err?.response ? `Lỗi ${err.response.status}` : "Lỗi mạng/CORS");
-            toast.error(msg);
-        }
+            try {
+                const data = await getVaccinesByAge(activeUser); // không truyền diseaseId -> list tổng quát
+                setAgeVaccines(data?.vaccines || []);
+            } catch (err) {
+                console.error("by-age error:", err?.response || err);
+                setAgeVaccines([]);
+                const msg =
+                err?.response?.data?.error ||
+                err?.response?.data?.detail ||
+                (err?.response ? `Lỗi ${err.response.status}` : "Lỗi mạng/CORS");
+                toast.error(msg);
+            }
         })();
     }, [activeUser, currentUser?.dob]);
 
@@ -218,6 +280,26 @@ export default function RecordBook() {
 
     // bảng tiêm
     const [vaccinationData, setVaccinationData] = useState({}); 
+    const reloadVaccinations = useCallback(async (memberId) => {
+        if (!memberId) return;
+        try {
+        const records = await getVaccinationRecords(memberId);
+        const structured = buildVaccinationMap(records);
+        setVaccinationData((prev) => ({
+            ...prev,
+            [memberId]: structured,
+        }));
+        } catch (err) {
+        console.error(err);
+        toast.error("Không thể tải dữ liệu tiêm chủng");
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!activeUser) return;
+        // dùng đúng hàm chung
+        reloadVaccinations(activeUser);
+    }, [activeUser, reloadVaccinations]);
 
     const handleSaveDose = (diseaseId, doses) => {
         const updated = {};
@@ -243,22 +325,21 @@ export default function RecordBook() {
 
     // xóa
     const deleteSingleDose = (diseaseId, doseIndex) => {
-    setVaccinationData(prev => {
-        const userMap = { ...(prev[activeUser] || {}) };
-        const diseaseMap = { ...(userMap[diseaseId] || {}) };
-        // xoá mũi tại index
-        delete diseaseMap[doseIndex];
-        // nén lại về 0..n-1 để hiển thị Mũi 1..n đúng thứ tự
-        const compact = {};
-        Object.keys(diseaseMap)
-        .map(k => Number(k))
-        .sort((a,b) => a - b)
-        .map(k => diseaseMap[k])
-        .forEach((d, idx) => { compact[idx] = d; });
-        return { ...prev, [activeUser]: { ...userMap, [diseaseId]: compact } };
-    });
+        setVaccinationData(prev => {
+            const userMap = { ...(prev[activeUser] || {}) };
+            const diseaseMap = { ...(userMap[diseaseId] || {}) };
+            // xoá mũi tại index
+            delete diseaseMap[doseIndex];
+            // nén lại về 0..n-1 để hiển thị Mũi 1..n đúng thứ tự
+            const compact = {};
+            Object.keys(diseaseMap)
+            .map(k => Number(k))
+            .sort((a,b) => a - b)
+            .map(k => diseaseMap[k])
+            .forEach((d, idx) => { compact[idx] = d; });
+            return { ...prev, [activeUser]: { ...userMap, [diseaseId]: compact } };
+        });
     };
-
 
     const toYMD = (d) => {
         if (!d) return "";
@@ -268,34 +349,30 @@ export default function RecordBook() {
         const dd = String(t.getDate()).padStart(2, "0");
         return `${yyyy}-${mm}-${dd}`;
     };
-    const todayYMD = toYMD(new Date());
     const fmtVN = (d) => d ? new Date(d).toLocaleDateString("vi-VN") : "";
 
     // Trạng thái mũi
     const getDoseStatus = (dose) => {
-        // Ưu tiên trạng thái từ BE (có thể là "Đã hủy")
-        if (dose?.status_label) return dose.status_label;
-
         const shot = dose?.date ? toYMD(dose.date) : "";
-        if (shot) return "Đã tiêm";
-
         const appt = dose?.appointmentDate ? toYMD(dose.appointmentDate) : "";
+        const todayYMD = toYMD(new Date());
+        // 1. nếu mũi đã tiêm thì kết luận luôn
+        if (shot) return "Đã tiêm";
+        // 2. nếu BE nói "Chờ tiêm" thì tin
+        if (dose?.status_label === "Chờ tiêm") return "Chờ tiêm";
+        // 3. nếu BE nói "Trễ hẹn" nhưng ngày hẹn THỰC TẾ > hôm nay (nghĩa là BE lệch giờ)
+        if (dose?.status_label === "Trễ hẹn" && appt && appt >= todayYMD) {
+            return "Chờ tiêm";
+        }
+        // 4. nếu BE nói "Trễ hẹn" và ngày cũng < hôm nay thì đúng là trễ
+        if (dose?.status_label === "Trễ hẹn") return "Trễ hẹn";
+        // 5. nếu không có status_label thì client tự tính
         if (appt) {
             if (appt > todayYMD) return "Chờ tiêm";
             if (appt < todayYMD) return "Trễ hẹn";
             return "Chờ tiêm";
         }
         return "Chưa tiêm";
-    };
-
-    const getStatusStyle = (status) => {
-        switch (status) {
-            case "Đã tiêm":   return "tw-bg-green-100 tw-text-green-700";
-            case "Chờ tiêm":  return "tw-bg-blue-100 tw-text-blue-700";
-            case "Trễ hẹn":   return "tw-bg-red-100 tw-text-red-700";
-            case "Đã hủy":    return "tw-bg-gray-200 tw-text-gray-700"; // NEW
-            default:          return "tw-bg-orange-100 tw-text-orange-700";
-        }
     };
 
   return (

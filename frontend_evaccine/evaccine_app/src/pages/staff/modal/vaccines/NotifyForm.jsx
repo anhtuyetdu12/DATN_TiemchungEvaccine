@@ -18,6 +18,7 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
   useEffect(() => {
     if (preset) setForm((s) => ({ ...s, ...preset }));
   }, [preset]);
+  
 
   // helpers
   const fmtDate = (d) => {
@@ -38,6 +39,43 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
     () => vaccines.find((v) => String(v.id) === String(form.vaccine_id)),
     [vaccines, form.vaccine_id]
   );
+
+  const soonestExpiry = useMemo(() => {
+    if (!selectedVaccine) return null;
+    // ưu tiên selectedVaccine.expiry; nếu không có, lấy HSD sớm nhất từ lots
+    const fromProp = selectedVaccine.expiry && selectedVaccine.expiry !== "-" ? selectedVaccine.expiry : null;
+    if (fromProp) return fromProp;
+
+    const lots = Array.isArray(selectedVaccine.lots) ? selectedVaccine.lots : [];
+      if (!lots.length) return null;
+      const valid = lots
+        .map(l => l?.expiry_date)
+        .filter(Boolean)
+        .map(d => new Date(d))
+        .filter(dt => !Number.isNaN(dt.getTime()))
+        .sort((a, b) => a - b);
+      return valid.length ? valid[0].toISOString().slice(0,10) : null;
+    }, [selectedVaccine]);
+
+    const computedWarningType = useMemo(() => {
+      if (!selectedVaccine) return null;
+
+      // ngưỡng HSD sắp hết = 30 ngày
+      const now = new Date();
+      const soon = new Date();
+      soon.setDate(soon.getDate() + 30);
+
+      const exp = soonestExpiry ? new Date(soonestExpiry) : null;
+      const isExpiringSoon = exp ? (exp <= soon && exp >= now) : false;
+
+      const qty = Number(selectedVaccine.quantity ?? 0);
+      const isLowStock = qty === 0 || qty <= 20;
+
+      if (isExpiringSoon && isLowStock) return "Hàng & Hạn đã hết";
+      if (isExpiringSoon) return "Hạn sử dụng sắp hết";
+      if (isLowStock) return "Số lượng sắp hết";
+      return null;
+  }, [selectedVaccine, soonestExpiry]);
 
   const vaccineOptions = useMemo(
     () =>
@@ -65,6 +103,8 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;      
+    
     if (!form.vaccine_id) {
       toast.warn("Vui lòng chọn vắc xin.");
       setTouched((t) => ({ ...t, vaccine_id: true }));
@@ -75,22 +115,20 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
       setTouched((t) => ({ ...t, title: true }));
       return;
     }
+
+    setSubmitting(true);
     try {
-      setSubmitting(true);
       await notifyAdmin({
         vaccine_id: form.vaccine_id,
-        title: urgencyPrefix + form.title.trim(),
+        title: (form.urgency === "high" ? "[Khẩn cấp] " : form.urgency === "low" ? "[Thông tin] " : "") + form.title.trim(),
         desired_qty: form.desired_qty ? Number(form.desired_qty) : undefined,
         message: form.message,
+        urgency: form.urgency,
       });
+      // CHỈ 1 nơi toast:
+      toast.success("Đã gửi thông báo cho admin.", { toastId: "notify-admin-success" });
       onSent?.();
-      setForm({
-        vaccine_id: "",
-        title: "",
-        desired_qty: "",
-        message: "",
-        urgency: "normal",
-      });
+      setForm({ vaccine_id: "", title: "", desired_qty: "", message: "", urgency: "normal" });
       setTouched({});
     } catch (err) {
       console.error(err);
@@ -133,12 +171,12 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
   const renderWarningBadge = (type) => {
     if (!type) return null;
     if (type === "Hàng & Hạn đã hết")
-      return <span className="tw-bg-red-100 tw-text-red-600 tw-px-2 tw-py-1 tw-rounded-full tw-text-base">⚠️ {type}</span>;
+      return <span className="tw-bg-red-100 tw-text-red-600 tw-px-3 tw-py-1 tw-rounded-full tw-text-base">⚠️ {type}</span>;
     if (type === "Hạn sử dụng sắp hết")
-      return <span className="tw-bg-orange-100 tw-text-orange-700 tw-px-2 tw-py-1 tw-rounded-full tw-text-base">⏰ {type}</span>;
+      return <span className="tw-bg-orange-100 tw-text-orange-600 tw-px-3 tw-py-1 tw-rounded-full tw-text-base">⏰ {type}</span>;
     if (type === "Số lượng sắp hết")
-      return <span className="tw-bg-blue-100 tw-text-blue-700 tw-px-2 tw-py-1 tw-rounded-full tw-text-base">📦 {type}</span>;
-    return <span className="tw-bg-green-100 tw-text-green-600 tw-px-2 tw-py-1 tw-rounded-full tw-text-base">{type}</span>;
+      return <span className="tw-bg-blue-100 tw-text-blue-700 tw-px-3 tw-py-1 tw-rounded-full tw-text-base">📦 {type}</span>;
+    return <span className="tw-bg-green-100 tw-text-green-600 tw-px-3 tw-py-1 tw-rounded-full tw-text-base">{type}</span>;
   };
 
   return (
@@ -173,7 +211,7 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
                 <div>
                     <label className="tw-block tw-text-xl tw-text-left tw-font-medium tw-mb-1"> Số lượng mong muốn </label>
                     <div className="tw-flex tw-items-center tw-gap-2">
-                    <button  type="button"  onClick={() => incQty(-1)}  disabled={Number(form.desired_qty || 0) <= 0}  title="-1" 
+                    <button  aria-label="Giảm 1" type="button"  onClick={() => incQty(-1)}  disabled={Number(form.desired_qty || 0) <= 0}  title="-1" 
                         className="tw-bg-cyan-200 hover:tw-bg-cyan-300 tw-text-gray-800 tw-px-4 tw-py-2 tw-rounded-lg tw-border tw-border-cyan-300" >
                         <i className="fa-solid fa-minus"></i>
                     </button>
@@ -184,7 +222,7 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
                         focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-cyan-300 focus:tw-border-cyan-800" 
                     />
 
-                    <button  type="button"  onClick={() => incQty(1)}
+                    <button   aria-label="Tăng 1" type="button"  onClick={() => incQty(1)}
                         className="tw-bg-cyan-200 hover:tw-bg-cyan-300 tw-text-gray-800 tw-px-4 tw-py-2 tw-rounded-lg tw-border tw-border-cyan-300"
                         disabled={Number(form.desired_qty || 0) >= MAX_QTY}   title="+1" >
                         <i className="fa-solid fa-plus"></i>
@@ -221,7 +259,7 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
                         <div className="tw-flex tw-items-center tw-mr-4">
                             <i className="fa-solid fa-circle-half-stroke tw-text-[5px] tw-mr-2"></i> HSD:{" "}
                             <span className="tw-font-medium tw-text-cyan-500 tw-ml-1">
-                                {selectedVaccine.expiry ? fmtDate(selectedVaccine.expiry) : "-"}
+                                {soonestExpiry ? fmtDate(soonestExpiry) : "-"}
                             </span>
                         </div>
                         <div className="tw-flex tw-items-center">
@@ -251,8 +289,8 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
                         )}
                       </div>
                     {/* Cảnh báo nếu có */}
-                    {selectedVaccine.warningType && (
-                      <div className="tw-pt-1">{renderWarningBadge(selectedVaccine.warningType)}</div>
+                    {computedWarningType  && (
+                      <div className="tw-pt-1">{renderWarningBadge(computedWarningType )}</div>
                     )}
                   </div>
                   <div className="tw-flex-shrink-0">{renderStockBadge(selectedVaccine.quantity)}</div>
@@ -371,7 +409,7 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
               renderStockBadge(selectedVaccine.quantity)}
           </div>
 
-          {selectedVaccine?.warningType && <div>{renderWarningBadge(selectedVaccine.warningType)}</div>}
+          {computedWarningType && <div>{renderWarningBadge(computedWarningType)}</div>}
 
           <div className="tw-text-lg tw-text-left tw-text-gray-600 tw-min-w-0 tw-truncate">
             Vắc xin:{" "}
@@ -387,8 +425,8 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
             </div>
             <div className="tw-flex tw-flex-col tw-text-gray-600 tw-min-w-0">
               <span className="tw-text-lg tw-font-medium tw-text-cyan-600">HSD</span>
-              <span className="tw-text-base tw-font-medium tw-text-gray-800 tw-truncate" title={fmtDate(selectedVaccine?.expiry)}>
-                {fmtDate(selectedVaccine?.expiry)}
+              <span className="tw-text-base tw-font-medium tw-text-gray-800 tw-truncate" title={soonestExpiry ? fmtDate(soonestExpiry) : "-"}>
+                {soonestExpiry ? fmtDate(soonestExpiry) : "-"}
               </span>
             </div>
             <div className="tw-flex tw-flex-col tw-text-gray-600 tw-min-w-0">

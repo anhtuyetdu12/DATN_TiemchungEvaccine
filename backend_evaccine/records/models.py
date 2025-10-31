@@ -58,7 +58,7 @@ class VaccinationRecord(models.Model):
     source_booking = models.ForeignKey( "Booking", null=True, blank=True, on_delete=models.SET_NULL, related_name="records" )
     class Meta:
         verbose_name = "Mũi tiêm"
-        verbose_name_plural = "Lịch sử tiêm chủng"
+        verbose_name_plural = "Lịch sử tiêm chủng"  
         ordering = ["-vaccination_date", "-id"]
 
     def __str__(self):

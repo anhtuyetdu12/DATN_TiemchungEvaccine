@@ -26,13 +26,19 @@ export async function fetchCustomerAppointments(customerId, params = {}) {
   const res = await api.get(`/records/staff/customers/${customerId}/appointments/list`, { params });
   return res.data || [];
 }
+// export async function createAppointment(customerId, payload) {
+//   try {
+//     const res = await api.post(`/records/staff/customers/${customerId}/appointments`, payload);
+//     return res.data;
+//   } catch (err) {
+//     throw err?.response?.data || err;
+//   }
+// }
+
 export async function createAppointment(customerId, payload) {
-  try {
-    const res = await api.post(`/records/staff/customers/${customerId}/appointments`, payload);
-    return res.data;
-  } catch (err) {
-    throw err?.response?.data || err;
-  }
+  // payload giống customer: { member_id, appointment_date, items, location?, notes? }
+  const { data } = await api.post(`/records/staff/customers/${customerId}/appointments`, payload);
+  return data;
 }
 
 export async function setAppointmentStatus(customerId, apptId, status) {

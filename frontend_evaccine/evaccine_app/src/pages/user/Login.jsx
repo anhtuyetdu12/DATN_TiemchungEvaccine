@@ -142,12 +142,12 @@ export default function Login({ setUser }) {
             <i className="fa-solid fa-xmark"></i>
           </button>
 
-          <h2 className="tw-text-4xl tw-font-bold tw-text-blue-600 tw-mb-8">
+          <h2 className="tw-text-3xl tw-font-bold tw-text-blue-600 tw-mb-6">
             Đăng nhập tài khoản
           </h2>
-          <form className="tw-space-y-6 tw-text-left" onSubmit={handleSubmit}>
+          <form className="tw-space-y-5 tw-text-left" onSubmit={handleSubmit}>
             <div>
-              <label  htmlFor="identifier" className="tw-block tw-text-2xl tw-font-medium tw-text-gray-700 tw-mb-2" >
+              <label  htmlFor="identifier" className="tw-block tw-text-xl tw-font-medium tw-text-gray-700 tw-mb-2" >
                 Email hoặc Số điện thoại
               </label>
               <input type="text"  id="identifier" name="identifier" required  value={identifier}
@@ -158,7 +158,7 @@ export default function Login({ setUser }) {
             </div>
 
             <div>
-              <label htmlFor="password" className="tw-block tw-text-2xl tw-font-medium tw-text-gray-700 tw-mb-4">
+              <label htmlFor="password" className="tw-block tw-text-xl tw-font-medium tw-text-gray-700 tw-mb-4">
                 Mật khẩu
               </label>
               <div className="tw-relative">

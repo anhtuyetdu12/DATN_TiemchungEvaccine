@@ -123,13 +123,13 @@ export default function Register({ onClose }) {
             <i className="fa-solid fa-xmark"></i>
           </button>
 
-          <h2 className="tw-text-4xl tw-font-bold tw-text-blue-600 tw-mb-8">
+          <h2 className="tw-text-3xl tw-font-bold tw-text-blue-600 tw-mb-5">
             Tạo tài khoản
           </h2>
 
-          <form className="tw-space-y-6 tw-text-left"  onSubmit={handleSubmit}>
+          <form className="tw-space-y-5 tw-text-left"  onSubmit={handleSubmit}>
             <div>
-              <label  htmlFor="fullname" className="tw-block tw-text-2xl tw-font-medium tw-text-gray-700 tw-mb-2" >
+              <label  htmlFor="fullname" className="tw-block tw-text-xl tw-font-medium tw-text-gray-700 tw-mb-2" >
                 Họ và tên
               </label>
               <input  type="fullname"  id="fullname" name="fullname" required  value={fullName} onChange={(e) => setFullName(e.target.value)}  onBlur={() => handleBlur("fullName")}
@@ -139,7 +139,7 @@ export default function Register({ onClose }) {
             {errors.fullName && <p className="tw-text-red-600 tw-text-base">{errors.fullName}</p>}
 
             <div>
-              <label htmlFor="identifier" className="tw-block tw-text-2xl tw-font-medium tw-text-gray-700 tw-mb-2">
+              <label htmlFor="identifier" className="tw-block tw-text-xl tw-font-medium tw-text-gray-700 tw-mb-2">
                 Email hoặc Số điện thoại
               </label>
               <input  type="text" id="identifier" name="identifier" required value={identifier} onChange={(e) => setIdentifier(e.target.value)}  onBlur={() => handleBlur("identifier")}
@@ -150,7 +150,7 @@ export default function Register({ onClose }) {
             {errors.identifier && <p className="tw-text-red-600 tw-text-base">{errors.identifier}</p>}
 
             <div>
-              <label htmlFor="password" className="tw-block tw-text-2xl tw-font-medium tw-text-gray-700 tw-mb-2">
+              <label htmlFor="password" className="tw-block tw-text-xl tw-font-medium tw-text-gray-700 tw-mb-2">
                 Mật khẩu
               </label>
               <div className="tw-relative">
@@ -166,7 +166,7 @@ export default function Register({ onClose }) {
             {errors.password && <p className="tw-text-red-600 tw-text-base">{errors.password}</p>}
 
             <div>
-              <label htmlFor="repassword" className="tw-block tw-text-2xl tw-font-medium tw-text-gray-700 tw-mb-2">
+              <label htmlFor="repassword" className="tw-block tw-text-xl tw-font-medium tw-text-gray-700 tw-mb-2">
                 Nhập lại mật khẩu
               </label>
               <div className="tw-relative">

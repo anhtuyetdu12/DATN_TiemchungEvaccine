@@ -67,6 +67,8 @@ INSTALLED_APPS = [
     "users.apps.UsersConfig",
     "vaccines.apps.VaccinesConfig",
     "inventory.apps.InventoryConfig",
+    "knowledges.apps.KnowledgesConfig",
+    
     
   
 ]
@@ -178,3 +180,6 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'tiemchung.evaccine@gmail.com'      # email gửi
 EMAIL_HOST_PASSWORD = 'ysvy tont sltm hjre'  # app password
 
+# tự động nhắc lịch
+APPT_REMINDER_DAYS_BEFORE = [3, 1]     # T-3 và T-1
+APPT_REMINDER_DAY_OF = True            # thêm sáng ngày hẹn

@@ -26,7 +26,7 @@ import StaffHome from "./pages/staff/StaffHome";
 import StaffAppointments from "./pages/staff/StaffAppointments";
 import StaffCustomers from "./pages/staff/StaffCustomers";
 import StaffNotifications from "./pages/staff/StaffNotifications";
-import StaffReports from "./pages/staff/StaffReports";
+import StaffVCKnowledge from "./pages/staff/StaffVCKnowledge";
 import StaffVaccines from "./pages/staff/StaffVaccines";
 
 import ProtectedRouteStaff from "./layouts/ProtectedRouteStaff";
@@ -151,7 +151,7 @@ function App() {
             <Route path="/staff/appointments" element={<ProtectedRouteStaff user={user} authReady={authReady}><StaffAppointments /></ProtectedRouteStaff>}/>
             <Route path="/staff/customers" element={<ProtectedRouteStaff user={user} authReady={authReady}><StaffCustomers /></ProtectedRouteStaff>}/>
             <Route path="/staff/notifications" element={<ProtectedRouteStaff user={user} authReady={authReady}><StaffNotifications /></ProtectedRouteStaff>} />
-            <Route path="/staff/reports" element={<ProtectedRouteStaff user={user} authReady={authReady}><StaffReports /></ProtectedRouteStaff>} />
+            <Route path="/staff/vaccination_knowledge" element={<ProtectedRouteStaff user={user} authReady={authReady}><StaffVCKnowledge /></ProtectedRouteStaff>} />
             <Route path="/staff/vaccines" element={<ProtectedRouteStaff user={user} authReady={authReady}><StaffVaccines /></ProtectedRouteStaff>} />
           </Route>
         </Routes>

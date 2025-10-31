@@ -11,10 +11,11 @@ admin.site.site_title = "Quản trị tiêm chủng"
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("api/users/", include("users.urls")),       # user module
-    path("api/records/", include("records.urls")),   # record module
+    path("api/users/", include("users.urls")),       
+    path("api/records/", include("records.urls")),   
     path("api/vaccines/", include("vaccines.urls")),
     path("api/inventory/", include("inventory.urls")),
+    path("api/knowledges/", include("knowledges.urls")),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
 ]

@@ -118,13 +118,13 @@ export default function StaffNavBar({ user, setUser }) {
                     <li>
                         <Link to="/staff/notifications"
                             className="tw-text-[#333] tw-text-[14px] tw-font-semibold hover:tw-text-[#1999ee]">
-                            Gửi thông báo
+                            Nhắc lịch
                         </Link>
                     </li>
                     <li>
-                        <Link to="/staff/reports"
+                        <Link to="/staff/vaccination_knowledge"
                             className="tw-text-[#333] tw-text-[14px] tw-font-semibold hover:tw-text-[#1999ee]">
-                            Thống kê
+                            Bài viết
                         </Link>
                     </li>
                   </>
