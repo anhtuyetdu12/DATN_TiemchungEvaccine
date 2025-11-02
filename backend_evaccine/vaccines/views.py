@@ -1,52 +1,56 @@
+# vaccines/views.py
 from rest_framework import viewsets, permissions, status
-from .models import  Disease, VaccineCategory, Vaccine, VaccinePackage, VaccinePackageGroup
-from .serializers import (
-    DiseaseSerializer, VaccineCategorySerializer,
-    VaccineSerializer, VaccinePackageSerializer, VaccinePackageGroupSerializer)
-from django.db.models import Prefetch
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from records.models import FamilyMember
+from django.db.models import Prefetch, IntegerField, F, Case, When, Value, Q
 from datetime import date
-from rest_framework.permissions import IsAuthenticated
-from django.db.models import IntegerField, F, Case, When, Value, Q
-from rest_framework.permissions import AllowAny, IsAuthenticatedOrReadOnly
+
+from .models import Disease, VaccineCategory, Vaccine, VaccinePackage, VaccinePackageGroup
+from .serializers import (
+    DiseaseSerializer, VaccineCategorySerializer,
+    VaccineSerializer, VaccinePackageSerializer, VaccinePackageGroupSerializer
+)
+from records.models import FamilyMember
+from records.serializers import BookingSerializer  
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 
 
 class DiseaseViewSet(viewsets.ModelViewSet):
     queryset = Disease.objects.all()
     serializer_class = DiseaseSerializer
     permission_classes = [AllowAny]
-    
+
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
         return ctx
+
 
 class VaccineCategoryViewSet(viewsets.ModelViewSet):
     queryset = VaccineCategory.objects.all()
     serializer_class = VaccineCategorySerializer
     permission_classes = [AllowAny]
-    
+
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
         return ctx
 
+
 class VaccineViewSet(viewsets.ModelViewSet):
-    queryset = Vaccine.objects.all().select_related("disease", "category").order_by('-created_at')
+    queryset = Vaccine.objects.all().select_related("disease", "category").order_by("-created_at")
     serializer_class = VaccineSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticatedOrReadOnly]  # 👈 an toàn hơn AllowAny
     filterset_fields = ["id", "slug", "status", "disease", "category"]
-    
+
     lookup_field = "slug"
     lookup_value_regex = r"[-\w]+"
-    
+
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
         return ctx
-    
+
     @action(detail=False, methods=["get"], url_path="by-ids")
     def by_ids(self, request):
         ids = request.query_params.get("ids", "")
@@ -57,7 +61,6 @@ class VaccineViewSet(viewsets.ModelViewSet):
         qs = self.get_queryset().filter(id__in=id_list)
         return Response(self.get_serializer(qs, many=True).data)
 
-    # 👉 API: /api/vaccines/by-diseases/?disease_ids=1,2&age_group=6 tháng
     @action(detail=False, methods=["get"], url_path="by-diseases")
     def by_diseases(self, request):
         disease_ids = request.query_params.get("disease_ids")
@@ -67,35 +70,37 @@ class VaccineViewSet(viewsets.ModelViewSet):
         queryset = Vaccine.objects.filter(disease_id__in=ids).select_related("disease", "category")
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
-    
+
     @action(detail=False, methods=["get"], url_path="by-age", permission_classes=[IsAuthenticated])
     def by_age(self, request):
         member_id = request.query_params.get("member_id")
         disease_id = request.query_params.get("disease_id")
-        dose_number = request.query_params.get("dose_number")  # mũi N đang xem (optional)
+        dose_number = request.query_params.get("dose_number")
 
         if not member_id:
             return Response({"error": "Thiếu member_id"}, status=400)
 
         member = FamilyMember.objects.filter(id=member_id).first()
-        if not member: return Response({"error": "Thành viên không tồn tại"}, status=404)
-        if member.user != request.user: return Response({"error": "Thành viên không thuộc tài khoản này"}, status=403)
-        if not member.date_of_birth: return Response({"error": "Thiếu ngày sinh của thành viên"}, status=400)
+        if not member:
+            return Response({"error": "Thành viên không tồn tại"}, status=404)
+        if member.user != request.user:
+            return Response({"error": "Thành viên không thuộc tài khoản này"}, status=403)
+        if not member.date_of_birth:
+            return Response({"error": "Thiếu ngày sinh của thành viên"}, status=400)
 
-        # tuổi (tháng)
         today = date.today()
         years = today.year - member.date_of_birth.year - (
             (today.month, today.day) < (member.date_of_birth.month, member.date_of_birth.day)
         )
         month_delta = today.month - member.date_of_birth.month
-        if today.day < member.date_of_birth.day: month_delta -= 1
+        if today.day < member.date_of_birth.day:
+            month_delta -= 1
         age_months = max(0, min(years * 12 + month_delta, 110 * 12))
 
         qs = Vaccine.objects.filter(status="active")
         if disease_id and str(disease_id).isdigit():
             qs = qs.filter(disease_id=int(disease_id))
 
-        # Chuẩn hoá ngưỡng tuổi về THÁNG
         qs = qs.annotate(
             min_months=Case(
                 When(age_unit="tháng", then=F("min_age")),
@@ -110,38 +115,89 @@ class VaccineViewSet(viewsets.ModelViewSet):
                 output_field=IntegerField(),
             ),
         ).filter(
-            Q(min_months__lte=age_months) & (Q(max_months__gte=age_months) | Q(max_months__isnull=True))
+            Q(min_months__lte=age_months) &
+            (Q(max_months__gte=age_months) | Q(max_months__isnull=True))
         ).select_related("disease", "category")
 
-        # (tuỳ chọn) lọc theo mũi: chỉ show các vaccine có phác đồ đáp ứng mũi đang xét
         if dose_number and str(dose_number).isdigit():
             qs = qs.filter(Q(doses_required__isnull=True) | Q(doses_required__gte=int(dose_number)))
 
         serializer = self.get_serializer(qs, many=True)
-
-        # gợi ý "tiếp theo" dựa trên lịch sử các mũi (nếu muốn chặt chẽ hơn)
-        # bạn có thể bổ sung một block tính số mũi đã tiêm cho disease_id này để sắp xếp ưu tiên:
-        # next_due_dose = (đếm mũi đã tiêm + 1)
-
         return Response({
             "member": member.full_name,
             "age_text": f"{years} tuổi" if years >= 1 else f"{age_months} tháng",
             "age_months": age_months,
             "vaccines": serializer.data,
         })
-        
-    
+
+    # ====== mới: đặt 1 vaccine ngay tại đây ======
+    @action(detail=True, methods=["post"], url_path="book", permission_classes=[IsAuthenticated])
+    def book(self, request, slug=None):
+        vaccine = self.get_object()
+        member_id = request.data.get("member_id")
+        appointment_date = request.data.get("appointment_date")
+        location = request.data.get("location") or ""
+        notes = request.data.get("notes") or ""
+
+        if not member_id or not appointment_date:
+            return Response({"detail": "Thiếu member_id hoặc appointment_date"}, status=400)
+
+        payload = {
+            "member_id": member_id,
+            "appointment_date": appointment_date,
+            "location": location,
+            "notes": notes,
+            "vaccine_id": vaccine.id,  # 👈 dùng BookingSerializer nhánh vaccine_id
+        }
+        ser = BookingSerializer(data=payload, context={"request": request})
+        ser.is_valid(raise_exception=True)
+        booking = ser.save()
+        return Response(BookingSerializer(booking, context={"request": request}).data, status=201)
+
+    # ====== mới: đặt nhiều vaccine cùng lúc (giỏ) ======
+    @action(detail=False, methods=["post"], url_path="checkout", permission_classes=[IsAuthenticated])
+    def checkout(self, request):
+        member_id = request.data.get("member_id")
+        appointment_date = request.data.get("appointment_date")
+        vaccine_ids = request.data.get("vaccine_ids") or []  # [1,2,3]
+        location = request.data.get("location") or ""
+        notes = request.data.get("notes") or ""
+
+        if not member_id or not appointment_date or not vaccine_ids:
+            return Response({"detail": "Thiếu member_id / appointment_date / vaccine_ids"}, status=400)
+
+        items = [{"vaccine_id": vid, "quantity": 1} for vid in vaccine_ids]
+
+        ser = BookingSerializer(
+            data={
+                "member_id": member_id,
+                "appointment_date": appointment_date,
+                "location": location,
+                "notes": notes,
+                "items": items,
+            },
+            context={"request": request},
+        )
+        ser.is_valid(raise_exception=True)
+        booking = ser.save()
+        return Response(BookingSerializer(booking, context={"request": request}).data, status=201)
+
+
 class VaccinePackageGroupViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = VaccinePackageGroup.objects.filter(status=True).prefetch_related(
-        Prefetch("packages", queryset=VaccinePackage.objects.prefetch_related("disease_groups__vaccines"))
-    ).order_by('-created_at')
+        Prefetch(
+            "packages",
+            queryset=VaccinePackage.objects.filter(status=True).prefetch_related("disease_groups__vaccines")
+        )
+    ).order_by("-created_at")
     serializer_class = VaccinePackageGroupSerializer
     permission_classes = [AllowAny]
-    
+
+
 class VaccinePackageViewSet(viewsets.ModelViewSet):
-    queryset = VaccinePackage.objects.all().order_by('-created_at')
+    queryset = VaccinePackage.objects.all().order_by("-created_at")
     serializer_class = VaccinePackageSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticatedOrReadOnly]
     lookup_field = "slug"
     lookup_value_regex = r"[-\w]+"
 
@@ -149,6 +205,3 @@ class VaccinePackageViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context["request"] = self.request
         return context
-
-
-    

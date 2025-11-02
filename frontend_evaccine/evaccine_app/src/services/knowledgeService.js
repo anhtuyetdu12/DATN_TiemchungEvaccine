@@ -69,3 +69,9 @@ export async function rejectKnowledgeArticle(id) {
   const { data } = await api.post(`/knowledges/articles/${id}/reject/`);
   return adaptArticle(data);
 }
+
+export async function getPublicKnowledgeArticles(params = {}) {
+  const { data } = await api.get("/knowledges/articles/public/", { params });
+  // tái dùng adaptArticle để đỡ viết lại
+  return (Array.isArray(data) ? data : []).map(adaptArticle);
+}

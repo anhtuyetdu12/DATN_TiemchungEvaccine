@@ -3,9 +3,9 @@ import { useState, useEffect, useMemo  } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import AccordionFilter from "../../components/AccordionFilter";
 import { Link, useNavigate  } from "react-router-dom";
-import api from "../../services/axios";
 import Pagination from "../../components/Pagination";
 import { addToBooking, getBookingSlugs } from "../../utils/bookingStorage";
+import { getAllDiseases,  getAllVaccines,  getAllVaccinePackages,  getAllVaccineCategories,  getPackageBySlug, } from "../../services/vaccineService";
 
 export default function VaccinesList() {
   const banners = [
@@ -57,22 +57,21 @@ export default function VaccinesList() {
 
 
   
- // --- LẤY DỮ LIỆU TỪ BACKEND ---
+  // --- LẤY DỮ LIỆU TỪ BACKEND ---
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const pickList = (res) => Array.isArray(res?.data) ? res.data : (res?.data?.results || []);
 
-        const [vaccinesRes, packagesRes, categoriesRes] = await Promise.all([
-          api.get("/vaccines/vaccines/"),
-          api.get("/vaccines/packages/"),
-          api.get("/vaccines/categories/"),
+        // 👇 gọi 3 service cùng lúc
+        const [vaccinesList, packagesList, categoriesList] = await Promise.all([
+          getAllVaccines(),
+          getAllVaccinePackages(),
+          getAllVaccineCategories(),
         ]);
 
-       // sau khi lấy vaccinesRes
-      const fetchedVaccines = pickList(vaccinesRes)
-        .map(v => ({
+        // 1. chuẩn hóa vaccines để FE xài
+        const fetchedVaccines = (vaccinesList || []).map((v) => ({
           ...v,
           image: v.image || "/images/no-image.jpg",
           title: v.name,
@@ -80,27 +79,28 @@ export default function VaccinesList() {
           disease_name: v.disease?.name || "",
         }));
 
-       // sau khi lấy packagesRes
-      const fetchedPackages = pickList(packagesRes)
-        .filter(p => !!p.slug)   // 👈 loại item chưa có slug
-        .map(p => ({
-          id: p.id,
-          slug: p.slug,
-          name: p.name,
-          group_name: p.group_name || "Khác",
-          image: p.image || "/images/no-image.jpg",
-        }));
-        //lấy danh mục vắc xin
-        const fetchedCategories = pickList(categoriesRes).map((c) => ({
+        // 2. chuẩn hóa packages để FE xài
+        const fetchedPackages = (packagesList || [])
+          .filter((p) => !!p.slug) // bỏ mấy cái chưa có slug
+          .map((p) => ({
+            id: p.id,
+            slug: p.slug,
+            name: p.name,
+            group_name: p.group_name || "Khác",
+            image: p.image || "/images/no-image.jpg",
+          }));
+
+        // 3. chuẩn hóa categories
+        const fetchedCategories = (categoriesList || []).map((c) => ({
           ...c,
           name: c.name,
           image: c.image || "/images/no-image.jpg",
         }));
 
         setVaccines(fetchedVaccines);
-        setDisplayedVaccines(fetchedVaccines); 
+        setDisplayedVaccines(fetchedVaccines);
         setVaccinePackages(fetchedPackages);
-        setVaccineCategories(fetchedCategories || []);
+        setVaccineCategories(fetchedCategories);
       } catch (err) {
         console.error("Lỗi lấy dữ liệu:", err);
       } finally {
@@ -110,6 +110,7 @@ export default function VaccinesList() {
     fetchData();
   }, []);
 
+
   useEffect(() => {
     if (selectedPackage?.disease_groups?.length) {
       const allChecked = selectedPackage.disease_groups.every((g) => g.checked);
@@ -118,22 +119,29 @@ export default function VaccinesList() {
   }, [selectedPackage]);
 
   useEffect(() => {
-    if (vaccinePackages.length > 0) {
-      const first = vaccinePackages.find(p => p.slug);   // 👈
-      if (!first) return;                                // không gọi khi không có slug
-      api.get(`/vaccines/packages/${first.slug}/`)
-        .then(({data}) => {
-          const enriched = {
-            ...data,
-            disease_groups: (data.disease_groups || []).map(g => ({
-              ...g, checked: true, selectedVaccine: g.vaccines?.[0] || null, quantity: 1,
-            })),
-          };
-          setSelectedPackage(enriched);
-        })
-        .catch(e => console.error("Lỗi lấy chi tiết gói:", e));
-    }
+    const fetchFirstPackage = async () => {
+      if (vaccinePackages.length === 0) return;
+      const first = vaccinePackages.find((p) => p.slug);
+      if (!first) return;
+      try {
+        const data = await getPackageBySlug(first.slug);
+        const enriched = {
+          ...data,
+          disease_groups: (data.disease_groups || []).map((g) => ({
+            ...g,
+            checked: true,
+            selectedVaccine: g.vaccines?.[0] || null,
+            quantity: 1,
+          })),
+        };
+        setSelectedPackage(enriched);
+      } catch (e) {
+        console.error("Lỗi lấy chi tiết gói:", e);
+      }
+    };
+    fetchFirstPackage();
   }, [vaccinePackages]);
+
 
   //------ bộ lọc -----
    // 🔹 RANGES tuổi (FE định nghĩa, so khớp min_age/max_age từ BE)
@@ -164,14 +172,21 @@ export default function VaccinesList() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await api.get("/vaccines/diseases/");
-        const opts = (res.data || []).map(d => ({ id: String(d.id), label: d.name }));
+        const list = await getAllDiseases();
+        const opts = list.map((d) => ({
+          id: String(d.id),
+          label: d.name,
+        }));
         setDiseaseOptions([{ id: "all", label: "Tất cả" }, ...opts]);
       } catch (e) {
+        console.error("Lỗi lấy diseases:", e);
         setDiseaseOptions([{ id: "all", label: "Tất cả" }]);
       }
     })();
   }, []);
+
+
+
 
   // Lấy Origin động từ dữ liệu vắc xin
   useEffect(() => {
@@ -392,8 +407,9 @@ export default function VaccinesList() {
                         />
 
                         <AccordionFilter
-                          title="Phòng bệnh"  options={diseaseOptions}         
-                          selected={filters.diseases} onChange={(vals) => setFilters((p) => ({ ...p, diseases: vals }))}
+                          title="Phòng bệnh" options={diseaseOptions} 
+                          selected={filters.diseases}
+                          onChange={(vals) => setFilters((p) => ({ ...p, diseases: vals }))}
                           showMoreAt={4} withSearch
                         />
 
@@ -548,25 +564,23 @@ export default function VaccinesList() {
                         <ul className="tw-space-y-3 tw-mt-3">
                           {packages.map((pkg) => (
                             <li key={pkg.id} onClick={async () => {
-                              if (!pkg.slug) return;
-                              try {
-                                const res = await api.get(`/vaccines/packages/${pkg.slug}/`);
-                                const data = res.data || {};
-                                // bơm default cho từng group để UI chạy mượt
-                                const enriched = {
-                                  ...data,
-                                  disease_groups: (data.disease_groups || []).map(g => ({
-                                    ...g,
-                                    checked: true,
-                                    selectedVaccine: g.vaccines?.[0] || null,
-                                    quantity: 1,
-                                  })),
-                                };
-                                setSelectedPackage(enriched);
-                              } catch (e) {
-                                console.error("Lỗi lấy chi tiết gói:", e);
-                              }
-                            }}
+                                if (!pkg.slug) return;
+                                try {
+                                  const data = await getPackageBySlug(pkg.slug);
+                                  const enriched = {
+                                    ...data,
+                                    disease_groups: (data.disease_groups || []).map((g) => ({
+                                      ...g,
+                                      checked: true,
+                                      selectedVaccine: g.vaccines?.[0] || null,
+                                      quantity: 1,
+                                    })),
+                                  };
+                                  setSelectedPackage(enriched);
+                                } catch (e) {
+                                  console.error("Lỗi lấy chi tiết gói:", e);
+                                }
+                              }}
                               className={`tw-flex tw-items-center tw-gap-[10px] tw-bg-white tw-rounded-xl tw-h-[72px] tw-p-[4px] tw-cursor-pointer
                                 tw-border tw-transition-all tw-duration-200
                                 ${ selectedPackage?.id === pkg.id

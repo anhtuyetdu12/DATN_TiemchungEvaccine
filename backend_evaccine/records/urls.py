@@ -6,7 +6,7 @@ from .views import (
     StaffCustomerListAPIView, StaffCustomerMembersAPIView,
     StaffCreateAppointmentAPIView, StaffUpdateAppointmentStatusAPIView, StaffManageMemberAPIView, 
     StaffAddHistoryAPIView, StaffListAppointmentsAPIView, StaffUpdateCustomerProfileAPIView, 
-    CustomerNotificationPreviewAPIView, CustomerNotificationSendAPIView
+    CustomerNotificationPreviewAPIView, CustomerNotificationSendAPIView, MyNotificationMarkReadAPIView, MyNotificationsAPIView
 )
 
 
@@ -36,5 +36,8 @@ urlpatterns = [
     
     path("staff/customers/notifications/preview", CustomerNotificationPreviewAPIView.as_view()),
     path("staff/customers/notifications/send", CustomerNotificationSendAPIView.as_view()),
+    
+    path("me/notifications/", MyNotificationsAPIView.as_view()),
+    path("me/notifications/<int:pk>/read", MyNotificationMarkReadAPIView.as_view()),
 
 ]

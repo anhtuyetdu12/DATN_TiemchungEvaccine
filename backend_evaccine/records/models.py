@@ -106,3 +106,17 @@ class BookingItem(models.Model):
         db_table = 'vaccines_bookingitem'     # << GIỮ NGUYÊN TÊN BẢNG!
         verbose_name = "Mục vắc xin"
         verbose_name_plural = "Danh sách mục vắc xin"
+        
+class CustomerNotification(models.Model):
+    user = models.ForeignKey( settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="customer_notifications" )
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    channels = models.JSONField(default=dict, blank=True)
+    is_read = models.BooleanField(default=False)
+    audience = models.CharField(max_length=50, blank=True, null=True)
+    related_booking_id = models.CharField(max_length=50, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    meta = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]

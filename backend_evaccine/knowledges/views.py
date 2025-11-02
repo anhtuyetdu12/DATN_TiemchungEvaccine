@@ -75,3 +75,24 @@ class KnowledgeArticleViewSet(viewsets.ModelViewSet):
         article.approved_by = request.user
         article.save()
         return Response(self.get_serializer(article).data)
+    @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny])
+    def public(self, request):
+        """
+        /knowledges/articles/public/?visibility=multimedia&category=1&limit=6
+        """
+        qs = (KnowledgeArticle.objects
+              .filter(status="published")
+              .select_related("category", "author")
+              .order_by("-published_at", "-created_at"))
+        visibility = request.query_params.get("visibility")
+        category = request.query_params.get("category")
+        limit = int(request.query_params.get("limit", 20))
+
+        if visibility:
+            qs = qs.filter(visibility=visibility)
+        if category:
+            qs = qs.filter(category_id=category)
+
+        qs = qs[:limit]
+        ser = KnowledgeArticleSerializer(qs, many=True)
+        return Response(ser.data)

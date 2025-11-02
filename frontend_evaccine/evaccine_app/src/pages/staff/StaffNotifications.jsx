@@ -32,10 +32,10 @@ export default function StaffSendNotification() {
 
   const [sample, setSample] = useState({ name: "", date: "" });
 
-  const selectedIds = useMemo(
-  () => [...new Set(selected.map(x => x.id))],
-  [selected]
-);
+  const selectedBookingIds = useMemo(
+    () => selected.map(x => x.id).filter(Boolean),
+    [selected]
+  );
 
 const upsertSelected = (items) => {
   setSelected((prev) => {
@@ -206,11 +206,11 @@ const toDisplayDate = (iso) => formatDate(iso);
     { value: "custom", label: "Chọn danh sách cụ thể" },
   ];
   const templates = [
-    { k: "t3", label: "Nhắc T-3", title: "Nhắc lịch tiêm sắp tới", msg: "Chào {{name}}, lịch tiêm của bạn là {{date}}. Vui lòng đến đúng giờ và mang theo giấy tờ cần thiết." },
-    { k: "t1", label: "Nhắc T-1", title: "Nhắc lịch tiêm ngày mai", msg: "Chào {{name}}, ngày mai {{date}} bạn có lịch tiêm. Nếu cần đổi lịch, xin liên hệ tổng đài." },
-    { k: "today", label: "Hôm nay", title: "Hôm nay bạn có lịch tiêm", msg: "Chào {{name}}, hôm nay {{date}} bạn có lịch tiêm. Hẹn gặp bạn tại cơ sở." },
+    { k: "t3", label: "Nhắc T-3", title: "Nhắc lịch tiêm sắp tới", msg: "Chào {{name}}, lịch tiêm của {{member}} là {{date}}. Vui lòng đến đúng giờ và mang theo giấy tờ cần thiết." },
+    { k: "t1", label: "Nhắc T-1", title: "Nhắc lịch tiêm ngày mai", msg: "Chào {{name}}, ngày mai {{date}} {{member}}  có lịch tiêm. Nếu cần đổi lịch tiêm, xin liên hệ tổng đài - 18006926." },
+    { k: "today", label: "Hôm nay", title: "Hôm nay bạn có lịch tiêm", msg: "Chào {{name}}, hôm nay {{date}} {{member}}  có lịch tiêm. Hẹn gặp bạn tại cơ sở tiêm chủng." },
     { k: "nextdose", label: "Theo phác đồ", title: "Nhắc lịch mũi tiêm tiếp theo",
-      msg: "Chào {{name}}, bạn đã đến lịch tiêm mũi tiếp theo vắc xin {{vaccine}} vào {{date}}. Phác đồ yêu cầu {{total_doses}} mũi, mỗi mũi cách nhau {{interval}} ngày. Vui lòng sắp xếp thời gian để tiêm đúng lịch."
+      msg: "Chào {{name}}, {{member}}  đã đến lịch tiêm mũi tiếp theo vắc xin {{vaccine}} vào {{date}}. Phác đồ yêu cầu {{total_doses}} mũi, mỗi mũi cách nhau {{interval}} ngày. Vui lòng sắp xếp thời gian để tiêm đúng lịch."
   },
   ];
   
@@ -235,7 +235,7 @@ const toDisplayDate = (iso) => formatDate(iso);
           params.next_dose_days = nextDoseDays;
           params.only_unscheduled = 1;
         }
-        if (audience === "custom") params.customer_ids = selectedIds;
+        if (audience === "custom") params.customer_ids = selectedBookingIds;
         const data = await previewAudience(params);
         if (mounted) setPreviewCount(data?.count ?? 0);
       } catch {
@@ -244,7 +244,7 @@ const toDisplayDate = (iso) => formatDate(iso);
     };
     run();
     return () => { mounted = false; };
-  }, [audience, daysBefore, nextDoseDays, selectedIds]);
+  }, [audience, daysBefore, nextDoseDays, selectedBookingIds]);
 
 
   const validate = () => {
@@ -252,7 +252,7 @@ const toDisplayDate = (iso) => formatDate(iso);
     if (!channels.email && !channels.app && !channels.sms) { toast.warn("Chọn ít nhất 1 kênh gửi."); return false; }
     if (!title.trim()) { toast.warn("Vui lòng nhập tiêu đề."); return false; }
     if (!message.trim()) { toast.warn("Vui lòng nhập nội dung."); return false; }
-    if (audience === "custom" && (!selectedIds || selectedIds.length === 0)) {
+    if (audience === "custom" && (!selectedBookingIds || selectedBookingIds.length === 0)) {
       toast.warn("Chưa chọn khách nào trong danh sách cụ thể."); return false;
     }
     if (channels.sms && message.length > 160) {
@@ -278,10 +278,11 @@ const toDisplayDate = (iso) => formatDate(iso);
         audience,
         days_before: audience === "upcoming" ? Number(daysBefore) : undefined,
         next_dose_days: audience === "nextdose" ? Number(nextDoseDays) : undefined,
-        customer_ids: audience === "custom" ? selectedIds : undefined,
+        customer_ids: audience === "custom" ? selectedBookingIds : undefined,
         channels,
         title: title.trim(),
         message: message.trim(),
+        distinct_user: false, 
       };
       await sendCustomerNotification(payload);
       toast.success("Đã gửi thông báo nhắc lịch cho khách.", { toastId: "notify-customers-success" });
@@ -296,9 +297,7 @@ const toDisplayDate = (iso) => formatDate(iso);
   const previewRendered = useMemo(() => {
     const name = sample.name || "Khách hàng";
     const rawDate = sample.date;
-    const date = rawDate
-      ? new Date(rawDate).toLocaleDateString("vi-VN")
-      : "dd/mm/yyyy";
+    const date = rawDate || "dd/mm/yyyy";
 
     const interval = sample.interval != null ? String(sample.interval) : "…";
     const total = sample.total_doses != null ? String(sample.total_doses) : "…";
@@ -310,6 +309,7 @@ const toDisplayDate = (iso) => formatDate(iso);
 
     return message
       .replaceAll("{{name}}", name)
+      .replaceAll("{{member}}", sample.name || "Thành viên")
       .replaceAll("{{date}}", date)
       .replaceAll("{{interval}}", interval)
       .replaceAll("{{total_doses}}", total)
@@ -690,7 +690,7 @@ const toDisplayDate = (iso) => formatDate(iso);
                     className="tw-w-full tw-mt-1 tw-border tw-rounded-lg tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-sky-300 focus:tw-border-sky-700"
                   />
                   <div className="tw-text-[12px] tw-text-gray-500 tw-mt-1">
-                    Biến hỗ trợ: <code className="tw-bg-gray-100 tw-px-1 tw-rounded">{"{{name}}"}</code>, <code className="tw-bg-gray-100 tw-px-1 tw-rounded">{"{{date}}"}</code>
+                    Biến hỗ trợ: <code className="tw-bg-gray-100 tw-px-1 tw-rounded">{"{{name}} || {{member}}"}</code>, <code className="tw-bg-gray-100 tw-px-1 tw-rounded">{"{{date}}"}</code>
                   </div>
                 </div>
               </div>

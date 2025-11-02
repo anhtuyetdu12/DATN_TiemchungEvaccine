@@ -33,3 +33,13 @@ export async function getAllDiseases() {
   const list = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
   return list;
 }
+
+export async function getAllVaccinePackages() {
+  const { data } = await api.get("/vaccines/packages/");
+  return Array.isArray(data) ? data : (data?.results || []);
+}
+
+export async function getAllVaccineCategories() {
+  const { data } = await api.get("/vaccines/categories/");
+  return Array.isArray(data) ? data : (data?.results || []);
+}
