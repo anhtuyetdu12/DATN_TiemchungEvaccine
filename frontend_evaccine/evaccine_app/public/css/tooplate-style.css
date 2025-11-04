@@ -67,6 +67,47 @@ http://www.tooplate.com/view/2098-health
     font-weight: normal;
     line-height: 24px;
   }
+/* ===== Scrollbar Gradient Cyan→Blue chuẩn như ảnh ===== */
+:root {
+  /* Track (nền xám nhạt) & fallback cho Firefox */
+  --sb-track: #f3f4f6;              /* gray-100 */
+  --sb-thumb-fallback: #38bdf8;     /* cyan-400 */
+
+  /* Gradient chính */
+  --sb-thumb-from: #22d3ee;         /* cyan-400 */
+  --sb-thumb-to:   #1b6bee;         /* blue-500 */
+}
+
+/* Chrome, Edge, Safari */
+*::-webkit-scrollbar {
+  width: 8px;                       /* w-2 */
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--sb-track);
+  border-radius: 0.75rem;           /* tw-rounded-xl */
+}
+*::-webkit-scrollbar-thumb {
+  background-image: linear-gradient(to bottom, var(--sb-thumb-from), var(--sb-thumb-to));
+  border-radius: 9999px;            /* tw-rounded-full */
+}
+*::-webkit-scrollbar-thumb:hover {
+  filter: brightness(1.1);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;                                /* tw-scrollbar-thin */
+  scrollbar-color: var(--sb-thumb-fallback) var(--sb-track);
+}
+
+/* ===== Dark mode ===== */
+.dark :root {
+  --sb-track: rgba(255, 255, 255, 0.06); /* track nhẹ nền tối */
+  --sb-thumb-fallback: #60a5fa;          /* blue-400 */
+  --sb-thumb-from: #22d3ee;              /* cyan-400 */
+  --sb-thumb-to:   #1b6bee;              /* blue-400 */
+}
 
  
 

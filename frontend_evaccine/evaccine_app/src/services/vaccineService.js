@@ -20,11 +20,25 @@ export async function getPackageBySlug(slug) {
   return data;
 }
 
-/** ⬇️ LẤY TOÀN BỘ VACCINE (có disease, doses_required, price, ...) */
+/** LẤY TOÀN BỘ VACCINE: tự động chạy qua tất cả các trang (DRF) */
 export async function getAllVaccines(params = {}) {
-  const { data } = await api.get("/vaccines/vaccines/", { params });
-  const list = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
-  return list;
+  // Trang đầu (có params)
+  let url = "/vaccines/vaccines/";
+  let firstCall = true;
+  const all = [];
+
+  while (url) {
+    const { data } = await api.get(url, firstCall ? { params } : undefined);
+    // data có thể là array (không phân trang) hoặc object (có results, next, count)
+    const items = Array.isArray(data) ? data : (data?.results || []);
+    all.push(...items);
+
+    // next có thể là absolute URL; axios chấp nhận absolute URL với instance
+    url = (Array.isArray(data) ? null : data?.next) || null;
+    firstCall = false;
+  }
+
+  return all;
 }
 
 /** ⬇️ LẤY TOÀN BỘ DISEASES (có dose_count) */

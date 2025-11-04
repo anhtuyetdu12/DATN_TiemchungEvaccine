@@ -180,7 +180,7 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
   };
 
   return (
-    <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-3 tw-gap-6 ">
+    <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-3 tw-gap-6 tw-mb-10">
       <form onSubmit={handleSubmit} className="tw-col-span-2 tw-bg-white tw-rounded-2xl tw-shadow-md tw-border tw-border-gray-100 " >
         <div className="tw-flex tw-items-center tw-justify-between tw-px-5 tw-py-4 tw-border-b tw-border-gray-100 tw-bg-gradient-to-r tw-from-pink-50 tw-to-rose-50">
           <h3 className="tw-text-[14px] tw-font-bold tw-text-pink-700 tw-flex tw-items-center ">
@@ -351,7 +351,12 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
           <div>
             <label className="tw-block tw-text-xl tw-text-left tw-font-medium tw-mb-1">Nội dung</label>
             <textarea  rows={5}  maxLength={messageMax}   value={form.message} onChange={(e) => handleChange("message", e.target.value)}
-              className="tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-border-gray-300 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800 tw-break-words tw-resize-y"
+              className="tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-border-gray-300 
+                  tw-overflow-y-auto tw-scrollbar-thin tw-scrollbar-thumb-gray-300 tw-scrollbar-track-transparent 
+                  [&::-webkit-scrollbar]:tw-w-2 [&::-webkit-scrollbar-thumb]:tw-rounded-full
+                [&::-webkit-scrollbar-track]:tw-bg-gray-100 [&::-webkit-scrollbar-thumb]:tw-bg-gradient-to-b
+                [&::-webkit-scrollbar-thumb]:tw-from-cyan-400 [&::-webkit-scrollbar-thumb]:tw-to-blue-400
+                  focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800 tw-break-words tw-resize-y"
               placeholder="Lý do, kho, lô, thời điểm cần hàng, hoặc thông tin cần admin xử lý..." />
             <div className="tw-text-right tw-text-sm tw-text-gray-500">{messageLen}/{messageMax}</div>
 
@@ -460,7 +465,11 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
 
           {/* Nội dung: giới hạn chiều cao, tự cuộn */}
           <div className="tw-text-lg tw-text-left tw-text-gray-700 tw-whitespace-pre-line tw-border tw-border-dashed
-           tw-border-gray-300 tw-rounded-lg tw-p-3 tw-bg-white tw-max-h-48 tw-overflow-auto tw-break-words">
+                  tw-border-gray-300 tw-rounded-lg tw-p-3 tw-bg-white tw-max-h-48 tw-overflow-auto tw-break-words
+                    tw-overflow-y-auto tw-scrollbar-thin tw-scrollbar-thumb-gray-300 tw-scrollbar-track-transparent          
+                    [&::-webkit-scrollbar]:tw-w-2 [&::-webkit-scrollbar-thumb]:tw-rounded-full
+                  [&::-webkit-scrollbar-track]:tw-bg-gray-100 [&::-webkit-scrollbar-thumb]:tw-bg-gradient-to-b
+                  [&::-webkit-scrollbar-thumb]:tw-from-cyan-400 [&::-webkit-scrollbar-thumb]:tw-to-blue-400">
             {form.message || "— Nội dung sẽ hiển thị ở đây —"}
           </div>
         </div>

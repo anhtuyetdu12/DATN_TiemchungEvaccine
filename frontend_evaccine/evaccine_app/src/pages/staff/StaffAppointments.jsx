@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import AppointmentDetailModal from "./modal/appointment/AppointmentDetailModal";
 import ConfirmModal from "../../components/ConfirmModal";
 import CompleteBookingModal from "./modal/appointment/CompleteBookingModal";
+import Pagination from "../../components/Pagination";
 import { toast } from "react-toastify";
 import api from "../../services/axios";
 
@@ -79,7 +80,6 @@ export default function StaffAppointments() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(count / perPage)), [count]);
   const openConfirm = (action, item) => { setConfirmAction({ action, item });  };
 
   const doAction = async () => {
@@ -404,12 +404,6 @@ export default function StaffAppointments() {
                     <i className="fa-solid fa-syringe tw-mr-2"></i>
                     Hoàn thành
                   </button>
-                  {/* <a  href="/staff/notifications"
-                    className="tw-bg-orange-100 tw-text-orange-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-orange-200 hover:tw-text-orange-600 tw-border tw-border-transparent 
-                                    hover:tw-border-orange-600" >
-                    <i className="fa-solid fa-bell tw-mr-2"></i>
-                    Gửi thông báo
-                  </a> */}
                 </td>
               </tr>
             ))}
@@ -418,26 +412,12 @@ export default function StaffAppointments() {
 
         {/* Phân trang */}
         {count > perPage && (
-          <div className="tw-flex tw-justify-center tw-items-center tw-gap-2 tw-py-4">
-            <button  onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-              className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50" >
-              <i className="fa-solid fa-angles-left"></i>
-            </button>
-
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .slice(Math.max(0, page - 2), Math.min(totalPages, page + 1) + 1)
-              .map((num) => (
-                <button  key={num} onClick={() => setPage(num)}
-                  className={`tw-px-4 tw-py-1 tw-rounded ${ num === page ? "tw-bg-blue-500 tw-text-white"  : "tw-bg-gray-100 hover:tw-bg-gray-200" }`}  >
-                  {num}
-                </button>
-              ))}
-
-            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50" >
-              <i className="fa-solid fa-angles-right"></i>
-            </button>
-          </div>
+          <Pagination
+            page={page}
+            totalItems={count}      
+            perPage={perPage}      
+            onPageChange={setPage}
+          />
         )}
       </div>
 
