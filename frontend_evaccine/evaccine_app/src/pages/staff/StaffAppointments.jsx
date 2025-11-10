@@ -13,9 +13,14 @@ export default function StaffAppointments() {
   const [page, setPage] = useState(1); // trang đang xem
   const perPage = 10; // cấu hình DRF của bạn
 
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all"); // "all" | "pending" | "confirmed" | "cancelled"
-  const [selectedDate, setSelectedDate] = useState(""); // ngày hẹn duy nhất
+  // draft (UI đang gõ/chọn) vs applied (đã bấm Lọc)
+  const [draftSearch, setDraftSearch] = useState("");
+  const [draftFilter, setDraftFilter] = useState("all");
+  const [draftDate, setDraftDate] = useState("");
+
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [appliedFilter, setAppliedFilter] = useState("all");
+  const [appliedDate, setAppliedDate] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [openStatus, setOpenStatus] = useState(false);
@@ -42,43 +47,35 @@ export default function StaffAppointments() {
     { value: "completed", label: "Đã tiêm xong" },
   ];
 
-  // --- gọi API list ---
   const fetchAppointments = async () => {
-    setLoading(true);
-    try {
-      const params = { page };
-      if (filter !== "all") params.status = filter;
-      if (search) params.search = search.trim();
-      if (selectedDate) params.date = selectedDate; // <— chỉ 1 ngày duy nhất
-
-      const res = await api.get("/records/bookings/", { params });
-      const data = res.data;
-      const rows = data.results || data; // nếu bạn chưa bật pagination
-      setAppointments(rows);
-      setCount(data.count ?? rows.length ?? 0);
-    } catch (err) {
-      console.error(err);
-      toast.error("Không tải được danh sách lịch hẹn");
-    } finally {
-      setLoading(false);
-    }
+     setLoading(true);
+     try {
+       const params = { page };
+      if (appliedFilter !== "all") params.status = appliedFilter;
+      if (appliedSearch) params.search = appliedSearch.trim();
+      if (appliedDate) {
+        params.date_from = appliedDate;   // lọc đúng 1 ngày
+        params.date_to   = appliedDate;
+        }
+        const res = await api.get("/records/bookings/", { params });
+        const data = res.data;
+        const rows = data.results || data;
+        setAppointments(rows);
+        setCount(data.count ?? rows.length ?? 0);
+      } catch (err) {
+        console.error(err);
+        toast.error("Không tải được danh sách lịch hẹn");
+      } finally {
+        setLoading(false);
+      }
   };
 
-  // fetch khi page/filter thay đổi (KHÔNG tự chạy khi đổi ngày — sẽ bấm nút Lọc)
+
+  // Chỉ fetch khi đổi trang HOẶC có thay đổi đã-ap-dụng (sau khi bấm Lọc)
   useEffect(() => {
     fetchAppointments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, filter]);
-
-  // --- debounce search ---
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setPage(1);
-      fetchAppointments();
-    }, 400);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
+  }, [page, appliedFilter, appliedSearch, appliedDate]);
 
   const openConfirm = (action, item) => { setConfirmAction({ action, item });  };
 
@@ -128,11 +125,11 @@ export default function StaffAppointments() {
 
   const buildQuery = () => {
     const params = new URLSearchParams();
-    if (filter !== "all") params.set("status", filter);
-    if (search) params.set("search", search.trim());
-    if (selectedDate) {
-      params.set("date_from", selectedDate);
-      params.set("date_to", selectedDate);
+    if (appliedFilter !== "all") params.set("status", appliedFilter);
+    if (appliedSearch) params.set("search", appliedSearch.trim());
+    if (appliedDate) {
+      params.set("date_from", appliedDate);
+      params.set("date_to", appliedDate);
     }
     if (page) params.set("page", String(page));
     return params.toString();
@@ -141,44 +138,37 @@ export default function StaffAppointments() {
   // --- Xuất Excel ---
   const exportExcel = async () => {
     try {
-      const qs = buildQuery();
-      const res = await api.get(`/records/bookings/export/excel?${qs}`, {
+      const qs = buildQuery(); // dùng appliedFilter, appliedSearch, appliedDate, page nếu bạn muốn
+      const res = await api.get(`/records/bookings/export/excel/?${qs}`, {
         responseType: "blob",
       });
-      downloadBlob(res.data, `lich-hen${selectedDate ? `-${selectedDate}` : ""}.xlsx`);
+
+      downloadBlob(
+        res.data,
+        `lich-hen${appliedDate ? `-${appliedDate}` : ""}.xlsx`
+      );
     } catch (e) {
       console.error(e);
       toast.error("Xuất Excel thất bại");
     }
   };
 
-  // --- Xuất PFX (nếu backend là PDF, đổi đường dẫn & đuôi file tương ứng) ---
-  const exportPfx = async () => {
-    try {
-      const qs = buildQuery();
-      const res = await api.get(`/records/bookings/export/pfx?${qs}`, {
-        responseType: "blob",
-      });
-      downloadBlob(res.data, `lich-hen${selectedDate ? `-${selectedDate}` : ""}.pfx`);
-    } catch (e) {
-      console.error(e);
-      toast.error("Xuất PFX thất bại");
-    }
-  };
 
-  // --- bấm nút Lọc ---
   const applyFilter = () => {
+    setAppliedSearch(draftSearch);
+    setAppliedFilter(draftFilter);
+    setAppliedDate(draftDate);
     setPage(1);
-    fetchAppointments();
   };
-
-  // --- Reset ---
   const resetAll = () => {
-    setSearch("");
-    setFilter("all");
-    setSelectedDate("");
+    setDraftSearch("");
+    setDraftFilter("all");
+    setDraftDate("");
+    setAppliedSearch("");
+    setAppliedFilter("all");
+    setAppliedDate("");
     setPage(1);
-    fetchAppointments();
+    // useEffect sẽ tự fetch
   };
 
  // Hiển thị danh sách vắc xin mà người dùng đã đặt trong lịch hẹn
@@ -267,11 +257,8 @@ export default function StaffAppointments() {
           <div className="tw-grid md:tw-grid-cols-3 tw-gap-4">
             <input  type="text"  placeholder="Nhập thông tin tìm kiếm..."
               className="tw-border tw-rounded-lg tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
+              value={draftSearch} onChange={(e) => setDraftSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') applyFilter(); }}
             />
 
             {/* Dropdown trạng thái */}
@@ -279,7 +266,7 @@ export default function StaffAppointments() {
               <button type="button" onClick={() => setOpenStatus(!openStatus)}
                 className="tw-w-full tw-flex tw-justify-between tw-items-center tw-border tw-border-gray-300 tw-rounded-lg tw-px-3 tw-py-2
                          tw-text-gray-700 hover:tw-border-[#56b6f7] hover:tw-ring-1 hover:tw-ring-[#56b6f7]" >
-                <span>{statusOptions.find((o) => o.value === filter)?.label}</span>
+                 <span>{statusOptions.find((o) => o.value === draftFilter)?.label}</span>
                 <i className={`fa-solid ${openStatus ? "fa-angle-up" : "fa-angle-down"}`}></i>
               </button>
 
@@ -287,20 +274,15 @@ export default function StaffAppointments() {
                 <div className="tw-absolute tw-top-full tw-mt-2 tw-left-1/2 -tw-translate-x-1/2 tw-w-[95%] tw-bg-white tw-z-10 tw-text-xl tw-space-y-0.5 
                                 tw-border tw-border-gray-300 tw-rounded-lg tw-shadow-lg tw-py-2">
                   {statusOptions.map((item) => (
-                    <div
-                      key={item.value}
+                    <div key={item.value}
                       onClick={() => {
-                        setFilter(item.value);
-                        setPage(1);
+                        setDraftFilter(item.value);
                         setOpenStatus(false);
                       }}
-                      className={`tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-cursor-pointer ${
-                        filter === item.value ? "tw-bg-[#e6f7fa]" : "hover:tw-bg-[#e6f7fa]"
-                      }`} >
+                      className={`tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-cursor-pointer 
+                       ${draftFilter === item.value ? "tw-bg-[#e6f7fa]" : "hover:tw-bg-[#e6f7fa]"}`} >
                       <span>{item.label}</span>
-                      {filter === item.value && (
-                        <i className="fa-solid fa-check tw-text-[#1999ee]"></i>
-                      )}
+                      {draftFilter === item.value && (<i className="fa-solid fa-check tw-text-[#1999ee]"></i>)}
                     </div>
                   ))}
                 </div>
@@ -308,8 +290,8 @@ export default function StaffAppointments() {
             </div>
 
             {/* Chỉ 1 ngày hẹn */}
-            <input  type="date" value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}  title="Chọn 1 ngày hẹn"
+            <input  type="date" value={draftDate}
+               onChange={(e) => setDraftDate(e.target.value)}  title="Chọn 1 ngày hẹn"
               className="tw-border tw-rounded-lg tw-px-3 tw-py-2 focus:tw-outline-none"/>
           </div>
         </div>
@@ -331,12 +313,6 @@ export default function StaffAppointments() {
 
           {/* Bên phải: Xuất PFX & Xuất Excel */}
           <div className="tw-flex tw-gap-3 tw-flex-wrap">
-            <button
-              onClick={exportPfx}   title="Xuất PFX theo bộ lọc hiện tại"
-              className="tw-bg-purple-600 tw-text-white tw-px-5 tw-py-2 tw-rounded-full hover:tw-bg-purple-500 tw-shadow" >
-              <i className="fa-solid fa-file-signature tw-mr-2"></i>
-              Xuất PFX
-            </button>
             <button onClick={exportExcel}  title="Xuất Excel theo bộ lọc hiện tại"
               className="tw-bg-green-600 tw-text-white tw-px-5 tw-py-2 tw-rounded-full hover:tw-bg-green-500 tw-shadow">
               <i className="fa-solid fa-file-excel tw-mr-2"></i>

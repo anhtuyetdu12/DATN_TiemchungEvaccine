@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate  } from "react-router-dom";
+import ChatWidget from "../../components/ChatWidget";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("cum");
@@ -824,7 +825,7 @@ export default function Home() {
         </div>
       </section>
 
-
+      <ChatWidget />
    
     </div>
 

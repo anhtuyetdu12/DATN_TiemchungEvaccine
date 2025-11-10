@@ -1,17 +1,12 @@
 // DetailCustomerModal.jsx
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Dropdown from "../../../../components/Dropdown";
 import QuantityPicker from "../../../../components/QuantityPicker";
 import DeleteCustomerModal from "./DeleteCustomerModal";
 import { getAllVaccines, getAllDiseases } from "../../../../services/vaccineService";
-import {
-  staffUpdateCustomerProfile,
-  createAppointment,
-  setAppointmentStatus,
-  addHistory,
-  staffCreateMember,
-  staffDeleteMember,
-} from "../../../../services/customerService";
+import { staffUpdateCustomerProfile, createAppointment, setAppointmentStatus,
+  addHistory, staffCreateMember, staffDeleteMember,} from "../../../../services/customerService";
+import { openPrintWindow, buildAppointmentConfirmationHtml, buildPostInjectionHtml, formatDateVi } from "../../../../utils/printHelpers";
 import { toast } from "react-toastify";
 
 export default function EditCustomerModal({
@@ -54,14 +49,16 @@ export default function EditCustomerModal({
   });
 
   // Các list an toàn khi customer null
-  const membersList = customer?.members ?? [];
-  const appointmentsList = customer?.appointments ?? [];
-  const historyList = customer?.history ?? [];
+  const membersList = useMemo(() => customer?.members ?? [], [customer?.members]);
+  const appointmentsList = useMemo(() => customer?.appointments ?? [], [customer?.appointments]);
+  const historyList = useMemo(() => customer?.history ?? [], [customer?.history]);
 
   // Options chọn người tiêm (owner + members)
   const memberSelectOptions = useMemo(() => {
-    const list = membersList || [];
-    return list.map((m) => {
+    const ownerOpt = customer
+      ? [{ value: `owner:${customer.id}`, label: `${customer.name} (Chủ hồ sơ)`, title: `${customer.name} (Chủ hồ sơ)` }]
+      : [];
+    const list = (membersList || []).map((m) => {
       const displayName = m.name || m.full_name || "";
       return {
         value: String(m.id),
@@ -69,24 +66,15 @@ export default function EditCustomerModal({
         title: `${displayName}${m.relation ? ` (${m.relation})` : ""}`,
       };
     });
-  }, [membersList]);
+    return [...ownerOpt, ...list];
+  }, [customer, membersList]);
 
   // danh sách mối quan hệ — cũng đưa lên trước guard
   const relationships = useMemo(
     () =>
-      [
-        "Vợ",
-        "Chồng",
-        "Con trai",
-        "Con gái",
-        "Bố",
-        "Mẹ",
-        "Ông ngoại",
-        "Bà ngoại",
-        "Ông nội",
-        "Bà nội",
-        "Bạn bè",
-        "Khác",
+      [ "Vợ", "Chồng", "Con trai", "Con gái",
+        "Bố", "Mẹ", "Ông ngoại", "Bà ngoại",
+        "Ông nội", "Bà nội", "Bạn bè", "Khác",
       ].map((r) => ({ value: r, label: r })),
     []
   );
@@ -156,8 +144,56 @@ export default function EditCustomerModal({
     }
   }, [customer]);
 
-  // Lấy tên bệnh từ object vaccine
-  const getDiseaseName = (v) => v?.disease?.name ?? "";
+  // 1) suy tên theo id trong membersList
+  const resolveMemberNameById = useCallback((mid) => {
+    if (mid == null || mid === "") return "";
+    const m = (membersList || []).find(x => String(x.id) === String(mid));
+    if (!m) return "";
+    const base = m.name || m.full_name || "";
+    return `${base}${m.relation ? ` (${m.relation})` : ""}`;
+  }, [membersList]);
+
+  // 2) lấy id nếu BE trả nhiều kiểu khác nhau
+  const pickMemberId = useCallback((a) => {
+    const m = a.member;
+    if (a.memberId != null && a.memberId !== "") return a.memberId;
+    if (a.member_id != null && a.member_id !== "") return a.member_id;
+    if (m && typeof m === "object") return m.id ?? m.pk ?? null;
+    if (typeof m === "number" || typeof m === "string") return m;
+    return null;
+  }, []);
+
+  // 3) lấy tên nếu BE trả thẳng tên ở nhiều khóa khác nhau
+  const pickMemberName = useCallback((a) => {
+    const m = a.member;
+    return (
+      a.memberName ||
+      a.member_name ||
+      a.member_full_name ||
+      (m && typeof m === "object" && (m.full_name || m.name)) ||
+      ""
+    );
+  }, []);
+
+  // 4) Chuẩn hoá danh sách lịch hẹn
+  const normalizedAppointments = useMemo(() => {
+    const list = (appointmentsList || []).map((a) => {
+      const idFromAny = pickMemberId(a);
+      const nameFromAny =
+        pickMemberName(a) ||
+        (idFromAny == null ? (customer?.name ? `${customer.name} (Chủ hồ sơ)` : "") : resolveMemberNameById(idFromAny));
+      return { ...a, memberId: idFromAny, memberName: nameFromAny, };
+    });
+
+    return list
+      .slice() // tránh mutate
+      .sort((a, b) => {
+        const da = new Date(a.date || a.appointment_date);
+        const db = new Date(b.date || b.appointment_date);
+        return db - da;
+      });
+  }, [ appointmentsList, customer, resolveMemberNameById, pickMemberId, pickMemberName,]);
+
   // Tìm vaccine theo id trong vaccinesDb
   const findVaccine = (id) =>
     (vaccinesDb || []).find((v) => String(v.id) === String(id));
@@ -243,20 +279,100 @@ export default function EditCustomerModal({
       (s, it) => s + Number(it.unit_price || 0) * Number(it.quantity || 0),
       0
     );
-    const vaccineLabel =
-      (b.items_summary || [])
-        .map((x) => `${x.name} x${x.qty}`)
-        .join(", ") ||
+      const vaccineLabel = (b.items_summary || []).map((x) => `${x.name} x${x.qty}`).join(", ") ||
       (b.vaccine?.name || (b.package ? `Gói: ${b.package.name}` : ""));
 
-    return {
-      id: String(b.id),
-      date: b.appointment_date,   // UI dùng 'date'
-      vaccine: vaccineLabel,
-      center: b.location || "",
-      status: b.status,
-      price,
+      const memberIdRaw = b.member_id ?? b.member?.id ?? null;
+      const memberNameRaw = b.member_name ?? b.member?.full_name ?? "";
+      return {
+        id: String(b.id),
+        date: b.appointment_date,
+        vaccine: vaccineLabel,
+        center: b.location || "",
+        status: b.status,
+        price,
+        memberId: memberIdRaw,
+        memberName: memberNameRaw ||  (memberIdRaw == null ? (customer?.name ? `${customer.name} (Chủ hồ sơ)` : "") : resolveMemberNameById(memberIdRaw)),
+      };
     };
+
+    // Chọn lịch hẹn phù hợp để in phiếu
+  const pickAppointmentForPrint = () => {
+    if (!normalizedAppointments.length) return null;
+
+    // Ưu tiên lịch đã xác nhận
+    const confirmed = normalizedAppointments.filter(a => a.status === "confirmed");
+    if (confirmed.length) {
+      return confirmed.sort(
+        (a, b) => new Date(a.date) - new Date(b.date)
+      )[0];
+    }
+
+    // Nếu chưa có confirmed, lấy pending gần nhất
+    const pending = normalizedAppointments.filter(a => a.status === "pending");
+    if (pending.length) {
+      return pending.sort(
+        (a, b) => new Date(a.date) - new Date(b.date)
+      )[0];
+    }
+
+    // Không thì lấy lịch mới nhất bất kỳ
+    return normalizedAppointments.sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    )[0];
+  };
+
+  const handlePrintConfirmation = (targetAppt) => {
+    if (!customer) return;
+    const appt = targetAppt || pickAppointmentForPrint();
+    if (!appt) {
+      toast.error("Khách hàng chưa có lịch hẹn để in phiếu xác nhận.");
+      return;
+    }
+    try {
+      const html = buildAppointmentConfirmationHtml({
+        customer,
+        center,
+        appt,
+        formatDate: formatDateVi,
+      });
+      openPrintWindow(html);
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Không in được phiếu");
+    }
+  };
+
+  const handlePrintPostInjection = (record) => {
+    if (!customer || !record) return;
+    const memberName =
+      record.member_name ||
+      resolveMemberNameById(record.member_id) ||
+      customer.name ||
+      "";
+    const memberDob = (() => {
+      if (!record.member_id) return customer.dob || customer.date_of_birth || "";
+      const m = (membersList || []).find( (x) => String(x.id) === String(record.member_id) );
+      return m?.dob || m?.date_of_birth || "";
+    })();
+
+    const regimenNote = record.dose ? `Đã tiêm mũi ${record.dose}. Vui lòng theo dõi lịch hẹn hoặc tư vấn tại trung tâm để sắp xếp mũi tiếp theo phù hợp.`
+    : "Vui lòng tham khảo phác đồ với bác sĩ để lên lịch mũi tiếp theo.";
+    try {
+      const html = buildPostInjectionHtml({
+        customer,
+        center,
+        record,
+        memberName,
+        memberDob,
+        regimenNote,
+        formatDate: formatDateVi,
+      });
+      openPrintWindow(html);
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Không in được phiếu sau tiêm");
+    }
   };
 
   // thêm lịch hẹn mới (version cũ — nếu còn dùng)
@@ -285,20 +401,27 @@ export default function EditCustomerModal({
         toast.error("Chọn ít nhất 1 vắc xin");
         return;
       }
+
+      const isOwner = String(newAppointment.memberId || "").startsWith("owner:");
       const payload = {
-        member_id: Number(newAppointment.memberId || 0),
+        member_id: isOwner ? null : Number(newAppointment.memberId || 0),
         appointment_date: newAppointment.date || "",
         items,
         location: center?.name || "",
         notes: newAppointment.note || "",
       };
       const created = await createAppointment(customer.id, payload);
-      const slim = mapBookingToUi(created);
-      const updated = [...appointmentsList, slim];
-      setCustomers((prev) =>
-        prev.map((c) => (c.id === customer.id ? { ...c, appointments: updated } : c))
-      );
-      setSelectedCustomer((prev) => ({ ...prev, appointments: updated }));
+      let  slim = mapBookingToUi(created);
+      if (!slim.memberName) {
+        const opt = (memberSelectOptions || []).find(
+          x => String(x.value) === String(newAppointment.memberId)
+        );
+        if (opt?.label) slim = { ...slim, memberName: opt.label };
+        if (isOwner && customer?.name) slim = { ...slim, memberName: `${customer.name} (Chủ hồ sơ)` };
+      }
+      const updated = [slim, ...(appointmentsList || [])];
+      setCustomers((prev) => prev.map((c) => c.id === customer.id ? { ...c, appointments: updated } : c ));
+      setSelectedCustomer((prev) => prev ? { ...prev, appointments: updated } : prev );
       setNewAppointment({ date: "", memberId: "", items: [], note: "", total: 0 });
       toast.success("Đã tạo lịch hẹn");
     } catch (e) {
@@ -400,11 +523,11 @@ export default function EditCustomerModal({
                 Lịch hẹn
               </button>
               <button onClick={() => setDetailTab("history")}
-                className={`tw-w-full tw-text-left tw-py-2 tw-px-2 tw-rounded ${  detailTab === "history" ? "tw-bg-cyan-200" : "hover:tw-bg-blue-50" }`} >
+                className={`tw-w-full tw-text-left tw-py-2 tw-px-2 tw-rounded ${ detailTab === "history" ? "tw-bg-cyan-200" : "hover:tw-bg-blue-50" }`} >
                 Lịch sử tiêm
               </button>
             </div>
-            <button className="tw-bg-indigo-600 tw-text-white tw-px-4 tw-py-2 tw-rounded hover:tw-bg-indigo-500 tw-mt-10">
+            <button onClick={handlePrintConfirmation} className="tw-bg-indigo-600 tw-text-white tw-px-4 tw-py-2 tw-rounded hover:tw-bg-indigo-500 tw-mt-10">
               In phiếu xác nhận
             </button>
           </div>
@@ -853,9 +976,9 @@ export default function EditCustomerModal({
                                     [&::-webkit-scrollbar]:tw-h-2 [&::-webkit-scrollbar]:tw-w-2 [&::-webkit-scrollbar-thumb]:tw-rounded-full
                                     [&::-webkit-scrollbar-track]:tw-bg-gray-100 [&::-webkit-scrollbar-thumb]:tw-bg-gradient-to-b
                                   [&::-webkit-scrollbar-thumb]:tw-from-cyan-400 [&::-webkit-scrollbar-thumb]:tw-to-blue-400" >
-                    {appointmentsList.length > 0 ? (
+                    {normalizedAppointments.length > 0 ? (
                       <div className="tw-space-y-4">
-                        {appointmentsList.map((a) => (
+                        {normalizedAppointments.map((a) => (
                           <div  key={a.id} className="tw-p-4 tw-border tw-rounded-xl tw-bg-yellow-100 tw-shadow-sm hover:tw-shadow-md tw-transition">
                             <div className="tw-flex tw-justify-between tw-items-start">
                               <div>
@@ -863,8 +986,11 @@ export default function EditCustomerModal({
                                   {a.vaccine} <span className="tw-text-gray-400"></span>
                                 </div>
                                 <div className="tw-text-sm tw-text-gray-600 tw-mt-1"> Ngày hẹn : {formatDate(a.date)} </div>
+                                <div className="tw-text-sm tw-text-indigo-700 tw-mt-1">
+                                  Người tiêm: <strong>{a.memberName || "— chưa rõ —"}</strong>
+                                </div>
                                 <span className={`tw-inline-block tw-mt-2 tw-text-base tw-font-semibold tw-px-3 tw-py-1 tw-rounded-full
-                                 ${ a.status === "pending"   ? "tw-bg-cyan-100 tw-text-cyan-700" :
+                                 ${ a.status === "pending"   ? "tw-bg-orange-100 tw-text-orange-700" :
                                   a.status === "confirmed" ? "tw-bg-green-100 tw-text-green-700" :
                                   a.status === "cancelled" ? "tw-bg-red-100 tw-text-red-700" :
                                   a.status === "completed" ? "tw-bg-blue-100 tw-text-blue-600" :
@@ -888,6 +1014,11 @@ export default function EditCustomerModal({
                                     <button onClick={() => handleCancelAppointmentLocal(customer.id, a.id) }
                                       className="tw-bg-red-600 hover:tw-bg-red-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow" >
                                       Hủy
+                                    </button>
+                                    <button onClick={() => handlePrintConfirmation(a)}
+                                        className="tw-bg-indigo-500 hover:tw-bg-indigo-600 tw-text-white tw-text-sm tw-px-3 tw-py-2 tw-rounded-lg tw-shadow" >
+                                        <i className="fa-solid fa-print tw-mr-1" />
+                                      In phiếu
                                     </button>
                                   </>
                                 )}
@@ -1000,18 +1131,39 @@ export default function EditCustomerModal({
                         if (!newVaccineRecord.memberId) return toast.error("Chọn người tiêm");
                         if (!newVaccineRecord.date) return toast.error("Chọn ngày tiêm");
                         if (!newVaccineRecord.vaccine) return toast.error("Nhập tên vắc xin");
+                        // Chuẩn hoá member_id: nếu chọn "owner:ID" thì bạn có thể để BE hiểu là owner
+                        const isOwner = String(newVaccineRecord.memberId).startsWith("owner:");
+                        const member_id = isOwner ? null : Number(newVaccineRecord.memberId);
                         const rec = {
+                          member_id,                       
                           date: newVaccineRecord.date,
+                          disease: newVaccineRecord.disease || "",  
                           vaccine: newVaccineRecord.vaccine,
+                          dose: newVaccineRecord.dose ? Number(newVaccineRecord.dose) : null,
+                          price: newVaccineRecord.price ? Number(newVaccineRecord.price) : null,
                           batch: newVaccineRecord.batch || "",
                           note: newVaccineRecord.note || "",
                           place: newVaccineRecord.place || center?.name || "Trung tâm tiêm chủng Evaccine",
                         };
                         try {
                           const created = await addHistory(customer.id, rec);
-                          const record = { id: created.id, ...created };
+                          // Ưu tiên dùng member_name do BE trả về; nếu không có, suy ra từ dropdown
+                          const pickedName = (() => {
+                            if (created?.member_name) return created.member_name;
+                            if (isOwner) return customer?.name || "Chủ hồ sơ";
+                            const opt = (memberSelectOptions || []).find(x => x.value === String(newVaccineRecord.memberId));
+                            return opt?.label || "";
+                          })();
+                          const record = {
+                            id: created.id,
+                            ...created,
+                            member_name: created?.member_name ?? pickedName,
+                            member_id: created?.member_id ?? member_id ?? null,
+                          };
                           setCustomers((prev) =>
-                            prev.map((c) => c.id === customer.id ? { ...c, history: [record, ...(c.history || [])] } : c )
+                            prev.map((c) =>
+                              c.id === customer.id ? { ...c, history: [record, ...(c.history || [])] } : c
+                            )
                           );
                           setSelectedCustomer((prev) => ({ ...prev, history: [record, ...(prev.history || [])], }));
                           setNewVaccineRecord({
@@ -1051,23 +1203,43 @@ export default function EditCustomerModal({
                           <div className="tw-text-lg tw-font-semibold tw-text-gray-800"> {h.vaccine}
                             <span className="tw-text-lg tw-text-gray-500"> ({h.date})</span>
                           </div>
+                          {!!h.member_name && (
+                            <div className="tw-text-sm tw-text-indigo-700 tw-mt-1">
+                              Người tiêm: <strong>{h.member_name}</strong>
+                            </div>
+                          )}
                           <div className="tw-text-base tw-text-gray-600 tw-mt-1">
                             <span className="tw-inline-block tw-bg-green-100 tw-px-3 tw-py-1 tw-rounded-full tw-mr-2">
                               🏥 {h.place || "Trung tâm tiêm chủng Evaccine"}
                             </span>
                           </div>
                           <div className="tw-text-base tw-text-gray-600 mt-1">
+                            {h.batch && (
+                              <div className="tw-text-sm tw-text-gray-600 tw-mt-1">
+                                Số lô: <strong>{h.batch}</strong>
+                              </div>
+                            )}
                             <span className="tw-inline-block tw-bg-yellow-100 tw-px-3 tw-py-1 tw-rounded-full tw-mr-2">
-                              Lô: {h.batch} - Mũi thứ {h.dose || "-"}
+                              Mũi thứ {h.dose || "-"}
                             </span>
                             <span className="tw-text-gray-500 tw-text-base">
                               📝 {h.note || "Không có ghi chú"}
                             </span>
                           </div>
                         </div>
-                        <div className="tw-text-green-500 tw-text-2xl">
-                          <i className="fa-solid fa-check-circle"></i>
+                        <div className="tw-flex tw-items-center tw-gap-3 tw-justify-start tw-py-2">
+                          <div className="tw-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-bg-green-100 tw-rounded-full">
+                            <i className="fa-solid fa-check-circle tw-text-green-500 tw-text-xl"></i>
+                          </div>
+                          <button onClick={() => handlePrintPostInjection(h)}
+                            className="tw-flex tw-items-center tw-bg-indigo-600 hover:tw-bg-indigo-700 
+                                      tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-full tw-shadow-sm 
+                                      tw-transition-all tw-duration-200 tw-gap-2" >
+                            <i className="fa-solid fa-print" />
+                            <span>In phiếu sau tiêm</span>
+                          </button>
                         </div>
+
                       </div>
                     ))
                   )}

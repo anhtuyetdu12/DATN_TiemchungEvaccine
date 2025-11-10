@@ -44,11 +44,18 @@ export default function AppointmentDetailModal({ detail, onClose }) {
     return a;
   }, [dob]);
 
-  const items = detail?.items_detail || [];
-  const total = useMemo(
-    () => items.reduce((sum, it) => sum + Number(it.unit_price || 0) * Number(it.quantity || 0), 0),
-    [items]
+  // items chỉ đổi khi detail?.items_detail đổi
+  const items = useMemo(
+    () => (Array.isArray(detail?.items_detail) ? detail.items_detail : []),
+    [detail?.items_detail]
   );
+  // total chỉ recompute khi items reference đổi (ổn định nhờ memo ở trên)
+  const total = useMemo(() => {
+    return items.reduce(
+      (sum, it) => sum + Number(it.unit_price || 0) * Number(it.quantity || 0),
+      0
+    );
+  }, [items]);
 
   // Chỉ gắn ESC khi modal mở (có detail)
   useEffect(() => {

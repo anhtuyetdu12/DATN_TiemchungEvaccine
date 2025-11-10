@@ -16,6 +16,7 @@ urlpatterns = [
     path("api/vaccines/", include("vaccines.urls")),
     path("api/inventory/", include("inventory.urls")),
     path("api/knowledges/", include("knowledges.urls")),
+    path("api/chat/", include("chat.urls")), 
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
 ]

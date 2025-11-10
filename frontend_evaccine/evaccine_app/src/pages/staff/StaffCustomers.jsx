@@ -129,11 +129,9 @@ export default function StaffCustomers() {
   };
 
   const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      setLoading(true);
       const base = await fetchCustomers();
       const enriched = await Promise.all(
         (base || []).map(async (c) => {
@@ -155,7 +153,6 @@ export default function StaffCustomers() {
         })
       );
       setCustomers(enriched);
-      setLoading(false);
     })();
   }, []);
 
@@ -248,7 +245,7 @@ export default function StaffCustomers() {
           {/* Search + Add */}
           <div className="tw-flex tw-justify-between tw-items-center tw-mb-16 tw-gap-4">
             <div className="tw-flex tw-items-center tw-gap-2 tw-w-1/2">
-              <input  type="text"  placeholder="Tìm KH hoặc thành viên: tên, bí danh, quan hệ, mã KH, email, SĐT…"  value={searchInput}
+              <input  type="text"  placeholder="Tìm KH hoặc thành viên: tên, quan hệ, email, SĐT…"  value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}  onKeyDown={(e) => { if (e.key === 'Enter') { setSearch(searchInput.trim()); setPage(1); }}}
                 className="tw-border tw-border-gray-300 tw-px-4 tw-py-2 tw-rounded-lg tw-shadow-sm tw-flex-1 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
               <button onClick={() => { setSearch(searchInput.trim()); setPage(1); }}

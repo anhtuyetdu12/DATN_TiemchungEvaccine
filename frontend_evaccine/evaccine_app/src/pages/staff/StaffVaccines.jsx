@@ -9,21 +9,22 @@ import Pagination from "../../components/Pagination";
 import {  toast } from "react-toastify";
 import ViewExpiryVCModal from "./modal/vaccines/ViewExpiryVCModal";
 import ConfirmModal from "../../components/ConfirmModal";
-import { getAllVaccines } from "../../services/vaccineService";
+import { getAllVaccines, exportVaccinesExcel } from "../../services/vaccineService";
 
 export default function StaffVaccines() {
   const [activeTab, setActiveTab] = useState("manage");
   const [vaccines, setVaccines] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState("");      // người dùng đang gõ
+  const [appliedSearch, setAppliedSearch] = useState("");  // chỉ đổi khi bấm Tìm
   const [showModal, setShowModal] = useState(false);
   const [currentVaccine, setCurrentVaccine] = useState(null);
 
   const [confirmAction, setConfirmAction] = useState(null);
 
   // khi đổi từ khóa tìm kiếm → quay về trang 1
-  useEffect(() => { setPageManage(1); }, [searchTerm]);
+  useEffect(() => { setPageManage(1); }, [appliedSearch]);
 
   // Thêm hoặc sửa vắc xin
   const handleSaveVaccine = (vaccine) => {
@@ -41,7 +42,7 @@ export default function StaffVaccines() {
   const perPage = 10;
 
   // lọc dữ liệu
-  const term = searchTerm.toLowerCase();
+  const term = appliedSearch.toLowerCase();
   const filteredVaccines = vaccines.filter(
     (v) => v.name?.toLowerCase().includes(term) ||
     v.manufacturer?.toLowerCase().includes(term) ||
@@ -122,7 +123,8 @@ export default function StaffVaccines() {
     const [warningVaccines, setWarningVaccines] = useState([]);
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [filterType, setFilterType] = useState(""); // lọc theo warningType
-    const [searchText, setSearchText] = useState("");
+    const [searchTextInput, setSearchTextInput] = useState("");
+    const [appliedExpirySearch, setAppliedExpirySearch] = useState("");
 
     const warningOptions = [
       { value: "", label: "Tất cả cảnh báo" },
@@ -133,14 +135,15 @@ export default function StaffVaccines() {
 
 
     // lọc theo filterType + searchText
+    const kw = appliedExpirySearch.trim().toLowerCase();
     const filteredWarnings = warningVaccines.filter((v) => {
       const typeMatch = !filterType || v.warningType === filterType;
-      const keyword = searchText.toLowerCase();
-      const searchMatch =
-        !keyword ||
-        v.name?.toLowerCase().includes(keyword) ||
-        v.manufacturer?.toLowerCase().includes(keyword) ||
-        v.warehouse?.toLowerCase().includes(keyword);
+      const haystack = [ v.name,  v.manufacturer, v.batch, v.diseaseName, v.country ]
+        .filter(Boolean)
+        .map(String)
+        .map(s => s.toLowerCase())
+        .join(" ");
+      const searchMatch = !kw || haystack.includes(kw);
       return typeMatch && searchMatch;
     });
 
@@ -150,6 +153,8 @@ export default function StaffVaccines() {
       const maxPage = Math.max(1, Math.ceil(filteredWarnings.length / perPage));
       if (pageExpiry > maxPage) setPageExpiry(maxPage);
     }, [filteredWarnings.length, pageExpiry]);
+
+    useEffect(() => { setPageExpiry(1); }, [appliedExpirySearch, filterType]);
 
 
     useEffect(() => {
@@ -175,20 +180,32 @@ export default function StaffVaccines() {
       setWarningVaccines(warnList);
     }, [vaccines]);
 
-  // Xuất CSV
-  const handleExport = () => {
-    let csv = "Tên,Loại,Mã,Số lượng,Đơn vị,Hạn sử dụng,Nhà sản xuất,Nước,Số lô,Giá,Ghi chú\n";
-    vaccines.forEach((v) => {
-      csv += `${v.name},${v.type},${v.code},${v.quantity},${v.unit},${v.expiry},${v.manufacturer},${v.country},${v.batch},${v.price},${v.note}\n`;
-    });
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  // Xuất excel
+  const downloadBlob = (blob, filename) => {
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "vaccines.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExport = async () => {
+    try {
+      // Nếu muốn export theo từ khóa hiện tại:
+      const params = {};
+      if (appliedSearch) {
+        params.search = appliedSearch.trim();
+      }
+
+      const blob = await exportVaccinesExcel(params);
+      downloadBlob(blob, "danh-sach-vac-xin.xlsx");
+    } catch (err) {
+      console.error(err);
+      toast.error("Xuất Excel thất bại");
+    }
   };
 
    // Prefill thông báo
@@ -260,10 +277,11 @@ export default function StaffVaccines() {
             <div className="tw-flex tw-justify-between tw-items-center tw-mb-16 tw-gap-4">
                 <div className="tw-flex tw-items-center tw-gap-2 tw-w-1/2">
                     <input type="text"  placeholder="Tìm kiếm theo tên hoặc nhà sản xuất..."
-                    value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                    className="tw-border tw-border-gray-300 tw-px-4 tw-py-2 tw-rounded-lg tw-shadow-sm tw-flex-1
-                     focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
-                    <button  onClick={() => console.log("Tìm kiếm:", searchTerm)}
+                     value={searchInput}  onChange={(e) => setSearchInput(e.target.value)}
+                     onKeyDown={(e) => { if (e.key === "Enter") setAppliedSearch(searchInput.trim()); }}
+                     className="tw-border tw-border-gray-300 tw-px-4 tw-py-2 tw-rounded-lg tw-shadow-sm tw-flex-1
+                        focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
+                    <button   onClick={() => setAppliedSearch(searchInput.trim())}
                         className="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-full tw-font-medium hover:tw-bg-blue-700 tw-shadow"  >
                         <i className="fa-solid fa-magnifying-glass tw-mr-2"></i>
                         Tìm kiếm
@@ -400,10 +418,11 @@ export default function StaffVaccines() {
             {/* Thanh tìm kiếm + bộ lọc */}
             <div className="tw-flex tw-justify-between tw-items-center tw-mb-16 tw-gap-4">
               <div className="tw-flex tw-items-center tw-gap-2 tw-w-1/2">
-                <input type="text" placeholder="Nhập từ khóa tìm kiếm..." value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
+                <input type="text" placeholder="Nhập từ khóa tìm kiếm..."  value={searchTextInput}
+                  onChange={(e) => setSearchTextInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") setAppliedExpirySearch(searchTextInput.trim()); }}
                   className="tw-border tw-border-gray-300 tw-px-4 tw-py-2 tw-rounded-lg tw-shadow-sm tw-flex-1 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
-                <button onClick={() => console.log("Tìm kiếm:", searchText)}
+                <button onClick={() => setAppliedExpirySearch(searchTextInput.trim())}
                   className="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-full tw-font-medium hover:tw-bg-blue-700 tw-shadow" >
                   <i className="fa-solid fa-magnifying-glass tw-mr-2"></i>
                   Tìm kiếm
@@ -416,8 +435,9 @@ export default function StaffVaccines() {
                   />
                 </div>
                 <button onClick={() => {
-                    setFilterType("");
-                    setSearchText("");
+                      setFilterType("");
+                      setSearchTextInput("");
+                      setAppliedExpirySearch("");
                   }} className="tw-bg-orange-500 tw-text-white tw-px-5 tw-py-2 tw-rounded-full tw-font-medium hover:tw-bg-orange-600 tw-shadow-sm" >
                   <i className="fa-solid fa-xmark tw-mr-1"></i> Xoá bộ lọc
                 </button>

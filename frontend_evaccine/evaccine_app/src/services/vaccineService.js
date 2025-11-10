@@ -57,3 +57,12 @@ export async function getAllVaccineCategories() {
   const { data } = await api.get("/vaccines/categories/");
   return Array.isArray(data) ? data : (data?.results || []);
 }
+
+
+export const exportVaccinesExcel = async (params = {}) => {
+  const qs = new URLSearchParams(params).toString();
+  const res = await api.get(`/vaccines/vaccines/export/excel/?${qs}`, {
+    responseType: "blob",
+  });
+  return res.data; // blob
+};

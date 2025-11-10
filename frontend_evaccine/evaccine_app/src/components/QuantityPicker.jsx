@@ -13,19 +13,9 @@ export default function QuantityPicker() {
 
   const MAX_QUANTITY = 5;
 
-const increment = () => {
-  setFormData((prev) => ({
-    ...prev,
-    quantity: Math.min(prev.quantity + 1, MAX_QUANTITY),
-  }));
-};
+  const increment = () => { setFormData((prev) => ({ ...prev,  quantity: Math.min(prev.quantity + 1, MAX_QUANTITY),  }));};
 
-const decrement = () => {
-  setFormData((prev) => ({
-    ...prev,
-    quantity: Math.max(prev.quantity - 1, 0), 
-  }));
-};
+  const decrement = () => { setFormData((prev) => ({  ...prev,  quantity: Math.max(prev.quantity - 1, 0),  }));};
 
   return (
     <div>

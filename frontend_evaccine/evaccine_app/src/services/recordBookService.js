@@ -73,13 +73,6 @@ export const getVaccinesByAge = async (memberId, diseaseId, doseNumber) => {
 };
 
 
-
-// Lấy danh sách thành viên
-// export async function getFamilyMembers() {
-//   const res = await api.get("/records/family-members/");
-//   return res.data;
-// }
-
 // Thêm thành viên
 export async function createFamilyMember(payload) {
   try {
@@ -91,16 +84,6 @@ export async function createFamilyMember(payload) {
   }
 }
 
-// Lấy lịch sử tiêm của 1 thành viên
-
-// export const getVaccinationRecords = async (memberId) => {
-//   if (!memberId) throw new Error("Thiếu memberId");
-//   const { data } = await api.get(`/records/vaccinations/?member_id=${memberId}`);
-//   // DRF phân trang => {count, results,...}. Khi không phân trang thì data là mảng.
-//   if (Array.isArray(data)) return data;
-//   if (Array.isArray(data?.results)) return data.results;
-//   return [];
-// };
 
 // cập nhật thông tin bản thân
 export const updateFamilyMember = async (id, payload) => {
@@ -115,25 +98,3 @@ export async function addVaccinationRecord(payload) {
 }
 
 
-// Lấy danh sách bệnh
-// export const getDiseases = async () => {
-//   try {
-//     const res = await api.get("/vaccines/diseases/");
-//     return res.data;
-//   } catch (error) {
-//     console.error("Lỗi khi tải danh sách bệnh:", error);
-//     throw error;
-//   }
-// };
-
-// export const getVaccinesByAge = async (memberId, diseaseId, doseNumber) => {
-//   if (!memberId) throw new Error("Thiếu memberId");
-//   const params = new URLSearchParams({ member_id: String(memberId) });
-//   if (diseaseId) params.append("disease_id", String(diseaseId));
-//   if (doseNumber) params.append("dose_number", String(doseNumber)); // 🔧 thêm mũi
-
-//   // Lưu ý: axios instance `api` của bạn nên có baseURL = "/api"
-//   // -> endpoint này tương ứng /api/vaccines/by-age/
-//   const res = await api.get(`/vaccines/by-age/?${params.toString()}`);
-//   return res.data;
-// };

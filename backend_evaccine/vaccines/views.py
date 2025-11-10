@@ -3,6 +3,11 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Prefetch, IntegerField, F, Case, When, Value, Q
+from rest_framework.decorators import action
+from django.http import HttpResponse
+from io import BytesIO
+from openpyxl import Workbook
+from inventory.models import VaccineStockLot
 from datetime import date
 
 from .models import Disease, VaccineCategory, Vaccine, VaccinePackage, VaccinePackageGroup
@@ -130,7 +135,7 @@ class VaccineViewSet(viewsets.ModelViewSet):
             "vaccines": serializer.data,
         })
 
-    # ====== mới: đặt 1 vaccine ngay tại đây ======
+    # ====== đặt 1 vaccine ngay tại đây ======
     @action(detail=True, methods=["post"], url_path="book", permission_classes=[IsAuthenticated])
     def book(self, request, slug=None):
         vaccine = self.get_object()
@@ -154,7 +159,7 @@ class VaccineViewSet(viewsets.ModelViewSet):
         booking = ser.save()
         return Response(BookingSerializer(booking, context={"request": request}).data, status=201)
 
-    # ====== mới: đặt nhiều vaccine cùng lúc (giỏ) ======
+    # ======  đặt nhiều vaccine cùng lúc (giỏ) ======
     @action(detail=False, methods=["post"], url_path="checkout", permission_classes=[IsAuthenticated])
     def checkout(self, request):
         member_id = request.data.get("member_id")
@@ -181,6 +186,77 @@ class VaccineViewSet(viewsets.ModelViewSet):
         ser.is_valid(raise_exception=True)
         booking = ser.save()
         return Response(BookingSerializer(booking, context={"request": request}).data, status=201)
+
+    
+    @action(detail=False, methods=["get"], url_path="export/excel", permission_classes=[IsAuthenticated])
+    def export_excel(self, request):
+        # Lọc cơ bản theo ?search=... nếu FE gửi
+        search = request.query_params.get("search", "").strip()
+
+        qs = self.get_queryset()
+        if search:
+            qs = qs.filter(
+                Q(name__icontains=search)
+                | Q(manufacturer__icontains=search)
+                | Q(origin__icontains=search)
+                | Q(disease__name__icontains=search)
+            )
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Vaccines"
+
+        # Header
+        ws.append([
+            "Tên vắc xin",
+            "Phòng bệnh",
+            "Mã",
+            "Số lượng khả dụng",
+            "Đơn vị",
+            "Hạn gần nhất",
+            "Nhà sản xuất",
+            "Quốc gia",
+            "Số lô ",
+            "Giá (VNĐ)",
+            "Ghi chú",
+        ])
+
+        for v in qs:
+            lots = VaccineStockLot.objects.filter(vaccine=v, is_active=True)
+
+            available = sum(l.quantity_available or 0 for l in lots)
+            soonest_expiry = None
+            first_lot = None
+            for l in lots:
+                if l.expiry_date:
+                    if soonest_expiry is None or l.expiry_date < soonest_expiry:
+                        soonest_expiry = l.expiry_date
+                        first_lot = l
+
+            ws.append([
+                v.name,
+                v.disease.name if v.disease else "",
+                v.slug or v.id,
+                available,
+                v.unit or "liều",
+                soonest_expiry.strftime("%d/%m/%Y") if soonest_expiry else "",
+                v.manufacturer or "",
+                v.origin or "",
+                first_lot.lot_number if first_lot else "",
+                int(v.price or 0),
+                v.other_notes or "",
+            ])
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        resp = HttpResponse(
+            output.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        resp["Content-Disposition"] = 'attachment; filename="vaccines.xlsx"'
+        return resp
 
 
 class VaccinePackageGroupViewSet(viewsets.ReadOnlyModelViewSet):

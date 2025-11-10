@@ -35,64 +35,40 @@ export default function Pagination({ page, totalItems, perPage = 10, onPageChang
   return (
     <div className="tw-flex tw-justify-center tw-items-center tw-gap-2 tw-py-4">
       {/* First */}
-      <button
-        onClick={goFirst}
-        disabled={page === 1}
-        className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50"
-        title="Trang đầu"
-      >
+      <button onClick={goFirst} disabled={page === 1}  title="Trang đầu"
+        className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50" >
         <i className="fa-solid fa-angles-left"></i>
       </button>
 
       {/* Prev */}
-      <button
-        onClick={goPrev}
-        disabled={page === 1}
-        className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50"
-        title="Trang trước"
-      >
+      <button onClick={goPrev} disabled={page === 1}  title="Trang trước"
+        className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50">
         <i className="fa-solid fa-angle-left"></i>
       </button>
 
       {/* Số trang + … */}
       {pageList.map((item) => {
         if (typeof item === "string" && item.startsWith("ellipsis")) {
-          return (
-            <span key={item} className="tw-px-2 tw-text-gray-500">…</span>
-          );
+          return ( <span key={item} className="tw-px-2 tw-text-gray-500">…</span> );
         }
         return (
-          <button
-            key={item}
-            onClick={() => onPageChange(item)}
-            className={`tw-px-4 tw-py-1 tw-rounded ${
-              item === page
-                ? "tw-bg-blue-500 tw-text-white"
-                : "tw-bg-gray-100 hover:tw-bg-gray-200"
-            }`}
-          >
+          <button key={item} onClick={() => onPageChange(item)}
+            className={`tw-px-4 tw-py-1 tw-rounded
+               ${ item === page  ? "tw-bg-blue-500 tw-text-white" : "tw-bg-gray-100 hover:tw-bg-gray-200" }`}>
             {item}
           </button>
         );
       })}
 
-      {/* Next */}
-      <button
-        onClick={goNext}
-        disabled={page === totalPages}
-        className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50"
-        title="Trang sau"
-      >
+      {/* Next */} 
+      <button onClick={goNext} disabled={page === totalPages}  title="Trang sau"
+        className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50" >
         <i className="fa-solid fa-angle-right"></i>
       </button>
 
       {/* Last */}
-      <button
-        onClick={goLast}
-        disabled={page === totalPages}
-        className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50"
-        title="Trang cuối"
-      >
+      <button onClick={goLast} disabled={page === totalPages}  title="Trang cuối"
+        className="tw-px-3 tw-py-1 tw-rounded tw-text-blue-600 tw-bg-gray-100 hover:tw-bg-blue-200 disabled:tw-opacity-50" >
         <i className="fa-solid fa-angles-right"></i>
       </button>
     </div>

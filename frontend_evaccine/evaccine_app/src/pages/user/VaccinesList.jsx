@@ -5,6 +5,7 @@ import AccordionFilter from "../../components/AccordionFilter";
 import { Link, useNavigate  } from "react-router-dom";
 import Pagination from "../../components/Pagination";
 import { addToBooking, getBookingSlugs } from "../../utils/bookingStorage";
+import ChatWidget from "../../components/ChatWidget";
 import { getAllDiseases,  getAllVaccines,  getAllVaccinePackages,  getAllVaccineCategories,  getPackageBySlug, } from "../../services/vaccineService";
 
 export default function VaccinesList() {
@@ -867,6 +868,8 @@ export default function VaccinesList() {
         </div>
         )}
       </div>
+
+      <ChatWidget />
     </section>
   );
 }

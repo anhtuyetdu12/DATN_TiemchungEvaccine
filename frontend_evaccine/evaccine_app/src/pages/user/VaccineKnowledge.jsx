@@ -1,4 +1,7 @@
 // kien thuc tiem chung
+import ChatWidget from "../../components/ChatWidget";
+
+
 
 export default function VaccineKnowledge() {
     return (
@@ -266,7 +269,7 @@ export default function VaccineKnowledge() {
                 </div>
                 </div>
             </section>
-
+            <ChatWidget />
         </div>
     );
 }

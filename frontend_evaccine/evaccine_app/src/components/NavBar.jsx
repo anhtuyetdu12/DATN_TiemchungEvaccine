@@ -67,7 +67,11 @@ export default function NavBar({ user, setUser }) {
         }
       } catch (_) {}
       finally {
+        // Xoá toàn bộ thông tin đăng nhập
         clearAllAuth();
+        // Xoá luôn session + lịch sử chat EVaccine
+        localStorage.removeItem("evaccine_chat_session_id");
+        localStorage.removeItem("evaccine_chat_messages");
         setUser(null);
         window.location.href = "/login";
       }

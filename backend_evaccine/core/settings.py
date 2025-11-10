@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 from datetime import timedelta
 import uuid
+from dotenv import load_dotenv
+load_dotenv()
 
 # Sinh mã định danh duy nhất mỗi khi server khởi động
 SERVER_INSTANCE_ID = str(uuid.uuid4())
@@ -68,7 +70,7 @@ INSTALLED_APPS = [
     "vaccines.apps.VaccinesConfig",
     "inventory.apps.InventoryConfig",
     "knowledges.apps.KnowledgesConfig",
-    
+    "chat.apps.ChatConfig",  
     
   
 ]
@@ -183,3 +185,6 @@ EMAIL_HOST_PASSWORD = 'ysvy tont sltm hjre'  # app password
 # tự động nhắc lịch
 APPT_REMINDER_DAYS_BEFORE = [3, 1]     # T-3 và T-1
 APPT_REMINDER_DAY_OF = True            # thêm sáng ngày hẹn
+
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")

@@ -391,6 +391,7 @@ class HistorySlimSerializer(serializers.Serializer):
     dose = serializers.IntegerField(required=False, default=1)       
     price = serializers.IntegerField(required=False, default=0)      
     note = serializers.CharField(required=False, allow_blank=True)
+    batch = serializers.CharField(required=False, allow_blank=True)
     status_label = serializers.CharField(required=False, default="Đã tiêm")
 
 
@@ -427,6 +428,7 @@ class AppointmentStatusPatchSerializer(serializers.Serializer):
 
 
 class HistoryCreateInSerializer(serializers.Serializer):
+    member_id = serializers.IntegerField(required=False, allow_null=True)
     date = serializers.DateField()
     vaccine = serializers.CharField()
     place = serializers.CharField(required=False, allow_blank=True)

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getMyNotifications, markMyNotificationRead } from "../../services/notificationService";
 import Pagination from "../../components/Pagination";
 import { toast } from "react-toastify";
+import ChatWidget from "../../components/ChatWidget";
 
 const PAGE_SIZE = 12;
 
@@ -106,7 +107,7 @@ export default function NotificationsUser() {
     <div className="tw-min-h-screen tw-bg-cyan-50 tw-flex tw-flex-col tw-mt-[95px] tw-py-8">
       {/* Header */}
       <div className="tw-sticky tw-top-0 tw-z-10 tw-bg-cyan-50/80 tw-backdrop-blur tw-border-b tw-border-slate-200 
-      tw-px-4 md:tw-px-8 tw-py-3 tw-flex tw-items-center tw-justify-between">
+        tw-px-4 md:tw-px-8 tw-py-3 tw-flex tw-items-center tw-justify-between">
         <div className="tw-flex tw-items-center tw-gap-3">
           <div className="tw-w-16 tw-h-16 tw-rounded-xl tw-bg-emerald-100 tw-flex tw-items-center tw-justify-center">
             <i className="fa-regular fa-bell tw-text-emerald-600 tw-text-3xl" />
@@ -328,6 +329,8 @@ export default function NotificationsUser() {
             <Pagination page={page} totalItems={filtered.length} perPage={PAGE_SIZE} onPageChange={setPage}  />
         )}
       </div>
+
+      <ChatWidget />
     </div>
   );
 }

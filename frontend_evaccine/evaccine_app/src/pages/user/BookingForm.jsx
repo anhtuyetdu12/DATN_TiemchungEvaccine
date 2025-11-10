@@ -11,6 +11,7 @@ import {formatSchedule} from "../../utils/schedule";
 import ConfirmModal from "../../components/ConfirmModal";
 import { useNavigate } from "react-router-dom";
 import { loadAuth } from "../../utils/authStorage";
+import ChatWidget from "../../components/ChatWidget";
 import {readBooking, writeBooking, clearBooking, migrateLegacyBooking, getBookingSlugs} from "../../utils/bookingStorage";
 
 const EMPTY_BOOKING_TOAST_ID = "empty-booking";
@@ -564,6 +565,8 @@ export default function BookingForm() {
         confirmText="Xoá" cancelText="Hủy"
         onConfirm={doRemove} onCancel={cancelRemove}
       />
+
+      <ChatWidget />
     </section>
   );
 }
