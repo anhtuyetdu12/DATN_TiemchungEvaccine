@@ -1,7 +1,6 @@
 // src/services/knowledgeService.js
 import api from "./axios";
 
-// tiện: nếu BE paging thì vẫn trả mảng
 const pickList = (data) => {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.results)) return data.results;
@@ -21,7 +20,7 @@ const adaptArticle = (a) => ({
   title: a.title,
   summary: a.summary || "",
   content: a.content || "",
-  category: a.category || null,         // id
+  category: a.category || null,
   categoryName: a.category_name || "",
   visibility: a.visibility || "normal",
   status: a.status,
@@ -29,9 +28,11 @@ const adaptArticle = (a) => ({
   thumbnail: a.thumbnail || null,
   disease: a.disease || null,
   vaccine: a.vaccine || null,
+  slug: a.slug,
   createdAt: a.created_at,
+  publishedAt: a.published_at,
 });
- 
+
 // ====== API ======
 
 export async function getKnowledgeCategories() {
@@ -39,7 +40,7 @@ export async function getKnowledgeCategories() {
   return pickList(data).map(adaptCategory);
 }
 
-// params: { status, category, mine, limit }
+// params: { status, category, visibility, mine, limit }
 export async function getKnowledgeArticles(params = {}) {
   const { data } = await api.get("/knowledges/articles/", { params });
   return pickList(data).map(adaptArticle);
@@ -60,7 +61,7 @@ export async function submitKnowledgeArticle(id) {
   return adaptArticle(data);
 }
 
-// dùng cho admin
+// Admin dùng
 export async function approveKnowledgeArticle(id) {
   const { data } = await api.post(`/knowledges/articles/${id}/approve/`);
   return adaptArticle(data);
@@ -70,8 +71,17 @@ export async function rejectKnowledgeArticle(id) {
   return adaptArticle(data);
 }
 
+// Public
 export async function getPublicKnowledgeArticles(params = {}) {
   const { data } = await api.get("/knowledges/articles/public/", { params });
-  // tái dùng adaptArticle để đỡ viết lại
   return (Array.isArray(data) ? data : []).map(adaptArticle);
+}
+
+export async function uploadKnowledgeThumbnail(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const { data } = await api.post( "/knowledges/articles/upload-thumbnail/",
+    formData, { headers: { "Content-Type": "multipart/form-data" }, }
+  );
+  return data.url; 
 }

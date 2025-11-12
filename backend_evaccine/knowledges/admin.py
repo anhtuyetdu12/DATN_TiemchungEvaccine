@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from django.utils import timezone
 from .models import KnowledgeArticle, KnowledgeCategory
 
 
@@ -15,18 +16,25 @@ class KnowledgeCategoryAdmin(admin.ModelAdmin):
 @admin.register(KnowledgeArticle)
 class KnowledgeArticleAdmin(admin.ModelAdmin):
     list_display = (
-        "title", "category",  "author",
-        "status_colored", "visibility", "published_at", "created_at",
+        "title",
+        "category",
+        "author",
+        "status_colored",
+        "visibility",
+        "published_at",
+        "created_at",
     )
     list_filter = ("status", "visibility", "category")
     search_fields = ("title", "summary", "content")
-    readonly_fields = (  "slug", "created_at", "updated_at", "published_at", "approved_by", )
+    readonly_fields = ("slug", "created_at", "updated_at", "published_at", "approved_by")
+    list_per_page = 30
+    date_hierarchy = "created_at"
 
     fieldsets = (
         (
             "Thông tin bài viết",
             {
-                "fields": ( "title", "slug", "category", "summary", "content", "thumbnail", )
+                "fields": ("title", "slug", "category", "summary", "content", "thumbnail"),
             },
         ),
         (
@@ -36,7 +44,7 @@ class KnowledgeArticleAdmin(admin.ModelAdmin):
         (
             "Thông tin hệ thống",
             {
-                "fields": ("author", "approved_by", "created_at",  "updated_at", "published_at", )
+                "fields": ("author", "approved_by", "created_at", "updated_at", "published_at"),
             },
         ),
     )
@@ -54,20 +62,24 @@ class KnowledgeArticleAdmin(admin.ModelAdmin):
             color,
             obj.get_status_display(),
         )
-
     status_colored.short_description = "Trạng thái"
 
-    # hành động tùy chỉnh cho admin
+    # KHAI BÁO ACTION
     actions = ["approve_articles", "reject_articles"]
 
     def approve_articles(self, request, queryset):
-        updated = queryset.update(status="published", approved_by=request.user)
-        self.message_user(request, f"Đã duyệt {updated} bài viết.")
-
-    approve_articles.short_description = " Duyệt bài viết đã chọn"
+        count = 0
+        for article in queryset:
+            article.status = "published"
+            article.approved_by = request.user
+            if article.published_at is None:
+                article.published_at = timezone.now()
+            article.save()
+            count += 1
+        self.message_user(request, f"Đã duyệt {count} bài viết.")
+    approve_articles.short_description = "✅ Duyệt bài viết đã chọn"
 
     def reject_articles(self, request, queryset):
         updated = queryset.update(status="rejected", approved_by=request.user)
         self.message_user(request, f"Đã từ chối {updated} bài viết.")
-
-    reject_articles.short_description = " Từ chối bài viết đã chọn"
+    reject_articles.short_description = "⛔ Từ chối bài viết đã chọn"

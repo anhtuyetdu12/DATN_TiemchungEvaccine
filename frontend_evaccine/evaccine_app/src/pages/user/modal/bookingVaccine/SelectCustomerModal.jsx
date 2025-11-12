@@ -3,7 +3,7 @@ export default function SelectCustomerModal({ open, onClose, customers, onSelect
   if (!open) return null;
 
   return (
-    <div className="tw-fixed tw-inset-0 tw-bg-black/40 tw-flex tw-items-center tw-justify-center tw-z-50">
+    <div className="tw-fixed tw-inset-0 tw-bg-black/40 tw-flex tw-items-center tw-justify-center tw-z-50 tw-pt-[90px]">
       <div className="tw-bg-white tw-rounded-lg tw-shadow-lg tw-w-[450px] tw-max-w-full tw-p-5">
         {/* Header */}
         <div className="tw-flex tw-justify-between tw-items-center tw-mb-4">
@@ -15,7 +15,7 @@ export default function SelectCustomerModal({ open, onClose, customers, onSelect
           </button>
         </div>
 
-        <div className="tw-flex tw-items-center tw-gap-3 tw-text-lg tw-font-medium tw-text-gray-700 tw-mb-4 tw-bg-[#ccfff8] tw-py-2 tw-px-8 tw-rounded-lg tw-text-left">
+        <div className="tw-flex tw-items-center tw-gap-3 tw-text-[10px] tw-font-medium tw-text-gray-700 tw-mb-4 tw-bg-[#ccfff8] tw-py-2 tw-px-8 tw-rounded-lg tw-text-left">
             <img src="images/quen.jpg" alt="chu ý" className="tw-w-10 tw-h-10 tw-object-contain tw-my-[10px] tw-rounded-full" />
             <span > Để đảm bảo quyền lợi và theo dõi chính xác, mỗi lần đặt lịch chỉ áp dụng cho một người. </span>
         </div>
@@ -38,18 +38,13 @@ export default function SelectCustomerModal({ open, onClose, customers, onSelect
           ))}
         </div>
 
-        {/* Actions */}
-        <div className="tw-flex tw-justify-between tw-items-center tw-mt-4 tw-text-2xl tw-text-blue-400">
-          <button className="hover:tw-text-blue-500"><i className="fa-solid fa-plus tw-mr-1"></i> Thêm thành viên mới</button>
-        </div>
-
         {/* Notes */}
         <div className="tw-text-lg tw-text-gray-600 tw-mt-3 tw-space-y-1">
             <div className="tw-flex tw-items-center tw-gap-2">
                 <div className="tw-bg-gray-200 tw-rounded-full tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center  tw-mr-[5px] tw-flex-shrink-0">
                 <i className="fa fa-lightbulb tw-text-yellow-500"></i>
                 </div>
-                <p className="tw-text-lg tw-text-medium tw-text-gray-600 tw-leading-snug tw-text-left">
+                <p className="tw-text-sm tw-text-medium tw-text-gray-600 tw-leading-snug tw-text-left">
                 Đổi người tiêm đồng nghĩa với việc vắc xin được chọn sẽ xoá khỏi lịch hẹn.
                 </p>
             </div>
@@ -57,7 +52,7 @@ export default function SelectCustomerModal({ open, onClose, customers, onSelect
                 <div className="tw-bg-gray-200 tw-rounded-full tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center  tw-mr-[5px] tw-flex-shrink-0">
                 <i className="fa fa-lightbulb tw-text-yellow-500 "></i>
                 </div>
-                <p className="tw-text-lg tw-text-medium tw-text-gray-600 tw-leading-snug tw-text-left">
+                <p className="tw-text-sm tw-text-medium tw-text-gray-600 tw-leading-snug tw-text-left">
                 Hồ sơ của Quý khách đã được lưu tại EVaccine và hệ thống Tiêm chủng Quốc gia. Nếu cần chỉnh sửa thông tin hồ sơ, vui lòng đến Tiêm chủng EVaccine để được hỗ trợ.
                 </p>
             </div>
@@ -66,10 +61,8 @@ export default function SelectCustomerModal({ open, onClose, customers, onSelect
 
         {/* Confirm */}
         <div className="tw-mt-5 tw-text-right">
-          <button
-            onClick={onClose}
-            className="tw-bg-cyan-600 tw-text-white tw-px-5 tw-py-2 tw-rounded-lg hover:tw-bg-cyan-500"
-          >
+          <button onClick={onClose}
+            className="tw-bg-cyan-600 tw-text-white tw-px-5 tw-py-2 tw-rounded-lg hover:tw-bg-cyan-500" >
             Xác nhận
           </button>
         </div>

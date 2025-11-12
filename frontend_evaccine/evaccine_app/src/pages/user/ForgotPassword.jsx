@@ -63,11 +63,8 @@ export default function ForgotPassword() {
           </div>
 
           <div className="tw-relative">
-            <input
-              type="text"
-              placeholder="Email hoặc số điện thoại"
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
+            <input  type="text"  placeholder="Email hoặc số điện thoại"
+              value={identifier} onChange={(e) => setIdentifier(e.target.value)}
               className="tw-w-full tw-pl-10 tw-pr-3 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-400 focus:tw-outline-none"
             />
           </div>

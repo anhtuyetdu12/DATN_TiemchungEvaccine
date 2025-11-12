@@ -59,11 +59,12 @@ CREATE TABLE vaccines_vaccinepackagegroup (
   id INT IDENTITY(1,1) PRIMARY KEY,
   title NVARCHAR(255) NOT NULL,
   description NVARCHAR(MAX),
-  order INT DEFAULT 0,
+  [order] INT DEFAULT 0,                  -- dùng [order] để tránh trùng từ khóa
   status BIT DEFAULT 1,
   created_at DATETIME2 DEFAULT SYSUTCDATETIME(),
   slug NVARCHAR(255) UNIQUE
 );
+
 
 -- Table: vaccines_vaccinepackage
 CREATE TABLE vaccines_vaccinepackage (
