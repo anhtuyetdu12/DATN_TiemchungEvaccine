@@ -1,3 +1,4 @@
+// Trang khi click vào tên bệnh trong RecordBook
 import { useState } from "react";  
 import { useNavigate } from "react-router-dom";
 

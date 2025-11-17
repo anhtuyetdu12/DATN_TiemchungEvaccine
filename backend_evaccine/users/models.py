@@ -23,6 +23,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     full_name = models.CharField(max_length=255,default="Unknown")
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=15, blank=True, null=True)
+    gender = models.CharField( max_length=10, choices=[("male", "Nam"), ("female", "Nữ"), ("other", "Khác")], blank=True, null=True,)
+    date_of_birth = models.DateField(blank=True, null=True)
     role = models.CharField(max_length=20, choices=[('admin','admin'),('staff','staff'),('customer','customer')])
     must_change_password = models.BooleanField(default=False)
     last_login = models.DateTimeField(blank=True, null=True)

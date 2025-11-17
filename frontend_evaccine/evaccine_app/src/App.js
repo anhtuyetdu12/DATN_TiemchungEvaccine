@@ -141,8 +141,10 @@ function App() {
             <Route path="/bookingform" element={<ProtectedRoute user={user} authReady={authReady}><BookingForm /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute user={user} authReady={authReady}><NotificationsUser /></ProtectedRoute>}/>
             <Route path="/recordbook" element={<ProtectedRoute user={user} authReady={authReady}><RecordBook /></ProtectedRoute>} />
-            <Route path="/vaccines" element={<ProtectedRoute user={user} authReady={authReady}><VaccinesList /></ProtectedRoute>} />
-            <Route path="/knowledge" element={<ProtectedRoute user={user} authReady={authReady}><VaccineKnowledge /></ProtectedRoute>} />
+            {/* <Route path="/vaccines" element={<ProtectedRoute user={user} authReady={authReady}><VaccinesList /></ProtectedRoute>} />
+            <Route path="/knowledge" element={<ProtectedRoute user={user} authReady={authReady}><VaccineKnowledge /></ProtectedRoute>} /> */}
+            <Route path="/vaccines" element={<VaccinesList />} />
+            <Route path="/knowledge" element={<VaccineKnowledge />} />
           </Route>
 
           {/* Staff routes */}

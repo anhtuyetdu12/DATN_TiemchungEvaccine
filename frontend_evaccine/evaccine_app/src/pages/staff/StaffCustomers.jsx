@@ -1,10 +1,9 @@
 // StaffCustomers.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState , Fragment} from "react";
 import EditCustomerModal from "./modal/customer/EditCustomerModal";
 import Pagination from "../../components/Pagination";
 import ViewCustomerDetailModal from "./modal/customer/ViewCustomerDetailModal";
 import AddCustomerModal from "./modal/customer/AddCustomerModal";
-import DeleteCustomerModal from "./modal/customer/DeleteCustomerModal";
 import { fetchCustomers, fetchCustomerMembers } from "../../services/customerService";
 
 // util: parse YYYY-MM-DD an toàn theo local
@@ -25,6 +24,14 @@ const Highlight = ({ text = "", q = "" }) => {
   );
 };
 
+const formatGender = (g) => {
+  if (!g) return "-";
+  const val = String(g).toLowerCase().trim();
+  if (["male", "m", "nam"].includes(val)) return "Nam";
+  if (["female", "f", "nu", "nữ"].includes(val)) return "Nữ";
+  if (["other", "khac", "khác"].includes(val)) return "Khác";
+  return g;
+};
 
 function MemberPanel({ members = [], searchGlobal = "" }) {
   const effectiveQ = (searchGlobal || "").trim().toLowerCase();
@@ -68,7 +75,7 @@ function MemberPanel({ members = [], searchGlobal = "" }) {
                   </div>
                   <div className="tw-mt-0.5 tw-text-[10px] tw-text-gray-600 tw-flex tw-items-center tw-gap-2">
                     <span className="tw-inline-flex tw-items-center tw-gap-1">
-                      <i className="fa-regular fa-user" /> {m.sex || "-"}
+                      <i className="fa-regular fa-user" /> {formatGender(m.sex) || "-"}
                     </span>
                     <span className="tw-text-gray-500">•</span>
                     <span className="tw-inline-flex tw-items-center tw-gap-1">
@@ -164,15 +171,13 @@ export default function StaffCustomers() {
   const perPage = 10;
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [detail, setDetail] = useState(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [customerToDelete, setCustomerToDelete] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
 
   const handleAddCustomer = (newCust) => setCustomers((prev) => [newCust, ...prev]);
   const [newAppointment, setNewAppointment] = useState({ date: "", vaccine: "", center: "" });
   const [newVaccineRecord, setNewVaccineRecord] = useState({ date: "", vaccine: "", batch: "", note: "" });
 
-  // 🔎 Tìm kiếm KH + cả THÀNH VIÊN gia đình (ô tìm kiếm chung)
+  // Tìm kiếm KH + cả THÀNH VIÊN gia đình (ô tìm kiếm chung)
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return customers.filter((c) => {
@@ -190,6 +195,17 @@ export default function StaffCustomers() {
     });
   }, [customers, search]);
 
+  const handleSearch = () => {
+    setSearch(searchInput.trim());
+    setPage(1);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput("");
+    setSearch("");
+    setPage(1);
+  };
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [totalPages, page]);
   const pageData = filtered.slice((page - 1) * perPage, page * perPage);
@@ -204,15 +220,6 @@ export default function StaffCustomers() {
     );
   };
 
-  const handleCancelRegistration = (custId, apptId) => {
-    setCustomers((prev) =>
-      prev.map((c) =>
-        c.id === custId
-        ? { ...c, appointments: c.appointments.map((a) => (a.id === apptId ? { ...a, status: "cancelled" } : a)) }
-        : c
-      )
-    );
-  };
 
   const recordVaccine = (custId, record) => {
     setCustomers((prev) => prev.map((c) => (c.id === custId ? { ...c, history: [record, ...c.history] } : c)));
@@ -244,12 +251,22 @@ export default function StaffCustomers() {
         <div className="tw-p-6 ">
           {/* Search + Add */}
           <div className="tw-flex tw-justify-between tw-items-center tw-mb-16 tw-gap-4">
-            <div className="tw-flex tw-items-center tw-gap-2 tw-w-1/2">
-              <input  type="text"  placeholder="Tìm KH hoặc thành viên: tên, quan hệ, email, SĐT…"  value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}  onKeyDown={(e) => { if (e.key === 'Enter') { setSearch(searchInput.trim()); setPage(1); }}}
-                className="tw-border tw-border-gray-300 tw-px-4 tw-py-2 tw-rounded-lg tw-shadow-sm tw-flex-1 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" />
-              <button onClick={() => { setSearch(searchInput.trim()); setPage(1); }}
-                className="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-full tw-font-medium hover:tw-bg-blue-700 tw-shadow" >
+           <div className="tw-flex tw-items-center tw-gap-2 tw-w-1/2">
+              <div className="tw-relative tw-flex-1">
+                <input type="text"  placeholder="Tìm KH hoặc thành viên: tên, quan hệ, email, SĐT…"
+                  value={searchInput}  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+                  className="tw-border tw-border-gray-300 tw-px-4 tw-py-2 tw-rounded-lg tw-shadow-sm tw-w-full focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
+                />
+                {searchInput && (
+                  <button type="button" onClick={handleClearSearch} title="Xóa từ khóa"
+                    className="tw-absolute tw-right-3 tw-top-1/2 -tw-translate-y-1/2 tw-text-gray-400 hover:tw-text-red-500">
+                    <i className="fa-solid fa-xmark" />
+                  </button>
+                )}
+              </div>
+              <button onClick={handleSearch}
+                className="tw-bg-blue-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-full tw-font-medium hover:tw-bg-blue-700 tw-shadow">
                 <i className="fa-solid fa-magnifying-glass tw-mr-2"></i>
                 Tìm kiếm
               </button>
@@ -266,33 +283,45 @@ export default function StaffCustomers() {
             <table className="tw-w-full tw-text-xl tw-border-collapse tw-py-5 tw-mb-5 tw-table-fixed">
               <thead className="tw-bg-red-100 ">
                 <tr>
-                  <th className="tw-px-4 tw-py-4 tw-w-1/10 tw-text-center">Họ tên</th>
-                  <th className="tw-px-4 tw-py-4 tw-w-1/10 tw-text-center">Thành viên</th>
-                  <th className="tw-px-4 tw-py-4 tw-w-1/10 tw-text-center">Điện thoại</th>
-                  <th className="tw-px-4 tw-py-4 tw-w-1/10 tw-text-center">Ngày hẹn</th>
-                  <th className="tw-px-4 tw-py-4 tw-w-1/10 tw-text-center">Tên vaccine</th>
-                  <th className="tw-px-4 tw-py-4 tw-w-1/10 tw-text-center">Quốc gia</th>
-                  <th className="tw-px-4 tw-py-4 tw-w-1/10 tw-text-center">Số mũi</th>
-                  <th className="tw-px-4 tw-py-4 tw-w-1/10 tw-text-center">Đơn giá</th>
-                  <th className="tw-px-4 tw-py-4 tw-w-1/10 tw-text-center">Trạng thái</th>
-                  <th className="tw-px-4 tw-py-4 tw-w-1/5 tw-text-center">Hành động</th>
+                  <th className="tw-px-4 tw-py-4 tw-w-1/6 tw-text-center">Họ tên</th>
+                  <th className="tw-px-4 tw-py-4 tw-w-1/9 tw-text-center">Thành viên</th>
+                  <th className="tw-px-4 tw-py-4 tw-w-1/6 tw-text-center">Điện thoại/Email</th>
+                  <th className="tw-px-4 tw-py-4 tw-w-1/9 tw-text-center">Ngày sinh</th>
+                  <th className="tw-px-4 tw-py-4 tw-w-1/9 tw-text-center">Giới tính</th>
+                  <th className="tw-px-4 tw-py-4 tw-w-1/9 tw-text-center">Quốc gia</th>
+                  <th className="tw-px-4 tw-py-4 tw-w-1/9 tw-text-center">Số mũi</th>
+                  <th className="tw-px-4 tw-py-4 tw-w-1/9 tw-text-center">Trạng thái</th>
+                  <th className="tw-px-4 tw-py-4 tw-w-1/6 tw-text-center">Hành động</th>
                 </tr>
               </thead>
               <tbody>
-                {pageData.map((c) => {
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="tw-px-4 tw-py-6 tw-text-center tw-text-red-500" >
+                      {search
+                        ? <>Không tìm thấy khách hàng hoặc thành viên nào khớp với từ khóa <span className="tw-font-semibold">&quot;{search}&quot;</span>.</>
+                        : "Chưa có khách hàng nào trong hệ thống."}
+                    </td>
+                  </tr>
+                ) : (
+                pageData.map((c) => {
                   const appt = c.appointments?.[0];
                   const statusText = appt ? getAppointmentStatus(appt) : "-";
-
-                  // ⬇️ Tính các thành viên khớp theo từ khóa TỔNG
+                  //  Tính các thành viên khớp theo từ khóa TỔNG
                   const term = search.trim();
                   const memberHits = getMemberHits(c, term);
-                  // ⬇️ Auto mở panel khi có kết quả khớp (không cần bấm nút)
+                  //  Auto mở panel khi có kết quả khớp (không cần bấm nút)
                   const isOpen = c.showMembers || (term && memberHits.length > 0);
+                    // 👉 Lấy ngày sinh từ customer
+                  const rawDob = c.date_of_birth || c.dob; // tuỳ backend đang gửi field nào
+                  const dobText = rawDob ? toLocalDate(rawDob).toLocaleDateString("vi-VN") : "-";
+                  const gender = formatGender(c.gender || c.sex);
+                  // const doses =  c.doses != null ? c.doses : Array.isArray(c.history) ? c.history.length : "-";
 
                   return (
-                    <>
+                    <Fragment key={c.id}>
                       <tr key={`row-${c.id}`} className="tw-border-b hover:tw-bg-pink-50">
-                        <td className="tw-px-4 tw-py-2 tw-text-left ">
+                        <td className="tw-px-4 tw-py-2 tw-text-left tw-pl-10">
                           {term ? <Highlight text={c.name || "-"} q={term} /> : (c.name || "-")}
                         </td>
 
@@ -321,19 +350,22 @@ export default function StaffCustomers() {
                             </div>
                           )}
                         </td>
-
+                          {/* Đthoai */}
                         <td className="tw-px-4 tw-py-2 tw-max-w-[220px] tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap" title={c.phone || c.email || "-"} >
                           {term ? <Highlight text={c.phone || c.email || "-"} q={term} /> : (c.phone || c.email || "-")}
                         </td>
-                        <td className="tw-whitespace-nowrap">
+                        {/* <td className="tw-whitespace-nowrap">
                           {appt?.date ? toLocalDate(appt.date).toLocaleDateString("vi-VN") : "-"}
                         </td>
                         <td className="tw-px-4 tw-py-2 tw-max-w-[260px] tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap"  title={appt?.vaccine || "-"}>
                           {appt?.vaccine || "-"}
-                        </td>
+                        </td> */}
+                        <td className="tw-px-4 tw-py-2 tw-text-center">{dobText}</td>
+                        <td className="tw-px-4 tw-py-2 tw-text-center">{gender}</td>
                         <td className="tw-px-4 tw-py-2">{c.country || "-"}</td>
                         <td>{c.doses != null ? c.doses : "-"}</td>
-                        <td>{appt?.price != null ? appt.price.toLocaleString("vi-VN") : "-"}</td>
+                        {/* <td className="tw-px-4 tw-py-2 tw-text-center">{doses}</td> */}
+                        {/* <td>{appt?.price != null ? appt.price.toLocaleString("vi-VN") : "-"}</td> */}
                         <td>
                           <span className={`${getStatusClass(statusText)} tw-inline-block tw-px-3 tw-py-2`}>
                             {statusText}
@@ -345,10 +377,6 @@ export default function StaffCustomers() {
                             <button onClick={() => { setSelectedCustomer(c); setShowModal(true); }}
                               className="tw-bg-yellow-100 tw-text-yellow-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-yellow-200 tw-border hover:tw-border-yellow-600">
                               <i className="fa-solid fa-pencil tw-mr-2"></i>Sửa
-                            </button>
-                            <button  onClick={() => { setCustomerToDelete(c); setShowDeleteModal(true); }}
-                              className="tw-bg-red-100 tw-text-red-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-red-200 tw-border hover:tw-border-red-600" >
-                              <i className="fa-solid fa-ban tw-mr-2"></i>Hủy
                             </button>
                             <button  onClick={() => setDetail(c)}
                               className="tw-bg-blue-100 tw-text-blue-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-blue-200 tw-border hover:tw-border-blue-600" >
@@ -366,9 +394,10 @@ export default function StaffCustomers() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   );
-                })}
+                })
+              )}
               </tbody>
             </table>
             <Pagination page={page} totalItems={filtered.length} perPage={perPage} onPageChange={(p) => setPage(p)} />
@@ -385,19 +414,6 @@ export default function StaffCustomers() {
           />
 
           {detail && ( <ViewCustomerDetailModal customer={detail} onClose={() => setDetail(null)} /> )}
-
-          <DeleteCustomerModal
-            show={showDeleteModal} customer={customerToDelete}
-            onClose={() => setShowDeleteModal(false)}
-            onConfirm={() => {
-              if (customerToDelete) {
-                const apptId = customerToDelete.appointments?.[0]?.id;
-                if (apptId) handleCancelRegistration(customerToDelete.id, apptId);
-                setCustomerToDelete(null);
-              }
-              setShowDeleteModal(false);
-            }}
-          />
 
           <AddCustomerModal
             show={showAddModal}

@@ -189,6 +189,10 @@ class BookingSerializer(serializers.ModelSerializer):
             from collections import defaultdict
             want = defaultdict(int)
             for it in items:
+                if it["quantity"] != 1:
+                    raise serializers.ValidationError({
+                        "items": "Mỗi lần đặt lịch chỉ được chọn tối đa 1 liều cho mỗi vắc xin."
+                    })
                 want[it["vaccine_id"]] += it["quantity"]
 
             for v_id, qty in want.items():
@@ -227,6 +231,51 @@ class BookingSerializer(serializers.ModelSerializer):
                         f"Còn có thể đặt {remain} liều."
                     )
                 })
+         # --- Kiểm tra không đặt lịch sớm hơn lịch phác đồ (nếu có) ---
+        appt_date = attrs.get("appointment_date")
+
+        if appt_date:
+            # CASE: items (nhiều vaccine)
+            for it in items:
+                v_id = it["vaccine_id"]
+                try:
+                    v = Vaccine.objects.get(id=v_id)
+                except Vaccine.DoesNotExist:
+                    continue
+
+                next_planned = VaccinationRecord.objects.filter(
+                    family_member=member,
+                    vaccine=v,
+                    vaccination_date__isnull=True,
+                    next_dose_date__isnull=False,
+                ).order_by("next_dose_date").first()
+
+                if next_planned and appt_date < next_planned.next_dose_date:
+                    raise serializers.ValidationError({
+                        "appointment_date": (
+                            f"Vắc xin {v.name}: mũi tiếp theo theo phác đồ "
+                            f"nên tiêm từ ngày {next_planned.next_dose_date.strftime('%d/%m/%Y')}. "
+                            f"Vui lòng chọn ngày muộn hơn."
+                        )
+                    })
+
+            # CASE: vaccine đơn (gửi vaccine_id riêng)
+            if vaccine:
+                next_planned = VaccinationRecord.objects.filter(
+                    family_member=member,
+                    vaccine=vaccine,
+                    vaccination_date__isnull=True,
+                    next_dose_date__isnull=False,
+                ).order_by("next_dose_date").first()
+
+                if next_planned and appt_date < next_planned.next_dose_date:
+                    raise serializers.ValidationError({
+                        "appointment_date": (
+                            f"Vắc xin {vaccine.name}: mũi tiếp theo theo phác đồ "
+                            f"nên tiêm từ ngày {next_planned.next_dose_date.strftime('%d/%m/%Y')}. "
+                            f"Vui lòng chọn ngày muộn hơn."
+                        )
+                    })
         return attrs
     # ----------------- create -----------------
     def create(self, validated_data):

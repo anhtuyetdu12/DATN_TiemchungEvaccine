@@ -321,7 +321,7 @@ export default function StaffHomeDB() {
     for (let i = 0; i < startWeekDay; i++) cells.push(null);
     for (let d = 1; d <= daysInMonth; d++) cells.push({ d, n: count[d] || 0 });
     while (cells.length % 7 !== 0) cells.push(null);
-    if (cells.length < 42) while (cells.length < 42) cells.push(null);
+    // if (cells.length < 42) while (cells.length < 42) cells.push(null);
 
     const max = Math.max(0, ...Object.values(count));
     return { y, m, daysInMonth, cells, counts: count, max };
@@ -378,8 +378,7 @@ export default function StaffHomeDB() {
                   : dark
                   ? "tw-border-white/10 tw-bg-white/5 tw-text-white/80 hover:tw-bg-white/10"
                   : "tw-bg-white tw-border-gray-200 tw-text-gray-700 hover:tw-bg-gray-50"
-              }`}
-          >
+              }`}>
             {o.label}
           </button>
         );
@@ -486,8 +485,7 @@ export default function StaffHomeDB() {
               Đã check-in
             </span>
           ) : (
-            <button
-              onClick={() => doCheckIn(a)}
+            <button onClick={() => doCheckIn(a)}
               className="tw-text-base tw-bg-blue-600 tw-text-white tw-rounded-full tw-px-3 tw-py-1 hover:tw-opacity-90" >
               Check-in
             </button>
@@ -498,12 +496,10 @@ export default function StaffHomeDB() {
             onClick={() => doConfirm(a)}
             disabled={a.status !== "pending"}
             className={`tw-text-base tw-px-3 tw-py-1.5 tw-rounded-full tw-border hover:tw-scale-[1.02] transition disabled:tw-opacity-50
-            ${
-              dark
+            ${ dark
                 ? "tw-bg-emerald-500/15 tw-text-emerald-200 tw-border-emerald-500/30"
                 : "tw-bg-emerald-100 tw-text-emerald-700 tw-border-emerald-200"
-            }`}
-          >
+            }`} >
             <i className="fa-solid fa-check-to-slot"></i>
             <span className="tw-ml-1">Xác nhận</span>
           </button>
@@ -511,8 +507,7 @@ export default function StaffHomeDB() {
             onClick={() => doCancel(a)}
             disabled={a.status === "canceled" || a.status === "completed"}
             className={`tw-text-base tw-px-3 tw-py-1.5 tw-rounded-full tw-border hover:tw-scale-[1.02] transition disabled:tw-opacity-50
-            ${dark ? "tw-bg-rose-500/15 tw-text-rose-200 tw-border-rose-500/30" : "tw-bg-rose-100 tw-text-rose-700 tw-border-rose-200"}`}
-          >
+            ${dark ? "tw-bg-rose-500/15 tw-text-rose-200 tw-border-rose-500/30" : "tw-bg-rose-100 tw-text-rose-700 tw-border-rose-200"}`}>
             <i className="fa-solid fa-xmark"></i>
             <span className="tw-ml-1">Hủy</span>
           </button>
@@ -531,17 +526,17 @@ export default function StaffHomeDB() {
         <div className={`tw-relative tw-rounded-[28px] 
         ${ dark ? "tw-bg-white/5 tw-backdrop-blur" : "tw-bg-gradient-to-r tw-from-[#e6f3ff] tw-via-[#fdf2f8] tw-to-[#fff]"
           } tw-border tw-border-gray-100/50 tw-shadow-sm tw-overflow-hidden`}>
-          <div className="tw-p-6 md:tw-p-8 tw-flex tw-flex-col xl:tw-flex-row tw-items-center tw-justify-between tw-gap-6">
-            <div className="tw-text-center xl:tw-text-left">
-              <div className="tw-flex tw-items-center tw-justify-center xl:tw-justify-start tw-gap-3">
-                <span className="tw-text-[25px]">🩺</span>
+         <div className="tw-p-6 md:tw-p-8 tw-flex tw-flex-col tw-items-center tw-gap-4">
+          {/* <div className="tw-flex tw-flex-col tw-items-center xl:tw-items-start tw-gap-3"> */}
+            <div className="tw-flex tw-items-center tw-gap-3">
+              <span className="tw-text-[25px]">🩺</span>
                 <h1 className={`tw-text-[26px] md:tw-text-[30px] tw-font-extrabold 
                 ${dark ? "tw-text-white" : "tw-text-[#163b6b]" }`} >
                   Trang chủ nhân viên y tế
                 </h1>
               </div>
               <div className="tw-flex tw-justify-center xl:tw-justify-start">
-                <p className={`tw-text-xl tw-border tw-rounded-full tw-mt-6 tw-px-3 tw-py-3 tw-w-[200px]  tw-flex tw-items-center tw-justify-center
+                <p className={`tw-text-xl tw-border tw-rounded-full tw-mt-2 tw-px-3 tw-py-3 tw-w-[200px]  tw-flex tw-items-center tw-justify-center
                     ${dark ? "tw-text-white tw-bg-[#3f87ec]" : "tw-text-white tw-bg-pink-500"}`} >
                   {viDate.charAt(0).toUpperCase() + viDate.slice(1)}
                 </p>
@@ -549,7 +544,7 @@ export default function StaffHomeDB() {
             </div>
 
             {/* Toggles */}
-            <div className="tw-flex tw-items-center tw-gap-3">
+            <div className="tw-flex tw-items-center tw-justify-center tw-gap-3 tw-mb-6">
               {renderSegmented()}
               <button onClick={() => setDark((s) => !s)}
                 className={`tw-rounded-full tw-px-3 tw-py-2 tw-flex tw-items-center tw-gap-2 tw-border 
@@ -557,11 +552,11 @@ export default function StaffHomeDB() {
                 <i className={dark ? "fa-regular fa-moon" : "fa-regular fa-sun"}></i>
                 <span className="tw-text-lg">{dark ? "Tối" : "Sáng"}</span>
               </button>
-            </div>
+            {/* </div> */}
           </div>
 
           {/* KPI */}
-          <div className="tw-grid tw-grid-cols-2 md:tw-grid-cols-4 tw-gap-3 tw-px-4 sm:tw-px-6 lg:tw-px-8 tw-pb-6">
+          <div className="tw-grid tw-grid-cols-2 md:tw-grid-cols-4 tw-gap-3 tw-px-4 sm:tw-px-6 lg:tw-px-8 tw-pb-6 ">
             {renderStatCard("Tổng lịch tháng này", total, "fa-calendar-check", "blue")}
             {renderStatCard("Đang chờ", pending, "fa-hourglass-half", "amber")}
             {renderStatCard("Đã xác nhận", confirmed, "fa-circle-check", "emerald")}
@@ -569,17 +564,11 @@ export default function StaffHomeDB() {
           </div>
         </div>
 
-        <div className="tw-grid tw-grid-cols-1 xl:tw-grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_360px] tw-gap-6 tw-mt-6">
-          <section
-            className={`tw-rounded-2xl tw-border tw-overflow-hidden ${
-              dark ? "tw-bg-white/5 tw-border-white/10" : "tw-bg-white tw-border-gray-100 tw-shadow-sm"
-            }`}
-          >
-            <div
-              className={`tw-flex tw-items-center tw-justify-between tw-px-5 tw-py-4 tw-border-b ${
-                dark ? "tw-border-white/10 tw-bg-white/[0.02]" : "tw-bg-gradient-to-r tw-from-pink-50 tw-to-cyan-50 tw-border-gray-100"
-              }`}
-            >
+        <div className="tw-grid tw-grid-cols-1 tw-gap-6 tw-mt-6">
+          <section className={`tw-rounded-2xl tw-border tw-overflow-hidden 
+              ${ dark ? "tw-bg-white/5 tw-border-white/10" : "tw-bg-white tw-border-gray-100 tw-shadow-sm" }`} >
+            <div  className={`tw-flex tw-items-center tw-justify-between tw-px-5 tw-py-4 tw-border-b 
+              ${ dark ? "tw-border-white/10 tw-bg-white/[0.02]" : "tw-bg-gradient-to-r tw-from-pink-50 tw-to-cyan-50 tw-border-gray-100" }`}>
               <div className="tw-flex tw-items-center tw-gap-3">
                 <h2 className={`tw-text-[18px] tw-font-semibold ${dark ? "tw-text-white" : "tw-text-[#163b6b]"}`}>
                   {view === "calendar" ? "📆 Lịch theo tháng" : view === "list" ? "🗒️ Danh sách theo ngày" : "🧩 Trạng thái"}
@@ -590,20 +579,14 @@ export default function StaffHomeDB() {
               </div>
               <div className="tw-flex tw-items-center tw-gap-2">
                 <div className="tw-relative">
-                  <i
-                    className={`fa-solid fa-magnifying-glass tw-absolute tw-left-3 tw-top-1/2 -tw-translate-y-1/2 ${
-                      dark ? "tw-text-white/50" : "tw-text-gray-400"
-                    }`}
-                  ></i>
-                  <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                  <i className={`fa-solid fa-magnifying-glass tw-absolute tw-left-3 tw-top-1/2 -tw-translate-y-1/2 
+                    ${ dark ? "tw-text-white/50" : "tw-text-gray-400" }`} ></i>
+                  <input  value={search} onChange={(e) => setSearch(e.target.value)}
                     className={`tw-w-[220px] tw-rounded-full tw-py-1.5 tw-pl-9 tw-text-xl tw-pr-3 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800
-                       ${dark
-                           ? "tw-bg-white/10 tw-text-white tw-border tw-border-white/10"
+                       ${dark ? "tw-bg-white/10 tw-text-white tw-border tw-border-white/10"
                            : "tw-bg-white tw-border tw-border-gray-300 focus:tw-ring-blue-200"
                        }`}
-                    placeholder="Tìm tên/email/vị trí…"
+                    placeholder="Tìm tên khách hàng…"
                   />
                 </div>
                 {renderStatusChips()}
@@ -626,50 +609,33 @@ export default function StaffHomeDB() {
 
                   {/* Controls */}
                   <div className="tw-flex tw-items-center tw-gap-2 tw-mb-5">
-                    <input
-                      type="month"
-                      value={monthInputValue}
-                      onChange={jumpToMonth}
+                    <input  type="month"  value={monthInputValue} onChange={jumpToMonth}
                       title="Chọn tháng/năm"
                       className={`tw-hidden md:tw-block tw-rounded-full tw-px-3 tw-py-1 tw-text-lg tw-border
                         ${dark ? "tw-bg-white/10 tw-text-white tw-border-white/10" : "tw-bg-white tw-border-gray-200"}`}
                     />
-                    <input
-                      type="date"
-                      onChange={jumpToDate}
-                      title="Chọn ngày"
+                    <input type="date" onChange={jumpToDate}  title="Chọn ngày"
                       className={`tw-hidden md:tw-block tw-rounded-full tw-px-3 tw-py-1 tw-text-lg tw-border
                         ${dark ? "tw-bg-white/10 tw-text-white tw-border-white/10" : "tw-bg-white tw-border-gray-200"}`}
                     />
-                    <button
-                      onClick={() =>
-                        setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1))
-                      }
+                    <button onClick={() => setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1))  }
                       className={`tw-rounded-full tw-px-3 tw-py-1 tw-border 
                         ${dark ? "tw-text-white tw-border-white/10 tw-bg-white/10" : "tw-bg-white tw-border-gray-200 hover:tw-bg-gray-50"}`}
-                      aria-label="Tháng trước"
-                    >
+                      aria-label="Tháng trước">
                       <i className="fa fa-angle-left"></i>
                     </button>
 
-                    <button
-                      onClick={() => {
+                    <button onClick={() => {
                         setMonthCursor(new Date());
                         setSelectedDate(todayStr);
-                      }}
-                      className="tw-rounded-full tw-px-3 tw-py-1 tw-bg-[#1999ee] tw-text-white"
-                    >
+                      }} className="tw-rounded-full tw-px-3 tw-py-1 tw-bg-[#1999ee] tw-text-white">
                       Hôm nay
                     </button>
 
-                    <button
-                      onClick={() =>
-                        setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1))
-                      }
+                    <button  onClick={() => setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1)) }
                       className={`tw-rounded-full tw-px-3 tw-py-1 tw-border 
                         ${dark ? "tw-text-white tw-border-white/10 tw-bg-white/10" : "tw-bg-white tw-border-gray-200 hover:tw-bg-gray-50"}`}
-                      aria-label="Tháng sau"
-                    >
+                      aria-label="Tháng sau" >
                       <i className="fa fa-angle-right"></i>
                     </button>
                   </div>
@@ -707,20 +673,15 @@ export default function StaffHomeDB() {
                     ][lvl];
 
                     return (
-                      <button
-                        key={idx}
-                        onClick={() => setSelectedDate(isActive ? "" : dStr)}
+                      <button key={idx} onClick={() => setSelectedDate(isActive ? "" : dStr)}
                         className={`tw-h-[90px] tw-w-full tw-rounded-xl tw-border tw-flex tw-flex-col tw-justify-between tw-p-2 tw-relative
                           ${dark ? `tw-border-white/10 ${heat}` : `tw-border-gray-200 ${heat}`}
                           ${isActive ? "tw-ring-2 tw-ring-[#053bee]" : ""}
-                          ${
-                            isToday
-                              ? dark
+                          ${ isToday ? dark
                                 ? "tw-shadow-[inset_0_0_0_1px_rgba(25,153,238,.6)]"
                                 : "tw-shadow-[inset_0_0_0_1px_rgba(25,153,238,1)]"
                               : ""
-                          }
-                        `} title={`Ngày ${dStr}`}>
+                          }`} title={`Ngày ${dStr}`}>
                         <div className="tw-flex tw-items-baseline tw-justify-between">
                           <span className={`tw-text-sm ${dark ? "tw-text-white" : "tw-text-blue-800"}`}>{cell.d}</span>
                           <span className={`tw-text-[11px] ${dark ? "tw-text-white" : "tw-text-blue-800"}`}>
@@ -729,8 +690,7 @@ export default function StaffHomeDB() {
                         </div>
                         <span
                           className={`tw-text-[11px] tw-rounded-full tw-px-2 tw-py-[2px] tw-self-end
-                            ${
-                              cell.n > 0
+                            ${  cell.n > 0
                                 ? "tw-bg-[#1999ee] tw-text-white"
                                 : dark
                                 ? "tw-bg-white/10 tw-text-white/60"
@@ -755,7 +715,7 @@ export default function StaffHomeDB() {
                 </div>
 
                 {/* Selected day preview */}
-                <div className="tw-mt-4">
+                <div className="tw-mt-6">
                   {selectedDate ? (
                     <>
                       <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">

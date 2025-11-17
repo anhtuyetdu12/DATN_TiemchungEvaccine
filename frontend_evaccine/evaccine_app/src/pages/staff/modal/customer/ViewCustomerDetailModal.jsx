@@ -94,18 +94,18 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
     if (activeTab !== "appointments" || !fullCustomer?.id) return;
     let isMounted = true; // tránh setState khi unmount
 
-    const p = fetchCustomerAppointments(fullCustomer.id, { status: "pending,confirmed" })
-      .then((data) => {
+    (async () => {
+      try {
+        const data = await fetchCustomerAppointments(fullCustomer.id, {
+          status: "pending,confirmed",
+        });
         if (!isMounted) return;
         setFullCustomer(prev => ({ ...prev, appointments: data }));
-      });
-
-    toast.promise(p, {
-      pending: "Đang tải lịch hẹn...",
-      success: "Tải lịch hẹn thành công!",
-      error: "Không tải được lịch hẹn",
-    });
-
+        // nếu muốn: console.log("Loaded appointments", data);
+      } catch (err) {
+        toast.error("Không tải được lịch hẹn");
+      }
+    })();
     return () => { isMounted = false; };
   }, [activeTab, fullCustomer?.id]);
 

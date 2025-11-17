@@ -2,7 +2,8 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db.models import Prefetch, IntegerField, F, Case, When, Value, Q
+from django.db.models import Prefetch, IntegerField, F, Case, When, Value, Q, OuterRef, Subquery, Count
+from django.db.models.functions import Coalesce
 from rest_framework.decorators import action
 from django.http import HttpResponse
 from io import BytesIO
@@ -15,7 +16,7 @@ from .serializers import (
     DiseaseSerializer, VaccineCategorySerializer,
     VaccineSerializer, VaccinePackageSerializer, VaccinePackageGroupSerializer
 )
-from records.models import FamilyMember
+from records.models import FamilyMember, VaccinationRecord
 from records.serializers import BookingSerializer  
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 
@@ -88,11 +89,15 @@ class VaccineViewSet(viewsets.ModelViewSet):
         member = FamilyMember.objects.filter(id=member_id).first()
         if not member:
             return Response({"error": "Thành viên không tồn tại"}, status=404)
-        if member.user != request.user:
+        #  cho phép staff / admin xem
+        user = request.user
+        role = getattr(user, "role", "")
+        if member.user != user and role not in ("staff", "admin", "superadmin"):
             return Response({"error": "Thành viên không thuộc tài khoản này"}, status=403)
         if not member.date_of_birth:
             return Response({"error": "Thiếu ngày sinh của thành viên"}, status=400)
 
+        # --- TÍNH TUỔI THEO THÁNG ---
         today = date.today()
         years = today.year - member.date_of_birth.year - (
             (today.month, today.day) < (member.date_of_birth.month, member.date_of_birth.day)
@@ -102,10 +107,23 @@ class VaccineViewSet(viewsets.ModelViewSet):
             month_delta -= 1
         age_months = max(0, min(years * 12 + month_delta, 110 * 12))
 
-        qs = Vaccine.objects.filter(status="active")
+        # --- TEXT TUỔI ĐẸP HƠN ---
+        if age_months < 12:
+            age_text = f"{age_months} tháng"
+        else:
+            y = age_months // 12
+            m = age_months % 12
+            if m == 0:
+                age_text = f"{y} tuổi"
+            else:
+                age_text = f"{y} tuổi {m} tháng"
+
+        # --- BASE QUERYSET: chỉ lấy vaccine active, lọc theo bệnh nếu có ---
+        qs = Vaccine.objects.filter(status="active").select_related("disease", "category")
         if disease_id and str(disease_id).isdigit():
             qs = qs.filter(disease_id=int(disease_id))
 
+        # --- CHUẨN HOÁ min/max tuổi VỀ ĐƠN VỊ THÁNG ---
         qs = qs.annotate(
             min_months=Case(
                 When(age_unit="tháng", then=F("min_age")),
@@ -120,20 +138,54 @@ class VaccineViewSet(viewsets.ModelViewSet):
                 output_field=IntegerField(),
             ),
         ).filter(
-            Q(min_months__lte=age_months) &
-            (Q(max_months__gte=age_months) | Q(max_months__isnull=True))
-        ).select_related("disease", "category")
+            Q(min_months__lte=age_months)
+            & (Q(max_months__gte=age_months) | Q(max_months__isnull=True))
+        )
 
+        # --- ĐÃ TIÊM BAO NHIÊU MŨI CHO TỪNG VACCINE NÀY? ---
+        dose_subquery = (
+            VaccinationRecord.objects.filter(
+                family_member=member,
+                vaccine=OuterRef("pk"),
+                vaccination_date__isnull=False,
+            )
+            .values("vaccine")
+            .order_by() 
+            .annotate(c=Count("id"))
+            .values("c")[:1]
+        )
+
+        qs = qs.annotate(
+            doses_used=Coalesce(Subquery(dose_subquery), Value(0), output_field=IntegerField()),
+        )
+
+        # --- MŨI KẾ TIẾP LÀ MŨI SỐ MẤY? ---
+        qs = qs.annotate(
+            next_dose_number=Case(
+                When(doses_required__isnull=True, then=Value(1)),
+                default=F("doses_used") + 1,
+                output_field=IntegerField(),
+            )
+        )
+
+        # --- LOẠI BỎ VACCINE ĐÃ TIÊM ĐỦ LIỀU ---
+        qs = qs.filter(
+            Q(doses_required__isnull=True) | Q(doses_used__lt=F("doses_required"))
+        )
+
+        # --- NẾU FE GỬI THÊM dose_number THÌ LỌC THEO MŨI CỤ THỂ ---
         if dose_number and str(dose_number).isdigit():
-            qs = qs.filter(Q(doses_required__isnull=True) | Q(doses_required__gte=int(dose_number)))
+            qs = qs.filter(next_dose_number=int(dose_number))
 
         serializer = self.get_serializer(qs, many=True)
-        return Response({
-            "member": member.full_name,
-            "age_text": f"{years} tuổi" if years >= 1 else f"{age_months} tháng",
-            "age_months": age_months,
-            "vaccines": serializer.data,
-        })
+        return Response(
+            {
+                "member": member.full_name,
+                "age_text": age_text,
+                "age_months": age_months,
+                "vaccines": serializer.data,
+            }
+        )
 
     # ====== đặt 1 vaccine ngay tại đây ======
     @action(detail=True, methods=["post"], url_path="book", permission_classes=[IsAuthenticated])

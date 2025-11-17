@@ -2,6 +2,7 @@ import re
 from django.contrib.auth.hashers import make_password
 from rest_framework import generics
 from django.contrib.auth import get_user_model
+from django.utils.crypto import get_random_string
 import random, string
 from rest_framework import serializers
 from .models import CustomUser, MedicalStaff
@@ -9,6 +10,7 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
 from records.models import FamilyMember
+
 
 User = get_user_model()
 
@@ -201,13 +203,11 @@ class StaffCreateCustomerSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=255)
     email = serializers.EmailField(required=False, allow_blank=True)
     phone = serializers.CharField(required=False, allow_blank=True)
-    set_password = serializers.CharField(write_only=True)       # BẮT BUỘC
-    repassword   = serializers.CharField(write_only=True)       # XÁC NHẬN
+    set_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    repassword   = serializers.CharField(write_only=True, required=False, allow_blank=True)
     
     date_of_birth = serializers.DateField(required=False, allow_null=True)
-    gender = serializers.ChoiceField(
-        choices=["male","female","other"], required=False, allow_blank=True
-    )
+    gender = serializers.ChoiceField( choices=["male","female","other"], required=False, allow_blank=True )
     
     def validate(self, attrs):
         email = (attrs.get("email") or "").strip()
@@ -223,20 +223,26 @@ class StaffCreateCustomerSerializer(serializers.Serializer):
         if phone and User.objects.filter(phone=phone).exists():
             raise serializers.ValidationError({"phone": "Số điện thoại đã tồn tại."})
 
-        # rule mật khẩu giống RegisterSerializer
-        import re
-        if " " in pwd:
-            raise serializers.ValidationError({"set_password":"Mật khẩu không được chứa khoảng trắng"})
-        if not re.search(r'[A-Z]', pwd):
-            raise serializers.ValidationError({"set_password":"Mật khẩu phải có ít nhất 1 chữ hoa"})
-        if not re.search(r'[a-z]', pwd):
-            raise serializers.ValidationError({"set_password":"Mật khẩu phải có ít nhất 1 chữ thường"})
-        if not re.search(r'[\W_]', pwd):
-            raise serializers.ValidationError({"set_password":"Mật khẩu phải có ít nhất 1 ký tự đặc biệt"})
-        if len(pwd) < 6:
-            raise serializers.ValidationError({"set_password":"Mật khẩu phải có ít nhất 6 ký tự"})
-        if pwd != repwd:
-            raise serializers.ValidationError({"repassword":"Mật khẩu nhập lại không khớp"})
+        #  kiểm tra rule mật khẩu nếu có nhập (tức allowLogin = true bên FE)
+        if pwd or repwd:
+            if not pwd:
+                raise serializers.ValidationError({"set_password": "Vui lòng nhập mật khẩu"})
+            if not repwd:
+                raise serializers.ValidationError({"repassword": "Vui lòng nhập lại mật khẩu"})
+
+            import re
+            if " " in pwd:
+                raise serializers.ValidationError({"set_password":"Mật khẩu không được chứa khoảng trắng"})
+            if not re.search(r'[A-Z]', pwd):
+                raise serializers.ValidationError({"set_password":"Mật khẩu phải có ít nhất 1 chữ hoa"})
+            if not re.search(r'[a-z]', pwd):
+                raise serializers.ValidationError({"set_password":"Mật khẩu phải có ít nhất 1 chữ thường"})
+            if not re.search(r'[\W_]', pwd):
+                raise serializers.ValidationError({"set_password":"Mật khẩu phải có ít nhất 1 ký tự đặc biệt"})
+            if len(pwd) < 6:
+                raise serializers.ValidationError({"set_password":"Mật khẩu phải có ít nhất 6 ký tự"})
+            if pwd != repwd:
+                raise serializers.ValidationError({"repassword":"Mật khẩu nhập lại không khớp"})
 
         return attrs
 
@@ -244,10 +250,15 @@ class StaffCreateCustomerSerializer(serializers.Serializer):
         full_name = validated_data["full_name"].strip()
         email = (validated_data.get("email") or "").strip() or None
         phone = (validated_data.get("phone") or "").strip() or None
-        raw_password = (validated_data.get("set_password") or "").strip()
-
         dob = validated_data.get("date_of_birth")
         gender = (validated_data.get("gender") or "other").strip()
+        
+        raw_password = (validated_data.get("set_password") or "").strip()
+        has_password = bool(raw_password)
+         # Nếu không có mật khẩu -> sinh pass random & bắt đổi sau
+        if not has_password:
+            # sinh pass random 10 ký tự
+            raw_password = get_random_string(10)   # <--- SỬA CHỖ NÀY
         
         user = User.objects.create_user(
             email=email or f"user{phone}@gmail.com",
@@ -256,16 +267,11 @@ class StaffCreateCustomerSerializer(serializers.Serializer):
             phone=phone,
             role="customer",
             is_active=True,
-            gender=gender if hasattr(User, "gender") else None,
-            date_of_birth=dob if hasattr(User, "date_of_birth") else None,
+            gender=gender,
+            date_of_birth=dob,
         )
 
-        # KHÔNG bắt đổi mật khẩu lần đầu
-        user.must_change_password = False
-        user.save(update_fields=["must_change_password"])
-
         # tạo member “Bản thân”
-        from records.models import FamilyMember
         if not FamilyMember.objects.filter(user=user, relation="Bản thân").exists():
             FamilyMember.objects.create(
                 user=user,
@@ -277,7 +283,7 @@ class StaffCreateCustomerSerializer(serializers.Serializer):
                 phone=user.phone or "",
                 is_self=True,
             )
-        return {"user": user}
+        return {"user": user, "has_password": has_password}
  
     
     

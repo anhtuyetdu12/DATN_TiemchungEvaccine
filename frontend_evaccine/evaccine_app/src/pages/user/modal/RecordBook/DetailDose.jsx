@@ -122,23 +122,23 @@ export default function DetailDose({ disease, onClose, memberId }) {
   }, [disease?.selectedDoseNumber]);
 
   // 👉 GỌI API: vắc xin theo tuổi + theo bệnh
-    useEffect(() => {
-      if (!memberId || !disease?.id || !activeTab) return;
-      let mounted = true;
-      setLoading(true);
-      getVaccinesByAge(memberId, disease.id, activeTab) // truyền mũi
-        .then((data) => {
-          if (!mounted) return;
-          setVaccineData(data);
-          const list = Array.isArray(data?.vaccines) ? data.vaccines : [];
-          setSuggestedVaccine(list[0] || null);
-        })
-        .catch((err) => {
-          toast.error(err?.response?.data?.error || "Không thể tải gợi ý vắc xin");
-        })
-        .finally(() => mounted && setLoading(false));
+  useEffect(() => {
+    if (!memberId || !disease?.id) return;
+    let mounted = true;
+    setLoading(true);
+    // Chỉ lọc theo tuổi + bệnh, KHÔNG lọc theo số mũi
+    getVaccinesByAge(memberId, disease.id)
+      .then((data) => {
+        if (!mounted) return;
+        setVaccineData(data);
+        const list = Array.isArray(data?.vaccines) ? data.vaccines : [];
+        setSuggestedVaccine(list[0] || null);
+      })
+      .catch((err) => { toast.error(err?.response?.data?.error || "Không thể tải gợi ý vắc xin"); })
+      .finally(() => mounted && setLoading(false));
       return () => { mounted = false; };
-    }, [memberId, disease?.id, activeTab]);
+  }, [memberId, disease?.id, activeTab]); 
+
 
     const currentDoseStatus = doseStatuses[activeTab - 1] || "Chưa tiêm";
     const statusClass = {

@@ -60,16 +60,18 @@ export const getVaccinationRecords = async (memberId) => {
 };
 
 export const getVaccinesByAge = async (memberId, diseaseId, doseNumber) => {
-  const { data } = await api.get("/vaccines/by-age/", {
-    params: { member_id: memberId, disease_id: diseaseId, dose_number: doseNumber },
-  });
-  // giữ nguyên structure, chỉ chuẩn hóa giá & ảnh của vaccines nếu muốn
-  data.vaccines = pickList(data.vaccines).map(v => ({
-    ...v,
-    image: v.image || "/images/no-image.jpg",
-    formatted_price: v.formatted_price ?? (v.price != null ? `${Number(v.price).toLocaleString("vi-VN")} VNĐ` : "0 VNĐ"),
-  }));
-  return data;
+   const params = { member_id: memberId };
+   if (diseaseId) params.disease_id = diseaseId;
+   if (doseNumber) params.dose_number = doseNumber;
+ 
+   const { data } = await api.get("/vaccines/by-age/", { params });
+   // giữ nguyên structure, chỉ chuẩn hóa giá & ảnh của vaccines nếu muốn
+   data.vaccines = pickList(data.vaccines).map(v => ({
+     ...v,
+     image: v.image || "/images/no-image.jpg",
+     formatted_price: v.formatted_price ?? (v.price != null ? `${Number(v.price).toLocaleString("vi-VN")} VNĐ` : "0 VNĐ"),
+   }));
+   return data;
 };
 
 

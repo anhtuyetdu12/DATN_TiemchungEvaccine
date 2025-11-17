@@ -135,7 +135,7 @@ const buildIntro = (v) => {
 
 
   return (
-    <div className="tw-bg-gray-100 tw-min-h-screen  ">
+    <div className="tw-bg-sky-100 tw-min-h-screen  ">
       <div className="tw-max-w-[1100px] tw-mx-auto tw-px-5 tw-py-[120px]">
         <div className="tw-flex tw-justify-start tw-mb-4">
           <button onClick={handleBack} aria-label="Quay lại"
@@ -149,15 +149,12 @@ const buildIntro = (v) => {
         {/* Khung thông tin sản phẩm */}
         <div className="tw-bg-white tw-rounded-2xl tw-shadow-md tw-p-8 tw-mb-8">
           <div className="tw-flex tw-gap-8">
-            {/* Ảnh */}
             <div className="tw-w-1/3">
               <img   src={data.image || "/images/no-image.jpg"}  alt={data.name} className="tw-rounded-xl tw-shadow tw-w-full tw-object-contain"/>
                 <p className="tw-text-base tw-text-gray-700  tw-bg-gray-200 tw-rounded-full tw-inline-block tw-px-4 tw-py-1 tw-mt-5">
                     Mẫu mã sản phẩm có thể thay đổi theo lô hàng
                 </p>
             </div>
-
-            {/* Nội dung */}
             <div className="tw-w-2/3 tw-text-left tw-ml-5  tw-space-y-5">
                 <div className="tw-border-b tw-border-dashed tw-border-gray-300 tw-pb-3 tw-mb-8 tw-space-y-3">
                     <p className="tw-text-2xl tw-text-[#2b9efc] tw-font-semibold">  {data?.disease?.name || "—"} </p>
@@ -169,7 +166,6 @@ const buildIntro = (v) => {
                         </span>
                     </p>
                 </div>
-
 
                 {/* Thông tin vắc xin */}
                 <div className="tw-grid tw-grid-cols-[200px_1fr] tw-gap-y-3 tw-text-black tw-text-[16px] tw-mt-3 tw-text-xl">
@@ -200,20 +196,16 @@ const buildIntro = (v) => {
                     <div>{Number(data.doses_required || 0) > 0 ? `${data.doses_required} liều` : "—"}</div>
                 </div>
 
-
-
-            {/* Mô tả */}
             <p className="tw-text-gray-900 tw-mt-5 tw-leading-relaxed tw-text-justify tw-text-xl">
               {data.vaccine_type || data.schedule_text || "Chưa có mô tả."}
             </p>
 
-            {/* Nút */}
-           
           <div className="tw-flex tw-gap-4 tw-mt-6 tw-w-full">
-            <button onClick={() => setShowModal(true)} className="tw-flex-1 tw-bg-pink-100 tw-text-pink-700 tw-font-medium tw-py-4 tw-text-[18px] tw-rounded-full hover:tw-bg-pink-200">
+            {/* <button onClick={() => setShowModal(true)} className="tw-flex-1 tw-bg-pink-100 tw-text-pink-700 tw-font-medium tw-py-4 tw-text-[18px] tw-rounded-full hover:tw-bg-pink-200">
               Yêu cầu tư vấn
-            </button>
-            <button onClick={handleBookNow} className="tw-flex-1 tw-bg-blue-600 tw-text-white tw-font-medium tw-py-4 tw-text-[18px] tw-rounded-full hover:tw-bg-blue-500">
+            </button> */}
+            <button onClick={handleBookNow} className="tw-flex-1 tw-bg-gradient-to-r tw-from-[#0798ec] tw-to-[#b0f1fb] tw-text-white tw-py-3 tw-rounded-full 
+                    hover:tw-from-[#b0f1fb] hover:tw-to-[#0798ec] tw-font-semibold tw-text-[18px] hover:tw-bg-blue-500">
               Đặt hẹn
             </button>
           </div>

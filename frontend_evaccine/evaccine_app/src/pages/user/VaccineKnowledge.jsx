@@ -1,10 +1,7 @@
 // src/pages/VaccineKnowledge.jsx
 import React, { useEffect, useState } from "react";
 import ChatWidget from "../../components/ChatWidget";
-import {
-  getKnowledgeCategories,
-  getPublicKnowledgeArticles,
-} from "../../services/knowledgeService";
+import { getKnowledgeCategories, getPublicKnowledgeArticles,} from "../../services/knowledgeService";
 
 export default function VaccineKnowledge() {
   const [categories, setCategories] = useState([]);
@@ -182,7 +179,7 @@ export default function VaccineKnowledge() {
                 <p className="tw-text-[10px] tw-text-slate-200 tw-mt-1 tw-line-clamp-3">
                   {renderShort(featured.summary || featured.content, 180)}
                 </p>
-                <div className="tw-flex tw-flex-wrap tw-gap-1.5 tw-mt-2">
+                <div className="tw-flex  tw-gap-1.5 tw-mt-2 tw-overflow-hidden tw-truncate tw-max-w-full">
                   {featured.disease && (
                     <span className="tw-text-[8px] tw-px-2 tw-py-0.5 tw-rounded-full tw-bg-sky-500/20 tw-text-sky-200">
                       #{featured.disease}
@@ -284,14 +281,31 @@ export default function VaccineKnowledge() {
                       <p className="tw-text-[9px] tw-text-slate-600 tw-line-clamp-3">
                         {renderShort(a.summary || a.content, 90)}
                       </p>
-                      <div className="tw-flex tw-flex-wrap tw-gap-1 tw-mt-1">
+                      <div className="tw-flex tw-gap-1 tw-max-w-full">
                         {a.disease && (
-                          <span className="tw-text-[7px] tw-px-1.5 tw-py-0.5 tw-rounded-full tw-bg-sky-50 tw-text-sky-700">
+                          <span
+                            className="
+                              tw-flex-1 
+                              tw-text-[8px] tw-px-1.5 tw-py-0.5 
+                              tw-rounded-full 
+                              tw-bg-sky-50 tw-text-sky-700
+                              tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap
+                            "
+                          >
                             #{a.disease}
                           </span>
                         )}
+
                         {a.vaccine && (
-                          <span className="tw-text-[7px] tw-px-1.5 tw-py-0.5 tw-rounded-full tw-bg-emerald-50 tw-text-emerald-700">
+                          <span
+                            className="
+                              tw-flex-1
+                              tw-text-[8px] tw-px-1.5 tw-py-0.5
+                              tw-rounded-full 
+                              tw-bg-emerald-50 tw-text-emerald-700
+                              tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap
+                            "
+                          >
                             #{a.vaccine}
                           </span>
                         )}

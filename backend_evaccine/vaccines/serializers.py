@@ -32,33 +32,37 @@ class VaccineCategorySerializer(serializers.ModelSerializer):
 
 class VaccineSerializer(serializers.ModelSerializer):
     disease = DiseaseSerializer(read_only=True)
-    disease_id = serializers.PrimaryKeyRelatedField(queryset=Disease.objects.all(), source="disease", write_only=True)
+    disease_id = serializers.PrimaryKeyRelatedField( queryset=Disease.objects.all(), source="disease", write_only=True )
     category = VaccineCategorySerializer(read_only=True)
-    category_id = serializers.PrimaryKeyRelatedField(queryset=VaccineCategory.objects.all(), source="category", write_only=True)
+    category_id = serializers.PrimaryKeyRelatedField( queryset=VaccineCategory.objects.all(), source="category", write_only=True)
     formatted_price = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
+
+    # --- CÁC FIELD CHỈ ĐỌC TỪ ANNOTATE CỦA by_age ---
+    min_months = serializers.IntegerField(read_only=True)
+    max_months = serializers.IntegerField(read_only=True, allow_null=True)
+    doses_used = serializers.IntegerField(read_only=True)
+    next_dose_number = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Vaccine
         fields = "__all__"
 
     def get_image(self, obj):
-        # nếu không có ảnh → trả None
         if not getattr(obj, "image", None):
             return None
         try:
             url = obj.image.url
         except Exception:
             return None
-
         request = self.context.get("request")
-        # nếu có request → build absolute uri, ngược lại trả relative
         return request.build_absolute_uri(url) if request else url
 
     def get_formatted_price(self, obj):
         if obj.price is not None:
             return f"{obj.price:,.0f} VNĐ"
         return "0 VNĐ"
+
 
 class VaccinePackageDiseaseSerializer(serializers.ModelSerializer):
     disease = DiseaseSerializer()

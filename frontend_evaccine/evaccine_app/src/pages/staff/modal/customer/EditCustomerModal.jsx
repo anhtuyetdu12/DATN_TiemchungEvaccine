@@ -3,7 +3,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import Dropdown from "../../../../components/Dropdown";
 import QuantityPicker from "../../../../components/QuantityPicker";
 import DeleteCustomerModal from "./DeleteCustomerModal";
-import { getAllVaccines, getAllDiseases } from "../../../../services/vaccineService";
+import { getAllVaccines, getAllDiseases, } from "../../../../services/vaccineService";
+import { getVaccinesByAge } from "../../../../services/recordBookService";
 import { staffUpdateCustomerProfile, createAppointment, setAppointmentStatus,
   addHistory, staffCreateMember, staffDeleteMember,} from "../../../../services/customerService";
 import { openPrintWindow, buildAppointmentConfirmationHtml, buildPostInjectionHtml, formatDateVi } from "../../../../utils/printHelpers";
@@ -47,6 +48,13 @@ export default function EditCustomerModal({
     batch: "",
     note: "",
   });
+  const [ageFiltered, setAgeFiltered] = useState({
+    loading: false,
+    memberId: "",
+    ageText: "",
+    vaccines: [],   // list vaccine phù hợp độ tuổi
+  });
+
 
   // Các list an toàn khi customer null
   const membersList = useMemo(() => customer?.members ?? [], [customer?.members]);
@@ -55,19 +63,16 @@ export default function EditCustomerModal({
 
   // Options chọn người tiêm (owner + members)
   const memberSelectOptions = useMemo(() => {
-    const ownerOpt = customer
-      ? [{ value: `owner:${customer.id}`, label: `${customer.name} (Chủ hồ sơ)`, title: `${customer.name} (Chủ hồ sơ)` }]
-      : [];
     const list = (membersList || []).map((m) => {
       const displayName = m.name || m.full_name || "";
       return {
-        value: String(m.id),
+        value: String(m.id),   // <- DÙ "Bản thân" cũng dùng id thật
         label: `${displayName}${m.relation ? ` (${m.relation})` : ""}`,
         title: `${displayName}${m.relation ? ` (${m.relation})` : ""}`,
       };
     });
-    return [...ownerOpt, ...list];
-  }, [customer, membersList]);
+    return list;
+  }, [membersList]);
 
   // danh sách mối quan hệ — cũng đưa lên trước guard
   const relationships = useMemo(
@@ -87,6 +92,51 @@ export default function EditCustomerModal({
     );
     setNewAppointment((prev) => ({ ...prev, total: sum }));
   }, [newAppointment.items]);
+  // Chon ng tiêm => vc theo tuổi
+  useEffect(() => {
+    // Nếu chưa chọn người tiêm thì reset
+    if (!newAppointment.memberId) {
+      setAgeFiltered({
+        loading: false,
+        memberId: "",
+        ageText: "",
+        vaccines: [],
+      });
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        setAgeFiltered((prev) => ({
+          ...prev,
+          loading: true,
+          memberId: newAppointment.memberId,
+        }));
+        // gọi BE: /vaccines/by-age/?member_id=...
+        const data = await getVaccinesByAge(newAppointment.memberId);
+        if (cancelled) return;
+        setAgeFiltered({
+          loading: false,
+          memberId: newAppointment.memberId,
+          ageText: data.age_text || "",
+          vaccines: data.vaccines || [],
+        });
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) {
+          setAgeFiltered({
+            loading: false,
+            memberId: newAppointment.memberId,
+            ageText: "",
+            vaccines: [],
+          });
+        }
+        toast.error( e?.response?.data?.error || "Không lấy được danh sách vắc xin phù hợp độ tuổi" );
+      }
+    })();
+    return () => { cancelled = true;};
+  }, [newAppointment.memberId]);
+
 
   // Đồng bộ form khi customer thay đổi
   useEffect(() => {
@@ -104,7 +154,7 @@ export default function EditCustomerModal({
   }, [show]);
 
     // LOASD ds vaccine bệnh
-  useEffect(() => {
+   useEffect(() => {
     if (!show) return;
     let mounted = true;
     (async () => {
@@ -123,6 +173,36 @@ export default function EditCustomerModal({
     })();
     return () => { mounted = false; };
   }, [show]);
+
+  // 👉 LẤY DS BỆNH (TOÀN BỘ)
+  const diseaseOptions = useMemo(() => {
+    return (diseasesDb || []).map((d) => ({
+      value: String(d.id),
+      label: d.name,
+    }));
+  }, [diseasesDb]);
+
+  // 👉 BỆNH ĐÃ LỌC THEO ĐỘ TUỔI (DÙNG TRONG FORM TẠO LỊCH)
+  const ageDiseaseOptions = useMemo(() => {
+    // Nếu chưa có dữ liệu theo tuổi -> dùng full diseaseOptions cũ
+    if (!ageFiltered.memberId || !ageFiltered.vaccines.length) {
+      return diseaseOptions;
+    }
+
+    const map = new Map();
+    ageFiltered.vaccines.forEach((v) => {
+      if (v.disease && v.disease.id && !map.has(v.disease.id)) {
+        map.set(v.disease.id, {
+          value: String(v.disease.id),
+          label: v.disease.name,
+        });
+      }
+    });
+
+    const arr = Array.from(map.values());
+    // Nếu vì lý do gì đó không suy được bệnh thì fallback về cũ
+    return arr.length ? arr : diseaseOptions;
+  }, [ageFiltered, diseaseOptions]);
 
   const mapCodeToLabel = (c) => String(c).toLowerCase() === "male" ? "Nam" : String(c).toLowerCase() === "female" ? "Nữ" : "Khác";
 
@@ -204,10 +284,6 @@ export default function EditCustomerModal({
   const getMaxDose = (vId) =>
     Math.max(1, Math.min(findVaccine(vId)?.doses_required ?? 1, 5));
 
-  // lấy bệnh
-  const diseaseOptions = useMemo(() => {
-    return (diseasesDb || []).map((d) => ({ value: String(d.id), label: d.name }));
-  }, [diseasesDb]);
 
   // ---------------- Early return: đặt SAU khi đã khai báo tất cả hooks ----------------
   if (!show || !customer) return null;
@@ -251,13 +327,7 @@ export default function EditCustomerModal({
 
       setCustomers((prev) =>
         prev.map((c) =>
-          c.id === customer.id
-            ? { ...c,
-                ...toSave,
-                gender_text: mapCodeToLabel(toSave.gender),
-                dob: toSave.dob,
-              }
-            : c
+          c.id === customer.id ? { ...c, ...toSave, gender_text: mapCodeToLabel(toSave.gender),dob: toSave.dob,}: c
         )
       );
       setSelectedCustomer((prev) => ({
@@ -402,9 +472,9 @@ export default function EditCustomerModal({
         return;
       }
 
-      const isOwner = String(newAppointment.memberId || "").startsWith("owner:");
+      const isOwner = false; 
       const payload = {
-        member_id: isOwner ? null : Number(newAppointment.memberId || 0),
+        member_id: Number(newAppointment.memberId),
         appointment_date: newAppointment.date || "",
         items,
         location: center?.name || "",
@@ -487,7 +557,7 @@ export default function EditCustomerModal({
   // ---------------- Render ----------------
   return (
     <div className="tw-fixed tw-inset-0 tw-flex tw-items-start tw-justify-center tw-pt-24 tw-bg-black/40">
-      <div className="tw-bg-white tw-w-[700px] tw-h-[400px] tw-rounded-xl tw-shadow-xl tw-flex tw-flex-col tw-mt-[50px]">
+      <div className="tw-bg-white tw-w-[700px] tw-h-[450px] tw-rounded-xl tw-shadow-xl tw-flex tw-flex-col tw-mt-[50px]">
         <div className="tw-flex tw-justify-between tw-items-center tw-p-4 tw-border-b">
           <div>
             <h3 className="tw-text-xl tw-font-semibold">Hồ sơ: {customer.name}</h3>
@@ -779,12 +849,12 @@ export default function EditCustomerModal({
                 </p>
                 <div className="tw-space-y-4">
                   {/* --- TẠO LỊCH HẸN MỚI (đa vắc xin) --- */}
-                  <div className="tw-border-t tw-pt-5">
-                    <h5 className="tw-font-semibold tw-text-xl tw-mb-6 tw-text-green-600 flex items-center">
+                  <div className="tw-border-t tw-pt-3">
+                    <h5 className="tw-font-semibold tw-text-xl tw-mb-2 tw-text-green-600 flex items-center">
                       <i className="fa-solid fa-calendar-plus tw-mr-3"></i>Tạo lịch hẹn mới
                     </h5>
 
-                    <div className="tw-grid lg:tw-grid-cols-3 md:tw-grid-cols-2 tw-grid-cols-1 tw-gap-6">
+                    <div className="tw-grid lg:tw-grid-cols-2 tw-grid-cols-1 tw-gap-6">
                       {/* Ngày */}
                       <div className="tw-flex tw-flex-col">
                         <label className="tw-text-lg tw-font-medium tw-mb-2">Ngày</label>
@@ -797,16 +867,27 @@ export default function EditCustomerModal({
                       {/* Người tiêm */}
                       <div className="tw-flex tw-flex-col">
                         <label className="tw-text-lg tw-font-medium tw-mb-2">Người tiêm</label>
-                        <Dropdown value={newAppointment.memberId} options={memberSelectOptions}
-                          onChange={(val) => setNewAppointment((s) => ({ ...s, memberId: val })) }
+                        <Dropdown  value={newAppointment.memberId}  options={memberSelectOptions}
+                          onChange={(val) => setNewAppointment((s) => ({ ...s, memberId: val }))}
                           className="tw-text-lg "
                         />
+                        {newAppointment.memberId &&  !!ageFiltered.ageText &&  ageFiltered.memberId === newAppointment.memberId && (
+                            <div className="tw-text-sm tw-text-pink-700 tw-mt-1">
+                              Tuổi hiện tại: <span className="tw-font-semibold">{ageFiltered.ageText}</span>.  
+                              Danh sách bệnh và vắc xin bên dưới đã được lọc theo độ tuổi.
+                            </div>
+                        )}
+                        {ageFiltered.loading && (
+                          <div className="tw-text-xs tw-text-gray-400 tw-mt-1">
+                            Đang tính toán vắc xin phù hợp theo tuổi...
+                          </div>
+                        )}
                       </div>
                       
                     </div>
 
                     {/* Danh sách ITEMS vắc xin */}
-                    <div className="tw-mt-6 tw-space-y-4">
+                    <div className="tw-mt-2 tw-space-y-4">
                       <div className="tw-flex tw-items-center tw-justify-between">
                         <div className="tw-flex tw-items-baseline tw-gap-3">
                           <h6 className="tw-text-lg tw-font-semibold">Danh sách vắc xin sẽ tiêm</h6>
@@ -817,6 +898,10 @@ export default function EditCustomerModal({
 
                         <button type="button"
                           onClick={() => {
+                            if (!newAppointment.memberId) {
+                              toast.error("Vui lòng chọn người tiêm trước khi thêm vắc xin");
+                              return;
+                            }
                             setNewAppointment((s) => ({  ...s,
                               items: [  ...(s.items || []),
                                 { diseaseId: "",
@@ -840,6 +925,20 @@ export default function EditCustomerModal({
                      {(newAppointment.items || []).map((it, idx) => {
                         const maxDose = it.vaccineId ? getMaxDose(it.vaccineId) : 5;
                         const itemSubtotal = Number(it.price || 0) * Math.max(1, Number(it.doseQty || 1));
+                        // 👉 TÍNH DS VACCINE CHO ITEM NÀY
+                        const vaccinesForItem =
+                          ageFiltered.memberId === newAppointment.memberId &&
+                          ageFiltered.vaccines.length
+                            ? ( it.diseaseId
+                                  ? ageFiltered.vaccines.filter(
+                                      (v) => String(v.disease?.id) === String(it.diseaseId)
+                                    )
+                                  : ageFiltered.vaccines
+                              )
+                            : it.diseaseId
+                            ? vaccinesByDiseaseId(it.diseaseId)
+                            : vaccinesDb;
+
                         return (
                           <div key={idx} className="tw-rounded-xl tw-border tw-bg-[#ffefe5] tw-shadow-sm tw-ring-1 tw-ring-gray-100 tw-p-4 tw-text-left" >
                             <div className="tw-flex tw-items-start tw-gap-3">
@@ -861,7 +960,8 @@ export default function EditCustomerModal({
                               {/* Phòng bệnh */}
                               <div>
                                 <label className="tw-block tw-text-base tw-font-medium tw-text-gray-700 tw-mb-1"> Phòng bệnh  </label>
-                                <Dropdown disabled={loadingDicts} value={it.diseaseId} options={diseaseOptions}
+                                <Dropdown  disabled={!newAppointment.memberId || loadingDicts}
+                                  value={it.diseaseId} options={ageDiseaseOptions} 
                                   onChange={(val) => {
                                     setNewAppointment((s) => {
                                       const clone = [...(s.items || [])];
@@ -878,20 +978,26 @@ export default function EditCustomerModal({
                                   }}  className="tw-text-base"
                                 />
                                 {loadingDicts && ( <div className="tw-text-xs tw-text-gray-400 tw-mt-1"> Đang tải danh mục… </div> )}
+                                {ageFiltered.memberId === newAppointment.memberId &&
+                                  !ageFiltered.loading && !ageFiltered.vaccines.length && (
+                                    <div className="tw-text-xs tw-text-red-500 tw-mt-1">
+                                      Không tìm thấy vắc xin phù hợp với độ tuổi của người tiêm.
+                                    </div>
+                                  )}
                               </div>
 
                               {/* Vắc xin */}
                               <div>
                                 <label className="tw-block tw-text-base tw-font-medium tw-text-gray-700 tw-mb-1"> Vắc xin </label>
-                                <Dropdown  disabled={!it.diseaseId || loadingDicts} value={it.vaccineId}
-                                  options={(  it.diseaseId ? vaccinesByDiseaseId(it.diseaseId) : vaccinesDb
-                                  ).map((v) => ({
+                                <Dropdown  disabled={!newAppointment.memberId || !it.diseaseId || loadingDicts}
+                                  value={it.vaccineId}
+                                  options={vaccinesForItem.map((v) => ({
                                     value: String(v.id),
                                     label: `${v.name} (${formatMoney(v.price || 0)} đ)`,
                                     title: v.name,
                                   }))}
                                   onChange={(val) => {
-                                    const v = findVaccine(val);
+                                    const v = vaccinesForItem.find( (x) => String(x.id) === String(val) );
                                     setNewAppointment((s) => {
                                       const clone = [...(s.items || [])];
                                       clone[idx] = {

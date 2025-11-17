@@ -18,6 +18,8 @@ from django.core.mail import EmailMultiAlternatives
 from email.mime.image import MIMEImage
 from rest_framework import status
 from .serializers import StaffCreateCustomerSerializer
+from records.models import FamilyMember
+
 
 logger = logging.getLogger(__name__)
 
@@ -347,16 +349,25 @@ class StaffCreateCustomerAPIView(APIView):
         ser.is_valid(raise_exception=True)
         result = ser.save()
         user = result["user"]
+        has_password = result.get("has_password", True)
 
         member_self = None
         try:
-            from records.models import FamilyMember
             member_self = FamilyMember.objects.filter(user=user, relation="Bản thân").first()
         except Exception:
             pass
-
+        
+         # message tuỳ thuộc có pass hay không
+        if has_password:
+            msg = "Đã tạo tài khoản cho khách hàng. Khách có thể đăng nhập ngay bằng tài khoản vừa tạo."
+        else:
+            msg = (
+                "Đã tạo hồ sơ khách hàng (chưa có mật khẩu đăng nhập). "
+                "Nếu sau này khách muốn dùng app, hãy dùng chức năng quên mật khẩu để gửi link đặt mật khẩu."
+            )
+            
         return Response({
-            "message": "Đã tạo tài khoản cho khách hàng. Khách có thể đăng nhập ngay bằng tài khoản vừa tạo.",
+            "message": msg,
             "user": {
                 "id": user.id,
                 "full_name": user.full_name,
@@ -365,9 +376,8 @@ class StaffCreateCustomerAPIView(APIView):
                 "role": user.role,
                 "must_change_password": user.must_change_password,  # False
                 "code": f"KH-{user.id:04d}",
-                # BỔ SUNG 2 TRƯỜNG NÀY
-                "gender": getattr(user, "gender", None) or getattr(member_self, "gender", None),
-                "date_of_birth": getattr(user, "date_of_birth", None) or getattr(member_self, "date_of_birth", None),
+                "gender": user.gender,
+                "date_of_birth": user.date_of_birth,
             }
         }, status=status.HTTP_201_CREATED)
         

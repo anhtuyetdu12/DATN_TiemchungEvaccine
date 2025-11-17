@@ -182,12 +182,10 @@ export default function ChatWidget() {
             <span className="tw-w-2 tw-h-2 tw-bg-green-400 tw-rounded-full" />
             Trợ lý EVaccine đang sẵn sàng hỗ trợ
           </div>
-          <button
-            onClick={() => setIsOpen(true)}
+          <button  onClick={() => setIsOpen(true)}
             className="tw-w-16 tw-h-16 tw-rounded-full tw-bg-gradient-to-br tw-from-[#38bdf8] tw-to-[#2563eb]
                        tw-flex tw-items-center tw-justify-center tw-shadow-2xl tw-border-[3px] tw-border-white
-                       tw-transition-all tw-duration-300 hover:-tw-translate-y-1 hover:tw-scale-105"
-          >
+                       tw-transition-all tw-duration-300 hover:-tw-translate-y-1 hover:tw-scale-105" >
             <i className="fa-solid fa-headset tw-text-3xl tw-text-white"></i>
           </button>
         </div>
@@ -195,18 +193,15 @@ export default function ChatWidget() {
 
       {/* Cửa sổ chat */}
       {isOpen && (
-        <div className="tw-fixed tw-bottom-6 tw-right-6 tw-w-[340px] tw-h-[460px] tw-z-[10000] tw-flex tw-flex-col">
+        <div className="tw-fixed tw-bottom-6 tw-right-6 tw-w-[340px] tw-h-[490px] tw-z-[10000] tw-flex tw-flex-col">
           <div className="tw-w-full tw-h-full tw-backdrop-blur-2xl tw-bg-white/90 tw-rounded-3xl tw-shadow-[0_18px_60px_rgba(15,23,42,0.25)]
                           tw-border tw-border-sky-100 tw-flex tw-flex-col tw-overflow-hidden tw-relative">
             {/* Header */}
             <div className="tw-px-4 tw-pt-3 tw-pb-2 tw-flex tw-items-center tw-justify-between tw-bg-gradient-to-r tw-from-[#38bdf8] tw-to-[#2563eb]">
               <div className="tw-flex tw-items-center tw-gap-2">
                 <div className="tw-relative">
-                  <img
-                    src="/images/sy1.jpg"
-                    alt="EVaccine Assistant"
-                    className="tw-w-12 tw-h-12 tw-rounded-full tw-object-cover tw-border tw-border-white"
-                  />
+                  <img  src="/images/sy1.jpg"  alt="EVaccine Assistant"
+                    className="tw-w-12 tw-h-12 tw-rounded-full tw-object-cover tw-border tw-border-white"/>
                   <span className="tw-absolute tw-bottom-0 tw-right-0 tw-w-2.5 tw-h-2.5 tw-bg-green-400 tw-rounded-full tw-border tw-border-white" />
                 </div>
                 <div>
@@ -219,18 +214,16 @@ export default function ChatWidget() {
                 </div>
               </div>
               <div className="tw-flex tw-items-center tw-gap-2">
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="tw-w-10 tw-h-10 tw-flex tw-items-center tw-justify-center tw-rounded-full tw-bg-white/15 hover:tw-bg-white/30 tw-text-white tw-text-sm tw-font-bold"
-                >
+                <button onClick={() => setIsOpen(false)}
+                  className="tw-w-10 tw-h-10 tw-flex tw-items-center tw-justify-center tw-rounded-full tw-bg-white/15 hover:tw-bg-white/30 tw-text-white tw-text-sm tw-font-bold" >
                   <i className="fa-solid fa-xmark tw-text-xl tw-text-white"></i>
                 </button>
               </div>
             </div>
 
             {/* Thanh info nhỏ */}
-            <div className="tw-px-4 tw-py-2 tw-bg-gradient-to-r tw-from-sky-50 tw-to-sky-100 tw-flex tw-items-center tw-gap-2 tw-text-[10px] tw-text-slate-600">
-              <i className="fa fa-shield-heart tw-text-sky-500 tw-text-2xl" />
+            <div className="tw-px-4 tw-py-2 tw-bg-gradient-to-r tw-from-sky-50 tw-to-sky-100 tw-flex tw-items-center tw-gap-2 tw-text-[11px] tw-text-slate-600">
+              <i className="fa fa-shield-heart tw-text-sky-500 tw-text-3xl" />
               <span>
                 Thông tin chỉ mang tính chất tham khảo. Quyết định tiêm chủng cần
                 theo tư vấn của bác sĩ.
@@ -242,33 +235,20 @@ export default function ChatWidget() {
               {messages.map((m, i) => {
                 const isUser = m.sender === "user";
                 return (
-                  <div
-                    key={i}
-                    className={`tw-flex tw-w-full tw-mt-1 ${
-                      isUser ? "tw-justify-end" : "tw-justify-start"
-                    }`}
-                  >
-                    {/* Avatar bot */}
+                  <div key={i} className={`tw-flex tw-w-full tw-mt-1 ${ isUser ? "tw-justify-end" : "tw-justify-start" }`} >
                     {!isUser && (
                       <div className="tw-w-9 tw-mr-3 tw-flex tw-items-start tw-justify-center tw-mt-1">
-                        <img
-                          src="/images/sy1.jpg"
-                          alt="bot"
-                          className="tw-w-9 tw-h-9 tw-rounded-full tw-object-cover tw-border tw-border-sky-100"
-                        />
+                        <img src="/images/sy1.jpg" alt="bot"  className="tw-w-9 tw-h-9 tw-rounded-full tw-object-cover tw-border tw-border-sky-100" />
                       </div>
                     )}
 
                     {/* Bubble */}
-                    <div
-                      className={
-                        "tw-max-w-[78%] tw-px-3 tw-py-2 tw-rounded-2xl tw-text-[12px] tw-shadow-sm " +
+                    <div  className={ "tw-max-w-[78%] tw-px-3 tw-py-2 tw-rounded-2xl tw-text-[12px] tw-shadow-sm " +
                         (isUser
                           ? "tw-bg-gradient-to-br tw-from-[#38bdf8] tw-to-[#2563eb] tw-text-white tw-rounded-br-none tw-leading-snug"
                           : "tw-bg-white tw-text-slate-800 tw-border tw-border-slate-100 tw-rounded-bl-none " +
                             "tw-whitespace-pre-wrap tw-text-justify tw-leading-relaxed")
-                      }
-                    >
+                      }>
                       {m.text}
                     </div>
                   </div>
@@ -292,29 +272,15 @@ export default function ChatWidget() {
                 <span className="tw-text-[8px] tw-font-semibold tw-text-slate-500 tw-uppercase tw-tracking-wide">
                   Gợi ý nhanh
                 </span>
-                <span className="tw-text-[8px] tw-text-sky-500">
-                  Chạm để gửi
-                </span>
+                <span className="tw-text-[9px] tw-text-sky-500"> Chạm để gửi  </span>
               </div>
 
               {/* 2 nút trên 1 dòng – tối đa 2 hàng, có thể cuộn (ẩn scrollbar) */}
-              <div
-                className="tw-grid tw-grid-cols-2 tw-gap-1.5 tw-max-h-[52px]
-                           tw-overflow-y-auto tw-scroll-smooth tw-scrollbar-hide"
-              >
+              <div  className="tw-grid tw-grid-cols-2 tw-gap-1.5 tw-max-h-[52px] tw-overflow-y-auto tw-scroll-smooth tw-scrollbar-hide">
                 {quickQuestions.map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => sendMessageWithText(q)}
-                    disabled={loading}
-                    className="tw-w-full tw-text-[8px] tw-px-2 tw-py-1.5
-                               tw-rounded-2xl tw-bg-sky-50 tw-text-sky-700
-                               tw-border tw-border-sky-100
-                               hover:tw-bg-sky-100 hover:tw-border-sky-200
-                               tw-shadow-sm tw-text-left
-                               tw-transition
-                               disabled:tw-opacity-60 disabled:tw-cursor-not-allowed"
-                  >
+                  <button key={q} onClick={() => sendMessageWithText(q)}  disabled={loading}
+                    className="tw-w-full tw-text-[9px] tw-px-2 tw-py-1.5 tw-rounded-2xl tw-bg-sky-50 tw-text-sky-700 tw-border tw-border-sky-100
+                               hover:tw-bg-sky-100 hover:tw-border-sky-200 tw-shadow-sm tw-text-left tw-transition disabled:tw-opacity-60 disabled:tw-cursor-not-allowed" >
                     {q}
                   </button>
                 ))}
@@ -323,36 +289,18 @@ export default function ChatWidget() {
 
             {/* Input */}
             <div className="tw-px-3 tw-py-2 tw-bg-white tw-border-t tw-border-slate-100 tw-flex tw-items-end tw-gap-2">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={loading}
-                rows={1}
-                className="tw-flex-1 tw-max-h-20 tw-resize-none tw-text-[12px]
-                           tw-border tw-border-slate-200 tw-rounded-2xl tw-px-3 tw-py-2
-                           focus:tw-outline-none focus:tw-border-sky-400
-                           focus:tw-shadow-[0_0_0_1px_rgba(56,189,248,0.35)]
+              <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}  disabled={loading} rows={1}
+                className="tw-flex-1 tw-max-h-20 tw-resize-none tw-text-[12px] tw-border tw-border-slate-200 tw-rounded-2xl tw-px-3 tw-py-2
+                           focus:tw-outline-none focus:tw-border-sky-400 focus:tw-shadow-[0_0_0_1px_rgba(56,189,248,0.35)]
                            disabled:tw-bg-slate-100 disabled:tw-cursor-not-allowed"
-                placeholder="Nhập câu hỏi về vắc xin, lịch tiêm, theo dõi sau tiêm..."
-              />
-              <button
-                onClick={() => sendMessageWithText(input)}
-                disabled={loading || !input.trim()}
-                className={`tw-w-9 tw-h-9 tw-rounded-2xl tw-flex tw-items-center tw-justify-center tw-transition-all
-                  ${
-                    loading || !input.trim()
+                placeholder="Nhập câu hỏi về vắc xin, lịch tiêm, theo dõi sau tiêm..." />
+              <button  onClick={() => sendMessageWithText(input)} disabled={loading || !input.trim()}
+                className={`tw-w-10 tw-h-10 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-transition-all
+                  ${  loading || !input.trim()
                       ? "tw-bg-slate-200 tw-text-slate-400 tw-cursor-not-allowed"
                       : "tw-bg-gradient-to-br tw-from-[#38bdf8] tw-to-[#2563eb] tw-text-white tw-shadow-md hover:tw-scale-105"
-                  }`}
-              >
-                <i
-                  className={`fa fa-paper-plane tw-text-sm ${
-                    loading || !input.trim()
-                      ? "tw-text-blue-500"
-                      : "tw-text-white"
-                  }`}
-                />
+                  }`} >
+                <i  className={`fa fa-paper-plane tw-text-lg ${ loading || !input.trim() ? "tw-text-blue-500" : "tw-text-white" }`}/>
               </button>
             </div>
           </div>

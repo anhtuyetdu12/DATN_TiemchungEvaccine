@@ -7,7 +7,7 @@ import DetailDose from "./modal/RecordBook/DetailDose";
 import { getFamilyMembers,  getDiseases , getVaccinationRecords , updateFamilyMember} from "../../services/recordBookService";
 import { toast } from "react-toastify";
 import { getVaccinesByAge } from "../../services/recordBookService";
-import { useLocation } from "react-router-dom";
+import { useLocation , useNavigate  } from "react-router-dom";
 import ChatWidget from "../../components/ChatWidget";
 
 const buildVaccinationMap = (records) => {
@@ -81,6 +81,10 @@ export default function RecordBook() {
     const [showAddForm, setShowAddForm] = useState(false);
     const [showDetail, setShowDetail] = useState(false);
     const [isEditing, setIsEditing] = useState(false); // nút chỉnh sửa
+    // Gợi ý vắc xin theo tuổi
+    const [ageVaccines, setAgeVaccines] = useState([]);
+    const [showMoreAgeVax, setShowMoreAgeVax] = useState(false);
+    const navigate = useNavigate();
 
     // Gọi API lấy danh sách thành viên
     useEffect(() => {
@@ -253,7 +257,6 @@ export default function RecordBook() {
 
 
     // NEW – gợi ý theo tuổi của activeUser
-    const [ageVaccines, setAgeVaccines] = useState([]);
     useEffect(() => {
         if (!activeUser || !currentUser?.dob) return;
         (async () => {
@@ -301,6 +304,25 @@ export default function RecordBook() {
         reloadVaccinations(activeUser);
     }, [activeUser, reloadVaccinations]);
 
+    // Trạng thái mũi
+    const getDoseStatus = (dose) => {
+        const shot = dose?.date ? toYMD(dose.date) : "";
+        const appt = dose?.appointmentDate ? toYMD(dose.appointmentDate) : "";
+        const todayYMD = toYMD(new Date());
+        // 1. Mũi đã tiêm
+        if (shot) return "Đã tiêm";
+        // 2. Có ngày hẹn thì CLIENT tự tính luôn
+        if (appt) {
+            if (appt < todayYMD) return "Trễ hẹn";   // quá ngày hẹn
+            return "Chờ tiêm";                       // hôm nay hoặc tương lai
+        }
+        // 3. Không có ngày hẹn → fallback theo status_label (cho dữ liệu cũ)
+        if (dose?.status_label === "Trễ hẹn") return "Trễ hẹn";
+        if (dose?.status_label === "Chờ tiêm") return "Chờ tiêm";
+        // 4. Mặc định
+        return "Chưa tiêm";
+    };
+
     const handleSaveDose = (diseaseId, doses) => {
         const updated = {};
         doses.forEach((dose, i) => {
@@ -310,7 +332,7 @@ export default function RecordBook() {
                 appointmentDate: dose.appointmentDate, // Ngày hẹn tiêm
                 vaccine: dose.vaccine,
                 location: dose.location,
-                status: getDoseStatus(dose),  // Gọi hàm xác định trạng thái
+                status: getDoseStatus(dose), 
             }; }
         });
         setVaccinationData((prev) => ({
@@ -351,29 +373,10 @@ export default function RecordBook() {
     };
     const fmtVN = (d) => d ? new Date(d).toLocaleDateString("vi-VN") : "";
 
-    // Trạng thái mũi
-    const getDoseStatus = (dose) => {
-        const shot = dose?.date ? toYMD(dose.date) : "";
-        const appt = dose?.appointmentDate ? toYMD(dose.appointmentDate) : "";
-        const todayYMD = toYMD(new Date());
-        // 1. nếu mũi đã tiêm thì kết luận luôn
-        if (shot) return "Đã tiêm";
-        // 2. nếu BE nói "Chờ tiêm" thì tin
-        if (dose?.status_label === "Chờ tiêm") return "Chờ tiêm";
-        // 3. nếu BE nói "Trễ hẹn" nhưng ngày hẹn THỰC TẾ > hôm nay (nghĩa là BE lệch giờ)
-        if (dose?.status_label === "Trễ hẹn" && appt && appt >= todayYMD) {
-            return "Chờ tiêm";
-        }
-        // 4. nếu BE nói "Trễ hẹn" và ngày cũng < hôm nay thì đúng là trễ
-        if (dose?.status_label === "Trễ hẹn") return "Trễ hẹn";
-        // 5. nếu không có status_label thì client tự tính
-        if (appt) {
-            if (appt > todayYMD) return "Chờ tiêm";
-            if (appt < todayYMD) return "Trễ hẹn";
-            return "Chờ tiêm";
-        }
-        return "Chưa tiêm";
-    };
+
+    // Danh sách hiển thị 6 hoặc toàn bộ
+    const displayedVaccines = showMoreAgeVax ? ageVaccines : ageVaccines.slice(0, 6);
+
 
   return (
     <section className="tw-bg-gray-100 tw-py-10 ">
@@ -391,10 +394,8 @@ export default function RecordBook() {
                 </div>
             </div>
 
-
             {/* Khung nội dung chính */}       
             <div className="tw-container  tw-max-w-[1300px] tw-mx-auto tw-px-6 lg:tw-px-14">
-            {/* Tabs người dùng */}
             <div className="tw-flex tw-items-center tw-gap-3 tw-overflow-x-auto tw-px-3 tw-mb-[5px]">
                 <button
                     onClick={() => setShowAddForm(true)}
@@ -541,24 +542,42 @@ export default function RecordBook() {
                     {/* gợi ý theo tuổi của activeUser */}
                     <p className="tw-text-3xl tw-text-[#1a237e] tw-pt-8 tw-font-semibold">Gợi ý vắc xin phù hợp với độ tuổi</p>
                     <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 lg:tw-grid-cols-3 tw-gap-5 tw-py-8 tw-px-5">
-                    {ageVaccines.map(v => (
-                        <div key={v.id} className="tw-bg-white tw-rounded-xl tw-shadow-sm tw-p-3 tw-flex tw-items-center tw-gap-5" >
-                        <div className="tw-w-[96px] tw-h-[64px] tw-flex tw-items-center tw-justify-center tw-rounded-lg tw-bg-white">
-                            <img src={v.image || "/images/no-image.jpg"} alt={v.name}
-                                className="tw-max-w-full tw-max-h-full tw-object-contain tw-rounded-md" />
-                        </div>
+                        {displayedVaccines.map((v) => (
+                            <div key={v.id}  onClick={() => navigate(`/vaccines/vaccines/${v.slug}`)}
+                                className="tw-bg-white tw-rounded-xl tw-shadow-sm tw-p-3 tw-flex tw-items-center tw-gap-5 
+                                        tw-cursor-pointer hover:tw-shadow-md hover:tw-scale-[1.02] tw-transition"  >
+                                <div className="tw-w-[96px] tw-h-[64px] tw-flex tw-items-center tw-justify-center tw-rounded-lg tw-bg-white">
+                                    <img  src={v.image || "/images/no-image.jpg"} alt={v.name}
+                                        className="tw-max-w-full tw-max-h-full tw-object-contain tw-rounded-md" />
+                                </div>
 
-                        {/* Nội dung */}
-                        <div className="tw-text-left tw-min-w-0">
-                            <p className="tw-font-semibold tw-truncate">{v.name}</p>
-                            <p className="tw-text-gray-500 tw-truncate">{v.disease?.name}</p>
-                            {v.formatted_price && (
-                                <p className="tw-text-orange-500 tw-font-semibold">{v.formatted_price}</p>
-                            )}
-                        </div>
-                        </div>
-                    ))}
+                                <div className="tw-text-left tw-min-w-0">
+                                    <p className="tw-font-semibold tw-truncate">{v.name}</p>
+                                    <p className="tw-text-gray-500 tw-truncate">{v.disease?.name}</p>
+                                    {v.formatted_price && (
+                                    <p className="tw-text-orange-500 tw-font-semibold">{v.formatted_price}</p>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
                     </div>
+
+                    {/* NÚT XEM THÊM / THU GỌN */}
+                    {ageVaccines.length > 6 && (
+                        <div className="tw-flex tw-justify-center tw-mb-4">
+                            <button onClick={() => setShowMoreAgeVax(!showMoreAgeVax)}
+                            className="tw-flex tw-items-center tw-gap-2 tw-px-6 tw-py-2 tw-rounded-full tw-text-blue-700 tw-font-medium  tw-transition">
+                            {showMoreAgeVax ? ( <>
+                                <span>Thu gọn</span>
+                                <i className="fa-solid fa-angles-up"></i> </>
+                            ) : ( <>
+                                <span>Xem thêm</span>
+                                <i className="fa-solid fa-angles-down"></i></>
+                            )}
+                            </button>
+                        </div>
+                    )}
+
                 </div>
             )}
 

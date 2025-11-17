@@ -20,6 +20,8 @@ export default function VaccinesList() {
   const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeTab, setActiveTab] = useState("vacxin");
+  const [searchText, setSearchText] = useState("");
+  const [searchInput, setSearchInput] = useState("");
 
   // --- STATE CHO API ---
   const [vaccines, setVaccines] = useState([]);
@@ -255,8 +257,17 @@ export default function VaccinesList() {
       return originSelected.includes(origin);
     };
 
-    return (list) => list.filter(v => matchAge(v) && matchDisease(v) && matchOrigin(v));
-  }, [filters, AGE_RANGES]);
+    const matchSearch = (v) => {
+      if (!searchText.trim()) return true;
+      const q = searchText.trim().toLowerCase();
+      return (
+        v.title?.toLowerCase().includes(q) ||
+        v.disease_name?.toLowerCase().includes(q)
+      );
+    };
+
+    return (list) => list.filter( (v) => matchAge(v) && matchDisease(v) && matchOrigin(v) && matchSearch(v));
+  }, [filters, AGE_RANGES, searchText]);
 
   // 🔹 re-calc displayedVaccines khi filters đổi
   useEffect(() => {
@@ -302,13 +313,11 @@ export default function VaccinesList() {
             ))}
           </div>
 
-          {/* Nút trái */}
           <button onClick={prevSlide}
             className="tw-absolute tw-top-1/2 -tw-translate-y-1/2 tw-left-3 tw-bg-black/40 tw-text-white tw-p-2 tw-rounded-full hover:tw-bg-black/70">
             <ChevronLeft size={24} />
           </button>
 
-          {/* Nút phải */}
           <button onClick={nextSlide}
             className="tw-absolute tw-top-1/2 -tw-translate-y-1/2 tw-right-3 tw-bg-black/40 tw-text-white tw-p-2 tw-rounded-full hover:tw-bg-black/70">
             <ChevronRight size={24} />
@@ -328,23 +337,48 @@ export default function VaccinesList() {
         <h2 className="tw-text-[32px] tw-font-semibold  tw-text-gray-800 tw-text-left tw-my-[20px]">
             Danh mục vắc xin
         </h2>
-        <div className="tw-flex tw-justify-start">
-            <div className="tw-inline-flex tw-bg-white tw-rounded-full tw-border tw-border-white tw-overflow-hidden tw-space-x-2 tw-mb-8">
-                <button onClick={() => setActiveTab("vacxin")}
-                    className={`tw-py-3 tw-px-5 tw-font-medium tw-rounded-full transition ${
-                    activeTab === "vacxin" ? "tw-bg-[#1999ee] tw-text-white"
-                        : "tw-bg-white tw-text-gray-600 tw-border tw-border-white hover:tw-bg-white"
-                    }`}>
-                    Vắc xin phòng bệnh
+        <div className="tw-flex tw-items-center tw-justify-between tw-gap-4 tw-mb-4">
+          {/* TAB chuyển đổi */}
+          <div className="tw-inline-flex tw-bg-white tw-rounded-full tw-border tw-border-white tw-overflow-hidden tw-space-x-2">
+            <button onClick={() => setActiveTab("vacxin")}
+              className={`tw-py-3 tw-px-5 tw-font-medium tw-rounded-full transition ${
+                activeTab === "vacxin"
+                  ? "tw-bg-[#1999ee] tw-text-white"
+                  : "tw-bg-white tw-text-gray-600 tw-border tw-border-white hover:tw-bg-white"
+              }`} >
+              Vắc xin phòng bệnh
+            </button>
+            <button onClick={() => setActiveTab("goi")}
+              className={`tw-py-3 tw-px-5 tw-font-medium tw-rounded-full transition ${
+                activeTab === "goi"
+                  ? "tw-bg-[#1999ee] tw-text-white"
+                  : "tw-bg-white tw-text-gray-600 tw-border tw-border-white hover:tw-bg-white"
+              }`} >
+              Gói vắc xin
+            </button>
+          </div>
+
+          {activeTab === "vacxin" && (
+            <div className="tw-relative tw-w-full sm:tw-w-[260px] md:tw-w-[320px]">
+              <i className="fa-solid fa-magnifying-glass tw-absolute tw-left-3 tw-top-1/2 -tw-translate-y-1/2 tw-text-blue-400"></i>
+              <input  type="text" placeholder="Tìm kiếm vắc xin..."  value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { setSearchText(searchInput); setPage(1); } }}
+                className="tw-w-full tw-pl-9 tw-pr-4 tw-py-2 tw-rounded-full tw-border tw-border-sky-300
+                          focus:tw-outline-none focus:tw-border-[#1999ee] focus:tw-ring-2 focus:tw-ring-[#1999ee]/40
+                          tw-bg-white tw-text-gray-700" />
+              {searchInput && (
+                <button  onClick={() => {
+                    setSearchInput("");
+                    setSearchText("");
+                    setPage(1);
+                  }}
+                  className="tw-absolute tw-right-4 tw-top-1/2 -tw-translate-y-1/2 
+                            tw-text-red-500 hover:tw-text-red-600" >
+                  <i className="fa-solid fa-xmark tw-text-xl"></i>
                 </button>
-                <button onClick={() => setActiveTab("goi")}
-                    className={`tw-py-3 tw-px-5 tw-font-medium tw-rounded-full transition ${
-                    activeTab === "goi" ? "tw-bg-[#1999ee] tw-text-white"
-                        : "tw-bg-white tw-text-gray-600 tw-border tw-border-white hover:tw-bg-white"
-                    }`}>
-                    Gói vắc xin
-                </button>
+              )}
             </div>
+          )}
         </div>
 
         {/* Grid danh mục */}
@@ -392,8 +426,6 @@ export default function VaccinesList() {
                     <i className="fa-solid fa-filter tw-text-blue-600 tw-text-[18px]"></i>
                     <h3 className="tw-text-blue-600 tw-font-semibold tw-text-[18px]"> Bộ lọc vắc xin </h3>
                   </div>
-                
-
 
                   {/* Phần nội dung cuộn */}
                   <div className="tw-max-h-[calc(100vmin-48px-2*20px-16px)] tw-overflow-auto tw-px-4 tw-scrollbar 
@@ -451,30 +483,31 @@ export default function VaccinesList() {
                             <div className="tw-flex tw-gap-2 tw-justify-center tw-items-stretch">
                               {vaccine.slug ? (
                                 <Link to={`/vaccines/${vaccine.slug}`}
-                                  className="tw-inline-flex tw-items-center tw-justify-center tw-h-10 tw-rounded-full tw-px-4 tw-flex-1 tw-min-w-0
-                                            tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium hover:tw-bg-[#ff6600] hover:tw-text-white" >
-                                  <span className="tw-truncate tw-text-lg ">Xem chi tiết</span>
+                                  className="tw-inline-flex tw-items-center tw-justify-center tw-py-2 tw-px-6 tw-rounded-full tw-flex-1
+                                            tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium  tw-text-[12px] hover:tw-bg-[#ff6600] hover:tw-text-white" >
+                                  Xem chi tiết
                                 </Link>
                               ) : (
                                 <button disabled className="tw-inline-flex tw-items-center tw-justify-center tw-h-10 tw-rounded-full
                                            tw-px-4 tw-flex-1 tw-min-w-0 tw-bg-gray-200 tw-text-gray-500 tw-font-medium"  >
-                                  <span className="tw-truncate tw-text-lg">Xem chi tiết</span>
+                                  <span className="tw-truncate tw-text-[14px]">Xem chi tiết</span>
                                 </button>
                               )}
 
-                              <button onClick={() => {
-                                  if (!vaccine.slug) return;
+                              <button
+                                onClick={() => {
                                   addToBooking(vaccine.slug, 1);
                                   const slugs = getBookingSlugs();
                                   navigate(`/bookingform?v=${slugs.join(",")}`);
                                 }}
-                                className="tw-inline-flex tw-items-center tw-justify-center tw-h-10 tw-rounded-full tw-px-4
-                                          tw-flex-1 tw-min-w-0 tw-bg-gradient-to-r tw-from-[#1999ee] tw-to-[#56b6f7]
-                                          tw-text-white tw-font-medium tw-transition-all tw-duration-300 tw-shadow-md
-                                          hover:tw-from-[#1789d4] hover:tw-to-[#3aa9f0] hover:tw-shadow-lg hover:tw-scale-105" >
+                                className="tw-inline-flex tw-items-center tw-justify-center tw-py-2 tw-px-6 tw-rounded-full tw-flex-1
+                                          tw-bg-gradient-to-r tw-from-[#1999ee] tw-to-[#56b6f7] tw-text-white tw-font-medium tw-text-[14px]
+                                          tw-transition-all tw-duration-300 tw-shadow-md hover:tw-from-[#1789d4] hover:tw-to-[#3aa9f0] 
+                                          hover:tw-shadow-lg hover:tw-scale-105">
                                 <i className="fa-solid fa-calendar-days tw-mr-2 tw-text-lg"></i>
-                                <span className="tw-truncate tw-text-lg">Đặt hẹn</span>
+                                Đặt hẹn
                               </button>
+
                             </div>
 
                           </div>

@@ -1,7 +1,11 @@
 import re
 from datetime import datetime, date as date_cls
 from rest_framework import viewsets, permissions, status, generics
+from django.utils.html import strip_tags, escape
 import openpyxl
+from django.core.mail import EmailMultiAlternatives
+from email.mime.image import MIMEImage
+from pathlib import Path
 from openpyxl.utils import get_column_letter
 from django.http import HttpResponse
 from rest_framework.response import Response
@@ -24,6 +28,8 @@ from .serializers import (
     AppointmentCreateInSerializer, AppointmentStatusPatchSerializer, CustomerNotificationSerializer,
     HistoryCreateInSerializer, StaffBookingCreateInSerializer, BookingSerializer
 )
+from django.core.mail import send_mail
+from django.conf import settings
 
 class FamilyMemberViewSet(viewsets.ModelViewSet):
     serializer_class = FamilyMemberSerializer
@@ -98,13 +104,65 @@ class RemainingDosesView(APIView):
         vaccine_id = request.query_params.get("vaccine_id")
         if not member_id or not vaccine_id:
             return Response({"error": "Thiếu member_id/vaccine_id"}, status=400)
+
         member = FamilyMember.objects.filter(id=member_id, user=request.user).first()
         vaccine = Vaccine.objects.filter(id=vaccine_id).first()
         if not member or not vaccine:
             return Response({"error": "Không hợp lệ"}, status=400)
+
+        # Tổng mũi theo phác đồ (doses_required)
         total = vaccine.doses_required or 1
-        used = VaccinationRecord.objects.filter(family_member=member, vaccine=vaccine,  vaccination_date__isnull=False).count()
-        return Response({"remaining": max(total - used, 0), "total": total, "used": used})
+        # Đã TIÊM bao nhiêu mũi (có vaccination_date)
+        used = VaccinationRecord.objects.filter(
+            family_member=member,
+            vaccine=vaccine,
+            vaccination_date__isnull=False,
+        ).count()
+        remaining = max(total - used, 0)
+        # Tìm record "mũi kế tiếp" (đã được sinh trong Booking.complete / StaffUpdateAppointmentStatusAPIView)
+        next_rec = (
+            VaccinationRecord.objects
+            .filter(
+                family_member=member,
+                vaccine=vaccine,
+                vaccination_date__isnull=True,
+                next_dose_date__isnull=False,
+            )
+            .order_by("next_dose_date")
+            .first()
+        )
+        next_date = next_rec.next_dose_date if next_rec else None
+        # Nếu record có dose_number thì dùng, còn không suy ra từ used
+        if next_rec and next_rec.dose_number:
+            next_dose_number = next_rec.dose_number
+        else:
+            next_dose_number = used + 1 if remaining > 0 else None
+
+        # Trạng thái phác đồ
+        if used >= total:
+            status_code = "completed"
+            status_label = f"Đã tiêm đủ {used}/{total} mũi theo phác đồ."
+        elif used == 0:
+            status_code = "not_started"
+            status_label = f"Chưa tiêm mũi nào. Phác đồ gồm {total} mũi."
+        else:
+            status_code = "in_progress"
+            status_label = f"Đã tiêm {used}/{total} mũi. Còn {total - used} mũi."
+
+        if next_date and status_code != "completed":
+            status_label += (
+                f" Mũi {next_dose_number} dự kiến từ ngày "
+                f"{next_date.strftime('%d/%m/%Y')}."
+            )
+        return Response({
+            "total": total,
+            "used": used,
+            "remaining": remaining,
+            "status_code": status_code,          # not_started | in_progress | completed
+            "status_label": status_label,        # Chuỗi hiển thị cho khách
+            "next_dose_date": next_date,         # ISO string khi serialize
+            "next_dose_number": next_dose_number,
+        })
     
 # ---------- booking -----------
 class BookingViewSet(viewsets.ModelViewSet):
@@ -1223,10 +1281,156 @@ def render_msg(tpl: str, ctx: dict | None) -> str:
 
     return re.sub(r"\{\{([^}]+)\}\}", repl, tpl)
 
-# ----------- gửi đến khách hàng --------
+def send_notification_email(to_email: str, subject: str, body: str):
+    """
+    variant: 'default' | 'upcoming' | 'nextdose' | 'overdue'
+    body: message đã render {{name}}, {{date}}, {{member}}... (text)
+    """
+    if not to_email:
+        return
+
+    main_from = "#1186f3"  # xanh dương
+    main_to   = "#1af5f5"  # xanh ngọc
+
+    safe_subject = escape(subject or "").strip() or "Thông báo lịch tiêm"
+    safe_body = escape(body or "")
+    body_html = safe_body.replace("\n", "<br>")
+
+    year = datetime.now().year
+
+    app_url = getattr(
+        settings,
+        "EVACCINE_APP_URL",
+        "http://localhost:3000/notifications"
+    )
+
+    # HTML: dùng ảnh inline bằng CID: evaccine-logo
+    html_body = f"""\
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+        <meta charset="UTF-8" />
+        <title>{safe_subject}</title>
+    </head>
+    <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:24px 0;">
+        <tr>
+            <td align="center">
+            <table width="640" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 20px 45px rgba(15,23,42,0.16);">
+                <!-- Header -->
+                <tr>
+                <td style="padding:20px 24px;background:linear-gradient(120deg,{main_from},{main_to});color:#ffffff;">
+                    <table width="100%" cellspacing="0" cellpadding="0">
+                    <tr>
+                        <td style="font-size:22px;font-weight:800;letter-spacing:0.03em; white-space:nowrap;">
+                            <img src="cid:evaccine-logo"
+                                 alt="E-VACCINE" width="32" height="32"
+                                 style="vertical-align:middle;border-radius:50%;border:2px solid #fff;margin-right:8px;">
+                            E-VACCINE
+                        </td>
+                        <td align="right" style="font-size:13px;opacity:0.85;">
+                            <strong>Hệ thống tiêm chủng thông minh</strong>
+                        </td>
+                    </tr>
+                    </table>
+                </td>
+                </tr>
+                <!-- Hero title -->
+                <tr>
+                <td style="padding:20px 24px 8px 24px;">
+                    <div style="font-size:18px;font-weight:700;color:#0f172a;margin-bottom:4px;">
+                    {safe_subject}
+                    </div>
+                    <div style="font-size:13px;color:#6b7280;">
+                    Đây là email nhắc lịch tự động từ hệ thống E-Vaccine.
+                    </div>
+                </td>
+                </tr>
+                <!-- Appointment card -->
+                <tr>
+                <td style="padding:0 24px 16px 24px;">
+                    <table width="100%" cellspacing="0" cellpadding="0" style="border-radius:14px;background:linear-gradient(135deg,#eff6ff,#ecfeff);border:1px solid #dbeafe;">
+                    <tr>
+                        <td style="padding:14px 16px 4px 16px;">
+                        <div style="font-size:13px;font-weight:600;color:#1d4ed8;margin-bottom:6px;">
+                            Thông tin lịch tiêm
+                        </div>
+                        <div style="font-size:14px;color:#111827;line-height:1.7;">
+                            {body_html}
+                        </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 16px 14px 16px;">
+                        <a href="{app_url}"
+                            style="display:inline-block;padding:9px 18px;border-radius:999px;background:#0ea5e9;color:#ffffff;
+                                    font-size:13px;font-weight:600;text-decoration:none;">
+                                Xem chi tiết lịch hẹn
+                        </a>
+                        <span style="font-size:11px;color:#6b7280;margin-left:8px;">
+                            (Đăng nhập tài khoản E-Vaccine để quản lý lịch tiêm)
+                        </span>
+                        </td>
+                    </tr>
+                    </table>
+                </td>
+                </tr>
+                <!-- Tips -->
+                <tr>
+                <td style="padding:0 24px 20px 24px;">
+                    <table width="100%" cellspacing="0" cellpadding="0" style="border-radius:12px;background:#fefce8;border:1px solid #facc15;">
+                    <tr>
+                        <td style="padding:10px 14px;font-size:12px;color:#854d0e;line-height:1.6;">
+                        <strong>Lưu ý khi đi tiêm:</strong>
+                        <ul style="margin:6px 0 0 16px;padding:0;">
+                            <li>Đem theo CCCD/CMND hoặc giấy tờ tùy thân.</li>
+                            <li>Thông báo cho nhân viên y tế nếu bạn đang mang thai, dùng thuốc, hoặc có bệnh lý nền.</li>
+                            <li>Đến sớm 10-15 phút để được hướng dẫn làm thủ tục.</li>
+                        </ul>
+                        </td>
+                    </tr>
+                    </table>
+                </td>
+                </tr>
+                <!-- Footer -->
+                <tr>
+                <td style="padding:12px 24px 16px 24px;border-top:1px solid #e5e7eb;text-align:center;font-size:11px;color:#9ca3af;">
+                    Email được gửi từ hệ thống E-Vaccine, vui lòng không trả lời trực tiếp email này.<br/>
+                    © {year} Trung tâm tiêm chủng E-Vaccine. Mọi quyền lợi đều được ưu tiên.
+                </td>
+                </tr>
+            </table>
+            </td>
+        </tr>
+        </table>
+    </body>
+    </html>
+    """
+    plain_text = strip_tags(html_body)
+    # Tạo email (giống ForgotPasswordAPIView)
+    email = EmailMultiAlternatives(
+        subject=safe_subject,
+        body=plain_text,
+        from_email=settings.EMAIL_HOST_USER,
+        to=[to_email],
+    )
+    email.attach_alternative(html_body, "text/html")
+    # Gắn logo từ static/images/logo.jpg (bạn đổi tên file cho đúng)
+    logo_path = Path(settings.BASE_DIR) / "static" / "images" / "logo.jpg"
+    if logo_path.exists():
+        with open(logo_path, "rb") as f:
+            img_logo = MIMEImage(f.read())
+            img_logo.add_header("Content-ID", "<evaccine-logo>")
+            img_logo.add_header("Content-Disposition", "inline", filename="logo.jpg")
+            email.attach(img_logo)
+
+    email.send(fail_silently=False)
+
+    
+# ----------- gửi nhắc lịch đến khách hàng --------
 class CustomerNotificationSendAPIView(APIView):
     permission_classes = [IsAuthenticated]
-
+    
     def post(self, request):
         data = request.data or {}
         audience = data.get("audience")
@@ -1248,10 +1452,8 @@ class CustomerNotificationSendAPIView(APIView):
             return Response({"detail": "Thiếu audience"}, status=400)
         if not title_tpl or not msg_tpl:
             return Response({"detail": "Thiếu tiêu đề hoặc nội dung"}, status=400)
-
         today = timezone.now().date()
         recipients = set()
-
         # =========== 1) AUDIENCE THEO BOOKING ===============
         if audience in ("custom", "upcoming", "overdue"):
             if audience == "custom":
@@ -1285,10 +1487,8 @@ class CustomerNotificationSendAPIView(APIView):
                     .select_related("user", "member")
                     .prefetch_related("items__vaccine__disease")
                 )
-
             recipients = {b.user_id for b in bks if b.user_id}
             created = 0
-
             with transaction.atomic():
                 # nếu vẫn muốn gộp theo user thì giữ nhánh này
                 if distinct_user:
@@ -1315,7 +1515,6 @@ class CustomerNotificationSendAPIView(APIView):
                             ),
                             "location": b.location or "",
                         }
-
                         CustomerNotification.objects.create(
                             user_id=uid,
                             title=render_msg(title_tpl, ctx),
@@ -1332,6 +1531,13 @@ class CustomerNotificationSendAPIView(APIView):
                             },
                         )
                         created += 1
+                         # 👇 GỬI EMAIL NẾU BẬT KÊNH EMAIL
+                        if channels.get("email") and b.user and b.user.email:
+                            send_notification_email(
+                                to_email=b.user.email,
+                                subject=rendered_title,
+                                body=rendered_msg,
+                            )
                 else:
                     for b in bks:
                         member_name = b.member.full_name if b.member else ""
@@ -1425,7 +1631,8 @@ class CustomerNotificationSendAPIView(APIView):
                             "total_doses": "",
                             "dob": (b.member.date_of_birth.isoformat() if getattr(b.member, "date_of_birth", None) else ""),
                         }
-
+                        rendered_title = render_msg(title_tpl, ctx)
+                        rendered_msg   = render_msg(msg_tpl, ctx)
                         CustomerNotification.objects.create(
                             user_id=b.user_id,
                             title=render_msg(title_tpl, ctx),
@@ -1438,18 +1645,20 @@ class CustomerNotificationSendAPIView(APIView):
                                 "appointment_date": appt_date.isoformat() if appt_date else None,
                                 "location": b.location or "",
                                 "status": b.status,
-
-                                # 👇 mới: FE đọc để hiển thị từng mũi
                                 "vaccine_details": vaccine_details,
-
-                                # giữ field cũ để FE cũ không hỏng
                                 "vaccines": list(dict.fromkeys(vaccine_names)),
                                 "diseases": list(dict.fromkeys(disease_names)),
                                 "price": total_price,
                             },
                         )
                         created += 1
-
+                        # 👇 GỬI EMAIL NẾU BẬT KÊNH EMAIL
+                        if channels.get("email") and b.user and b.user.email:
+                            send_notification_email(
+                                to_email=b.user.email,
+                                subject=rendered_title,
+                                body=rendered_msg,
+                            )
             return Response({"sent": created, "recipients": list(recipients)}, status=200)
 
         # =========== 2) AUDIENCE THEO RECORD (mũi tiếp theo) ===============
@@ -1467,7 +1676,6 @@ class CustomerNotificationSendAPIView(APIView):
                 )
                 .select_related("family_member__user", "vaccine", "disease")
             )
-
             # nếu cần loại bỏ những record đã có booking
             bookings_by_key = {}
             if only_unscheduled:
@@ -1503,7 +1711,6 @@ class CustomerNotificationSendAPIView(APIView):
                         key = (fm.id if fm else None, r.next_dose_date, v.id if v else None)
                         if bookings_by_key.get(key):
                             continue
-
                     vaccine_name = r.vaccine.name if r.vaccine else (r.vaccine_name or "")
                     disease_name = (
                         r.disease.name if r.disease else
@@ -1513,7 +1720,6 @@ class CustomerNotificationSendAPIView(APIView):
                     interval = getattr(r.vaccine, "interval_days", None)
                     total_doses = getattr(r.vaccine, "doses_required", None)
                     dob = fm.date_of_birth.isoformat() if fm and fm.date_of_birth else ""
-
                     ctx = {
                         "name": usr.full_name or usr.email,
                         "member": fm.full_name if fm else "",
@@ -1526,7 +1732,8 @@ class CustomerNotificationSendAPIView(APIView):
                         "total_doses": total_doses or "",
                         "dob": dob,
                     }
-
+                    rendered_title = render_msg(title_tpl, ctx)
+                    rendered_msg   = render_msg(msg_tpl, ctx)
                     CustomerNotification.objects.create(
                         user_id=usr.id,
                         title=render_msg(title_tpl, ctx),
@@ -1539,16 +1746,10 @@ class CustomerNotificationSendAPIView(APIView):
                             "appointment_date": r.next_dose_date.isoformat() if r.next_dose_date else None,
                             "location": "",
                             "status": "nextdose",
-
-                            # 👇 thêm mũi mấy
                             "dose_number": r.dose_number,
-
-                            # 👇 để FE cũ vẫn chạy
                             "vaccines": [vaccine_name] if vaccine_name else [],
                             "diseases": [disease_name] if disease_name else [],
                             "price": price_val,
-
-                            # 👇 cho thống nhất với branch booking
                             "vaccine_details": [
                                 {
                                     "vaccine_name": vaccine_name,
@@ -1562,7 +1763,13 @@ class CustomerNotificationSendAPIView(APIView):
                     )
                     recipients.add(usr.id)
                     created += 1
-
+                    # 👇 GỬI EMAIL
+                    if channels.get("email") and usr and usr.email:
+                        send_notification_email(
+                            to_email=usr.email,
+                            subject=rendered_title,
+                            body=rendered_msg,
+                        )
             return Response({"sent": created, "recipients": list(recipients)}, status=200)
 
 
@@ -1575,8 +1782,6 @@ class MyNotificationsAPIView(APIView):
         for n in qs:
             item = CustomerNotificationSerializer(n).data
             item["sent_at"] = n.created_at
-
-            # 👇 HOTFIX: nếu trong message vẫn còn {{...}} thì render lại từ meta
             msg = item.get("message") or ""
             if "{{" in msg and "}}" in msg:
                 ctx = {

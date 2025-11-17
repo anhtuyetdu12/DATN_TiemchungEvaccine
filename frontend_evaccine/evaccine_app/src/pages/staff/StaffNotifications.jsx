@@ -207,8 +207,8 @@ const toDisplayDate = (iso) => formatDate(iso);
   ];
   const templates = [
     { k: "t3", label: "Nhắc T-3", title: "Nhắc lịch tiêm sắp tới", msg: "Chào {{name}}, lịch tiêm của {{member}} là {{date}}. Vui lòng đến đúng giờ và mang theo giấy tờ cần thiết." },
-    { k: "t1", label: "Nhắc T-1", title: "Nhắc lịch tiêm ngày mai", msg: "Chào {{name}}, ngày mai {{date}} {{member}}  có lịch tiêm. Nếu cần đổi lịch tiêm, xin liên hệ tổng đài - 18006926." },
-    { k: "today", label: "Hôm nay", title: "Hôm nay bạn có lịch tiêm", msg: "Chào {{name}}, hôm nay {{date}} {{member}}  có lịch tiêm. Hẹn gặp bạn tại cơ sở tiêm chủng." },
+    { k: "t1", label: "Nhắc T-1", title: "Nhắc lịch tiêm ngày mai", msg: "Chào {{name}}, ngày mai {{date}} {{member}}  có lịch tiêm. Nếu cần đổi lịch tiêm, xin liên hệ tổng đài - 18006926.Vui lòng đến đúng giờ và mang theo giấy tờ cần thiết." },
+    { k: "today", label: "Hôm nay", title: "Hôm nay bạn có lịch tiêm", msg: "Chào {{name}}, hôm nay {{date}} {{member}}  có lịch tiêm. Hẹn gặp bạn tại cơ sở tiêm chủng.Vui lòng đến đúng giờ và mang theo giấy tờ cần thiết." },
     { k: "nextdose", label: "Theo phác đồ", title: "Nhắc lịch mũi tiêm tiếp theo",
       msg: "Chào {{name}}, {{member}}  đã đến lịch tiêm mũi tiếp theo vắc xin {{vaccine}} vào {{date}}. Phác đồ yêu cầu {{total_doses}} mũi, mỗi mũi cách nhau {{interval}} ngày. Vui lòng sắp xếp thời gian để tiêm đúng lịch."
   },
@@ -261,14 +261,7 @@ const toDisplayDate = (iso) => formatDate(iso);
     return true;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    const submitter = e.nativeEvent?.submitter;
-    if (!submitter || submitter.name !== "submitType" || submitter.value !== "send") {
-      return; // submit phát sinh từ nút phân trang → bỏ qua
-    }
-
+  const handleSend = async () => {
     if (submitting) return;
     if (!validate()) return;
 
@@ -282,16 +275,23 @@ const toDisplayDate = (iso) => formatDate(iso);
         channels,
         title: title.trim(),
         message: message.trim(),
-        distinct_user: false, 
+        distinct_user: false,
       };
       await sendCustomerNotification(payload);
-      toast.success("Đã gửi thông báo nhắc lịch cho khách.", { toastId: "notify-customers-success" });
+      toast.success("Đã gửi thông báo nhắc lịch cho khách.", {
+        toastId: "notify-customers-success",
+      });
     } catch (err) {
       console.error(err);
       toast.error("Gửi thông báo thất bại.");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
   };
 
   const previewRendered = useMemo(() => {
@@ -354,7 +354,7 @@ const toDisplayDate = (iso) => formatDate(iso);
               <div className="tw-text-[12px] tw-text-gray-600">
                 Dự kiến gửi: <b className="tw-text-gray-900">{previewCount !== null && audience ? previewCount : "—"}</b>
               </div>
-              <button  form="notify-form"  type="submit"  disabled={submitting} name="submitType" value="send"
+              <button  onClick={handleSend}  type="button"  disabled={submitting} 
                 className="tw-bg-emerald-600 tw-text-white tw-text-[13px] tw-font-semibold tw-rounded-lg tw-px-4 tw-py-2 hover:tw-bg-emerald-500" >
                 Gửi nhắc lịch
               </button>
@@ -722,10 +722,11 @@ const toDisplayDate = (iso) => formatDate(iso);
                     className="tw-bg-red-600 tw-text-white tw-rounded-lg tw-px-4 tw-py-2 hover:tw-bg-red-500" >
                     Hủy
                   </button>
-                  <button  type="submit" disabled={submitting}
+                  <button type="button" disabled={submitting} onClick={handleSend}
                     className="tw-bg-emerald-600 tw-text-white tw-font-semibold tw-rounded-lg tw-px-5 tw-py-2 hover:tw-bg-emerald-500 disabled:tw-opacity-60" >
                     Gửi nhắc lịch
                   </button>
+                 
                 </div>
               </div>
             </section>
