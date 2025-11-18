@@ -389,7 +389,7 @@ export default function StaffCustomers() {
                       {/* HÀNG MỞ RỘNG: auto mở khi có match thành viên */}
                       {isOpen && (
                         <tr key={`members-${c.id}`} className="tw-bg-slate-50">
-                          <td colSpan={10} className="tw-px-6 tw-py-4">
+                          <td colSpan={9} className="tw-px-6 tw-py-4">
                             <MemberPanel members={c.members} searchGlobal={search} />
                           </td>
                         </tr>

@@ -644,7 +644,7 @@ const toDisplayDate = (iso) => formatDate(iso);
                     <span className="tw-font-medium">App / Web</span>
                   </button>
 
-                  <button type="button" role="checkbox" aria-checked={channels.sms}
+                  {/* <button type="button" role="checkbox" aria-checked={channels.sms}
                           onClick={() => toggleChannel("sms")}
                           className={`tw-flex tw-items-center tw-gap-2 tw-rounded-lg tw-border tw-px-3 tw-py-2 tw-text-[13px] ${channels.sms ? "tw-bg-amber-50 tw-text-amber-600 tw-border-amber-600" : "tw-bg-gray-50 tw-border-gray-200 hover:tw-bg-gray-100"}`}>
                     <span className={`tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center tw-rounded tw-border ${channels.sms ? "tw-bg-amber-600 tw-border-amber-600" : "tw-border-gray-400"}`}>
@@ -652,7 +652,7 @@ const toDisplayDate = (iso) => formatDate(iso);
                     </span>
                     <i className="fa-solid fa-mobile-screen tw-text-amber-600 tw-text-[20px]" />
                     <span className="tw-font-medium tw-text-amber-600">SMS</span>
-                  </button>
+                  </button> */}
                 </div>
               </div>
             </section>
