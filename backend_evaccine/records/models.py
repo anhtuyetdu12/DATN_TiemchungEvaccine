@@ -120,3 +120,33 @@ class CustomerNotification(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+
+
+class NotificationRule(models.Model):
+    AUDIENCE_CHOICES = [
+        ("upcoming", "Lịch hẹn sắp tới"),
+        ("nextdose", "Mũi tiếp theo"),
+        ("overdue", "Trễ hẹn"),
+    ]
+
+    name = models.CharField(max_length=100)
+    audience = models.CharField(max_length=20, choices=AUDIENCE_CHOICES)
+    days_before = models.IntegerField(null=True, blank=True)      # cho upcoming
+    next_dose_days = models.IntegerField(null=True, blank=True)   # cho nextdose
+
+    title_tpl = models.CharField(max_length=255)
+    message_tpl = models.TextField()
+
+    channels = models.JSONField(default=dict, blank=True)  # {"app": True, "email": True, "sms": False}
+
+    run_hour = models.IntegerField(default=0, verbose_name="Giờ chạy")      # 12h đêm
+    run_minute = models.IntegerField(default=0, verbose_name="Phút chạy")
+    is_active = models.BooleanField(default=True, verbose_name="Đang kích hoạt")
+
+    last_run_date = models.DateField(null=True, blank=True, verbose_name="Ngày chạy gần nhất")
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Ngày tạo")
+
+    class Meta:
+        verbose_name = "Nhắc lịch tự động"
+        verbose_name_plural = "Nhắc lịch tự động"

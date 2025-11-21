@@ -145,12 +145,12 @@ export default function Login({ setUser }) {
           <h2 className="tw-text-3xl tw-font-bold tw-text-blue-600 tw-mb-6">
             Đăng nhập tài khoản
           </h2>
-          <form className="tw-space-y-5 tw-text-left" onSubmit={handleSubmit}>
+          <form className="tw-space-y-5 tw-text-left" onSubmit={handleSubmit} autoComplete="off">
             <div>
               <label  htmlFor="identifier" className="tw-block tw-text-xl tw-font-medium tw-text-gray-700 tw-mb-2" >
                 Email hoặc Số điện thoại
               </label>
-              <input type="text"  id="identifier" name="identifier" required  value={identifier}
+              <input type="text"  id="identifier"  name="login_identifier" autoComplete="off" required  value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)} onBlur={() => handleBlur("identifier")}
                 className="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-500"
                 placeholder="Nhập email hoặc số điện thoại"/>
@@ -162,7 +162,7 @@ export default function Login({ setUser }) {
                 Mật khẩu
               </label>
               <div className="tw-relative">
-                <input  type={showPassword ? "text" : "password"} id="password" name="password" required  value={password} onChange={(e) => setPassword(e.target.value)}
+                <input  type={showPassword ? "text" : "password"} id="password" name="login_password" autoComplete="new-password"  required  value={password} onChange={(e) => setPassword(e.target.value)}
                       onBlur={() => handleBlur("password")}
                   className="tw-w-full tw-px-4 tw-py-3 tw-pr-12 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-500"
                   placeholder="Nhập mật khẩu"/>

@@ -8,7 +8,7 @@ import { getFamilyMembers,  getDiseases , getVaccinationRecords , updateFamilyMe
 import { toast } from "react-toastify";
 import { getVaccinesByAge } from "../../services/recordBookService";
 import { useLocation , useNavigate  } from "react-router-dom";
-import ChatWidget from "../../components/ChatWidget";
+// import ChatWidget from "../../components/ChatWidget";
 
 const buildVaccinationMap = (records) => {
   const structuredData = {};
@@ -721,7 +721,7 @@ export default function RecordBook() {
             </div>
         </div>
 
-        <ChatWidget />
+        {/* <ChatWidget /> */}
     </section>
   );
 }

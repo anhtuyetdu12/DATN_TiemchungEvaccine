@@ -277,7 +277,7 @@ export default function StaffKnowledgeManager() {
 
   return (
     <div className="tw-min-h-screen tw-bg-[radial-gradient(circle_at_top,_#e0f2fe_0%,_white_45%)] tw-pt-[110px] tw-pb-10">
-      <div className="tw-max-w-[1280px] tw-mx-auto tw-px-6 tw-space-y-6">
+      <div className="tw-max-w-[1280px] tw-px-6 tw-space-y-6 tw-mx-10">
         <header className="tw-bg-[#062b4f] tw-rounded-2xl tw-px-6 tw-py-5 tw-flex tw-items-center tw-justify-between tw-gap-4 tw-shadow-sm">
           <div>
             <p className="tw-text-[9px] tw-uppercase tw-tracking-[0.16em] tw-text-cyan-200">

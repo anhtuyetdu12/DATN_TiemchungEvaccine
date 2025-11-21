@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { getMyNotifications, markMyNotificationRead } from "../../services/notificationService";
 import Pagination from "../../components/Pagination";
 import { toast } from "react-toastify";
-import ChatWidget from "../../components/ChatWidget";
 
 const PAGE_SIZE = 12;
 
@@ -330,7 +329,6 @@ export default function NotificationsUser() {
         )}
       </div>
 
-      <ChatWidget />
     </div>
   );
 }

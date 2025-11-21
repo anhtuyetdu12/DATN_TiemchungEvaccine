@@ -2,8 +2,12 @@
 import { useEffect, useState, useRef } from "react";
 import { startChatSession, sendChatMessage } from "../services/chatService";
 
-const CHAT_SESSION_KEY = "evaccine_chat_session_id";
-const CHAT_MESSAGES_KEY = "evaccine_chat_messages";
+// Tạo key theo user / guest
+const getSessionKey = (user) =>
+  user?.id ? `evaccine_chat_session_id_${user.id}` : "evaccine_chat_session_id_guest";
+
+const getMessagesKey = (user) =>
+  user?.id ? `evaccine_chat_messages_${user.id}` : "evaccine_chat_messages_guest";
 
 const WELCOME_MESSAGE = {
   sender: "bot",
@@ -11,19 +15,21 @@ const WELCOME_MESSAGE = {
   timestamp: new Date().toISOString(),
 };
 
-export default function ChatWidget() {
+export default function ChatWidget({ user }) {
   const [isOpen, setIsOpen] = useState(false);
 
   // Lấy sessionId đã lưu (nếu có)
   const [sessionId, setSessionId] = useState(() => {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem(CHAT_SESSION_KEY) || null;
+    const key = getSessionKey(user);
+    return localStorage.getItem(key) || null;
   });
 
   // Lấy messages đã lưu (nếu có)
   const [messages, setMessages] = useState(() => {
     if (typeof window === "undefined") return [WELCOME_MESSAGE];
-    const saved = localStorage.getItem(CHAT_MESSAGES_KEY);
+    const key = getMessagesKey(user);
+    const saved = localStorage.getItem(key);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -41,14 +47,48 @@ export default function ChatWidget() {
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
 
-  // Tạo session – tách riêng để có thể dùng lại
+   // Khi user đổi (guest → user, user A → user B, logout) → load lại đúng history
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const sessionKey = getSessionKey(user);
+    const messagesKey = getMessagesKey(user);
+
+    const storedSession = localStorage.getItem(sessionKey);
+    const storedMessages = localStorage.getItem(messagesKey);
+
+    setSessionId(storedSession || null);
+
+    if (storedMessages) {
+      try {
+        const parsed = JSON.parse(storedMessages);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+        } else {
+          setMessages([WELCOME_MESSAGE]);
+        }
+      } catch (e) {
+        console.error("Cannot parse saved chat messages", e);
+        setMessages([WELCOME_MESSAGE]);
+      }
+    } else {
+      setMessages([WELCOME_MESSAGE]);
+    }
+
+    // Option: khi logout (user -> null) thì đóng khung chat
+    if (!user) {
+      setIsOpen(false);
+    }
+  }, [user]); // user.id thay đổi thì chạy
+
+  // Tạo session mới cho user / guest hiện tại
   const createSession = async () => {
     try {
       const data = await startChatSession();
       if (data?.session_id) {
         setSessionId(data.session_id);
         if (typeof window !== "undefined") {
-          localStorage.setItem(CHAT_SESSION_KEY, data.session_id);
+          localStorage.setItem(getSessionKey(user), data.session_id);
         }
         return data.session_id;
       }
@@ -60,7 +100,7 @@ export default function ChatWidget() {
     }
   };
 
-  // Khởi tạo phiên khi widget mount (chỉ khi chưa có sessionId)
+  // Khởi tạo session nếu chưa có
   useEffect(() => {
     if (!sessionId) {
       createSession();
@@ -75,18 +115,18 @@ export default function ChatWidget() {
     }
   }, [messages, loading]);
 
-  // Lưu lịch sử chat vào localStorage mỗi khi messages đổi
+    // Lưu history chat theo user / guest
   useEffect(() => {
     try {
       if (typeof window !== "undefined") {
-        localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(messages));
+        localStorage.setItem(getMessagesKey(user), JSON.stringify(messages));
       }
     } catch (e) {
       console.error("Cannot save chat messages", e);
     }
-  }, [messages]);
+  }, [messages, user]);
 
-  // Gửi message (input + gợi ý nhanh)
+  // Gửi message
   const sendMessageWithText = async (rawText) => {
     const text = (rawText || "").trim();
     if (!text || loading) return;
@@ -111,14 +151,10 @@ export default function ChatWidget() {
       }
     }
 
-    // Hiện message user ngay
+    // Thêm message user vào UI
     setMessages((prev) => [
       ...prev,
-      {
-        sender: "user",
-        text,
-        timestamp: new Date().toISOString(),
-      },
+      { sender: "user", text, timestamp: new Date().toISOString() },
     ]);
     setInput("");
 

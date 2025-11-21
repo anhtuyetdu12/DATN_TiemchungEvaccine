@@ -1137,15 +1137,16 @@ class CustomerNotificationPreviewAPIView(APIView):
         # 2) lịch sắp tới
         elif audience == "upcoming":
             try:
-                n = int(days_before or 3)
+                n = int(days_before or 0)
             except:
-                n = 3
-            to = today + timedelta(days=n)
+                n = 0
+
+            target_date = today + timedelta(days=n)
+
             qs = (
                 Booking.objects
                 .filter(
-                    appointment_date__gte=today,
-                    appointment_date__lte=to,
+                    appointment_date=target_date,
                     status__in=["pending", "confirmed"],
                 )
                 .select_related("user", "member")
@@ -1806,3 +1807,7 @@ class MyNotificationMarkReadAPIView(APIView):
         notif.is_read = True
         notif.save(update_fields=["is_read"])
         return Response({"detail": "OK"}, status=200)
+    
+    
+    
+    

@@ -127,12 +127,12 @@ export default function Register({ onClose }) {
             Tạo tài khoản
           </h2>
 
-          <form className="tw-space-y-5 tw-text-left"  onSubmit={handleSubmit}>
+          <form className="tw-space-y-5 tw-text-left"  onSubmit={handleSubmit} autoComplete="off"  >
             <div>
               <label  htmlFor="fullname" className="tw-block tw-text-xl tw-font-medium tw-text-gray-700 tw-mb-2" >
                 Họ và tên
               </label>
-              <input  type="fullname"  id="fullname" name="fullname" required  value={fullName} onChange={(e) => setFullName(e.target.value)}  onBlur={() => handleBlur("fullName")}
+              <input  type="fullname"  id="fullname" name="register_fullname"  required  autoComplete="off"  value={fullName} onChange={(e) => setFullName(e.target.value)}  onBlur={() => handleBlur("fullName")}
                 className="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-500"
                 placeholder="Nhập họ và tên của bạn"/>
             </div>
@@ -142,7 +142,7 @@ export default function Register({ onClose }) {
               <label htmlFor="identifier" className="tw-block tw-text-xl tw-font-medium tw-text-gray-700 tw-mb-2">
                 Email hoặc Số điện thoại
               </label>
-              <input  type="text" id="identifier" name="identifier" required value={identifier} onChange={(e) => setIdentifier(e.target.value)}  onBlur={() => handleBlur("identifier")}
+              <input  type="text" id="identifier" name="register_identifier" autoComplete="off" required value={identifier} onChange={(e) => setIdentifier(e.target.value)}  onBlur={() => handleBlur("identifier")}
                 placeholder="Nhập email hoặc số điện thoại"
                 className="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-500"
               />
@@ -154,7 +154,7 @@ export default function Register({ onClose }) {
                 Mật khẩu
               </label>
               <div className="tw-relative">
-                <input  type={showPassword ? "text" : "password"} id="password" name="password" required  value={password} onChange={(e) => setPassword(e.target.value)}  onBlur={() => handleBlur("password")}
+                <input  type={showPassword ? "text" : "password"} id="password" name="register_password" autoComplete="new-password" required  value={password} onChange={(e) => setPassword(e.target.value)}  onBlur={() => handleBlur("password")}
                   className="tw-w-full tw-px-4 tw-py-3 tw-pr-12 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-500"
                   placeholder="Nhập mật khẩu"/>
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
@@ -170,7 +170,7 @@ export default function Register({ onClose }) {
                 Nhập lại mật khẩu
               </label>
               <div className="tw-relative">
-                <input  type={showRePassword ? "text" : "password"} id="repassword" name="repassword" required   value={repassword}  onChange={(e) => setRePassword(e.target.value)} onBlur={() => handleBlur("repassword")}
+                <input  type={showRePassword ? "text" : "password"} id="repassword" name="register_repassword"  autoComplete="new-password" required   value={repassword}  onChange={(e) => setRePassword(e.target.value)} onBlur={() => handleBlur("repassword")}
                   className="tw-w-full tw-px-4 tw-py-3 tw-pr-12 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-500"
                   placeholder="Nhập mật khẩu"/>
                 <button type="button" onClick={() => setShowRePassword(!showRePassword)}

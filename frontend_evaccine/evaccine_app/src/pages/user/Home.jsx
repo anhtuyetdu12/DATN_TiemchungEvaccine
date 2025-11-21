@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import ChatWidget from "../../components/ChatWidget";
+// import ChatWidget from "../../components/ChatWidget";
 import { getPublicKnowledgeArticles } from "../../services/knowledgeService";
 import { getAllVaccines, getAllDiseases } from "../../services/vaccineService";
 
@@ -389,34 +389,20 @@ export default function Home() {
 
                       <div className="tw-flex tw-items-center tw-justify-between tw-mt-1.5">
                         <div className="tw-flex tw-gap-1 tw-max-w-full">
-  {a.disease && (
-    <span
-      className="
-        tw-flex-1 
-        tw-text-[8px] tw-px-1.5 tw-py-0.5 
-        tw-rounded-full 
-        tw-bg-sky-50 tw-text-sky-700
-        tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap
-      "
-    >
-      #{a.disease}
-    </span>
-  )}
+                          {a.disease && (
+                            <span className=" tw-flex-1  tw-text-[8px] tw-px-1.5 tw-py-0.5  tw-rounded-full 
+                                tw-bg-sky-50 tw-text-sky-700 tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap " >
+                              #{a.disease}
+                            </span>
+                          )}
 
-  {a.vaccine && (
-    <span
-      className="
-        tw-flex-1
-        tw-text-[8px] tw-px-1.5 tw-py-0.5
-        tw-rounded-full 
-        tw-bg-emerald-50 tw-text-emerald-700
-        tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap
-      "
-    >
-      #{a.vaccine}
-    </span>
-  )}
-</div>
+                          {a.vaccine && (
+                            <span className=" tw-flex-1 tw-text-[8px] tw-px-1.5 tw-py-0.5 tw-rounded-full 
+                                tw-bg-emerald-50 tw-text-emerald-700 tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap " >
+                              #{a.vaccine}
+                            </span>
+                          )}
+                        </div>
 
                         <div className="tw-flex tw-items-center tw-gap-2 tw-text-[11px] tw-text-slate-400">
                           <i className="fa-regular fa-heart group-hover:tw-text-pink-500"></i>
@@ -514,7 +500,7 @@ export default function Home() {
         </div>
       </section>
 
-      <ChatWidget />
+      {/* <ChatWidget /> */}
     </div>
   );
 }

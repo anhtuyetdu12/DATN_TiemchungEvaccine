@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import FamilyMember,  VaccinationRecord,  Booking, BookingItem
+from .models import FamilyMember,  VaccinationRecord,  Booking, BookingItem, NotificationRule
 
 # --- Thành viên gia đình ---
 @admin.register(FamilyMember)
@@ -99,3 +99,9 @@ class BookingAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(NotificationRule)
+class NotificationRuleAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "audience", "run_hour", "run_minute", "is_active", "last_run_date")
+    list_filter = ("audience", "is_active")

@@ -1,6 +1,6 @@
 // src/pages/VaccineKnowledge.jsx
 import React, { useEffect, useState } from "react";
-import ChatWidget from "../../components/ChatWidget";
+// import ChatWidget from "../../components/ChatWidget";
 import { getKnowledgeCategories, getPublicKnowledgeArticles,} from "../../services/knowledgeService";
 
 export default function VaccineKnowledge() {
@@ -424,9 +424,7 @@ export default function VaccineKnowledge() {
         </div>
         )}
 
-
-
-      <ChatWidget />
+      {/* <ChatWidget /> */}
     </div>
   );
 }
