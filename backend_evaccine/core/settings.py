@@ -85,6 +85,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'records.middleware.auto_run_rules.auto_run_daily_rules', 
 ]
 
 TEMPLATES = [
@@ -177,6 +178,10 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'tiemchung.evaccine@gmail.com'      # email gửi
 EMAIL_HOST_PASSWORD = 'ysvy tont sltm hjre'  # app password
+
+# Trong môi trường DEBUG (chạy local), không gửi mail thật, chỉ in ra console
+# if DEBUG:
+#     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # tự động nhắc lịch
 APPT_REMINDER_DAYS_BEFORE = [3, 1]     # T-3 và T-1

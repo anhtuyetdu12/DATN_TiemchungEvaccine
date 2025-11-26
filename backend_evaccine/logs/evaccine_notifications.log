@@ -1,0 +1,119 @@
+Traceback (most recent call last):
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\manage.py", line 22, in <module>
+    main()
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\manage.py", line 18, in main
+    execute_from_command_line(sys.argv)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\__init__.py", line 442, in execute_from_command_line
+    utility.execute()
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\__init__.py", line 436, in execute
+    self.fetch_command(subcommand).run_from_argv(self.argv)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\base.py", line 416, in run_from_argv
+    self.execute(*args, **cmd_options)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\base.py", line 460, in execute
+    output = self.handle(*args, **options)
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\records\management\commands\run_notification_rules.py", line 135, in handle
+    result = send_auto_notifications(
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\records\services\auto_notifications.py", line 196, in send_auto_notifications
+    send_notification_email(
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\records\views.py", line 1453, in send_notification_email
+    email.send(fail_silently=False)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\mail\message.py", line 307, in send
+    return self.get_connection(fail_silently).send_messages([self])
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\mail\backends\console.py", line 37, in send_messages
+    self.write_message(message)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\mail\backends\console.py", line 24, in write_message
+    self.stream.write("%s\n" % msg_data)
+UnicodeEncodeError: 'cp932' codec can't encode character '\u1eaf' in position 662: illegal multibyte sequence
+Traceback (most recent call last):
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\manage.py", line 22, in <module>
+    main()
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\manage.py", line 18, in main
+    execute_from_command_line(sys.argv)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\__init__.py", line 442, in execute_from_command_line
+    utility.execute()
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\__init__.py", line 436, in execute
+    self.fetch_command(subcommand).run_from_argv(self.argv)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\base.py", line 416, in run_from_argv
+    self.execute(*args, **cmd_options)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\base.py", line 460, in execute
+    output = self.handle(*args, **options)
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\records\management\commands\run_notification_rules.py", line 135, in handle
+    result = send_auto_notifications(
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\records\services\auto_notifications.py", line 196, in send_auto_notifications
+    send_notification_email(
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\records\views.py", line 1453, in send_notification_email
+    email.send(fail_silently=False)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\mail\message.py", line 307, in send
+    return self.get_connection(fail_silently).send_messages([self])
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\mail\backends\console.py", line 37, in send_messages
+    self.write_message(message)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\mail\backends\console.py", line 24, in write_message
+    self.stream.write("%s\n" % msg_data)
+UnicodeEncodeError: 'cp932' codec can't encode character '\u1eaf' in position 664: illegal multibyte sequence
+Traceback (most recent call last):
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\manage.py", line 22, in <module>
+    main()
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\manage.py", line 18, in main
+    execute_from_command_line(sys.argv)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\__init__.py", line 442, in execute_from_command_line
+    utility.execute()
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\__init__.py", line 436, in execute
+    self.fetch_command(subcommand).run_from_argv(self.argv)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\base.py", line 416, in run_from_argv
+    self.execute(*args, **cmd_options)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\base.py", line 460, in execute
+    output = self.handle(*args, **options)
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\records\management\commands\run_notification_rules.py", line 135, in handle
+    result = send_auto_notifications(
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\records\services\auto_notifications.py", line 196, in send_auto_notifications
+    send_notification_email(
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\records\views.py", line 1453, in send_notification_email
+    email.send(fail_silently=False)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\mail\message.py", line 307, in send
+    return self.get_connection(fail_silently).send_messages([self])
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\mail\backends\console.py", line 37, in send_messages
+    self.write_message(message)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\mail\backends\console.py", line 24, in write_message
+    self.stream.write("%s\n" % msg_data)
+UnicodeEncodeError: 'cp932' codec can't encode character '\u1eaf' in position 664: illegal multibyte sequence
+Traceback (most recent call last):
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\manage.py", line 22, in <module>
+    main()
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\manage.py", line 18, in main
+    execute_from_command_line(sys.argv)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\__init__.py", line 442, in execute_from_command_line
+    utility.execute()
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\__init__.py", line 436, in execute
+    self.fetch_command(subcommand).run_from_argv(self.argv)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\base.py", line 416, in run_from_argv
+    self.execute(*args, **cmd_options)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\base.py", line 460, in execute
+    output = self.handle(*args, **options)
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\records\management\commands\run_notification_rules.py", line 149, in handle
+    self.stdout.write(
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\base.py", line 181, in write
+    self._out.write(style_func(msg))
+UnicodeEncodeError: 'cp932' codec can't encode character '\u1eaf' in position 10: illegal multibyte sequence
+Traceback (most recent call last):
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\manage.py", line 22, in <module>
+    main()
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\manage.py", line 18, in main
+    execute_from_command_line(sys.argv)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\__init__.py", line 442, in execute_from_command_line
+    utility.execute()
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\__init__.py", line 436, in execute
+    self.fetch_command(subcommand).run_from_argv(self.argv)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\base.py", line 416, in run_from_argv
+    self.execute(*args, **cmd_options)
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\base.py", line 460, in execute
+    output = self.handle(*args, **options)
+  File "D:\DoAnTotNghiep\eVaccine\backend_evaccine\records\management\commands\run_notification_rules.py", line 149, in handle
+    self.stdout.write(
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python310\lib\site-packages\django\core\management\base.py", line 181, in write
+    self._out.write(style_func(msg))
+UnicodeEncodeError: 'cp932' codec can't encode character '\u1eaf' in position 10: illegal multibyte sequence
+Rule 3 (Nhắc lịch ngày mai (T-1)) sent=1
+Rule 4 (Nhắc lịch tiêm T+3) sent=0
+Rule 5 (Nhắc mũi tiếp theo (7 ngày tới)) sent=1
+Rule 6 (Nhắc khách trễ hẹn) sent=44
+^C

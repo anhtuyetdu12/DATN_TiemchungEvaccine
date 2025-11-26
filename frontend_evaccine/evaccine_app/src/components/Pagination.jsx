@@ -16,7 +16,6 @@ export default function Pagination({ page, totalItems, perPage = 10, onPageChang
     const pages = new Set([1, totalPages, page - 1, page, page + 1]);
     // lọc các số hợp lệ
     const sorted = [...pages].filter(n => n >= 1 && n <= totalPages).sort((a, b) => a - b);
-
     // chèn "…" giữa các khoảng hở
     const result = [];
     for (let i = 0; i < sorted.length; i++) {

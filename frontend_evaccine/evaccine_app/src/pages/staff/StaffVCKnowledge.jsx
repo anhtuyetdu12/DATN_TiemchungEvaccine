@@ -6,6 +6,7 @@ import {
 } from "../../services/knowledgeService";
 import Dropdown from "../../components/Dropdown";
 import { toast } from "react-toastify";
+import Pagination from "../../components/Pagination";
 
 const TOPIC_TEMPLATES = {
   HE_THONG_DIEN_TU: {
@@ -52,7 +53,8 @@ export default function StaffKnowledgeManager() {
   const [editing, setEditing] = useState(null);
 
   const [filters, setFilters] = useState({ status: "", category: "", visibility: "", search: "" });
-
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 10;
   const emptyForm = {
     title: "",
     summary: "",
@@ -102,7 +104,7 @@ export default function StaffKnowledgeManager() {
     if (name === "visibility") next.category = "";
     if (name === "category") next.visibility = "";
     setFilters(next);
-
+    setPage(1); 
     setLoading(true);
     try {
       const arts = await getKnowledgeArticles({ mine: 1, ...cleanFilterForApi(next) });
@@ -118,6 +120,7 @@ export default function StaffKnowledgeManager() {
   const handleSearchChange = (value) => {
     const next = { ...filters, search: value };
     setFilters(next);
+    setPage(1);  
   };
 
   const filteredArticles = useMemo(() => {
@@ -130,6 +133,11 @@ export default function StaffKnowledgeManager() {
         (a.content || "").toLowerCase().includes(q)
     );
   }, [articles, filters.search]);
+
+  const paginatedArticles = useMemo(() => {
+    const start = (page - 1) * PER_PAGE;
+    return filteredArticles.slice(start, start + PER_PAGE);
+  }, [filteredArticles, page]);
 
   const openCreate = () => {
     setEditing(null);
@@ -277,7 +285,7 @@ export default function StaffKnowledgeManager() {
 
   return (
     <div className="tw-min-h-screen tw-bg-[radial-gradient(circle_at_top,_#e0f2fe_0%,_white_45%)] tw-pt-[110px] tw-pb-10">
-      <div className="tw-max-w-[1280px] tw-px-6 tw-space-y-6 tw-mx-10">
+      <div className="tw-w-full tw-px-4 lg:tw-px-12 tw-space-y-6 tw-mx-auto">
         <header className="tw-bg-[#062b4f] tw-rounded-2xl tw-px-6 tw-py-5 tw-flex tw-items-center tw-justify-between tw-gap-4 tw-shadow-sm">
           <div>
             <p className="tw-text-[9px] tw-uppercase tw-tracking-[0.16em] tw-text-cyan-200">
@@ -367,58 +375,64 @@ export default function StaffKnowledgeManager() {
                 Không có bài viết phù hợp với bộ lọc hiện tại.
               </div>
             ) : (
-              <div
-                className=" tw-max-h-[700px]  tw-overflow-y-auto tw-divide-y 
-                  [&::-webkit-scrollbar]:tw-w-1.5 [&::-webkit-scrollbar-thumb]:tw-bg-slate-300/70 [&::-webkit-scrollbar-thumb]:tw-rounded-full " >
-                <ul className="tw-divide-y tw-divide-slate-100">
-                  {filteredArticles.map((a) => (
-                    <li key={a.id} className="tw-px-4 tw-py-3.5 tw-flex tw-gap-3 hover:tw-bg-slate-50 tw-transition">
-                      <div className="tw-w-24 tw-h-24 tw-rounded-xl tw-overflow-hidden tw-flex-shrink-0 tw-bg-slate-100 tw-flex tw-items-center tw-justify-center">
-                        {a.thumbnail ? (
-                          <img src={a.thumbnail} alt={a.title} className="tw-w-full tw-h-full tw-object-cover" />
-                        ) : (
-                          <span className="tw-text-base tw-text-slate-500">
-                            {a.visibility === "multimedia" ? "MULTIMEDIA" : a.visibility === "featured" ? "FEATURED" : "NO IMAGE"}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="tw-flex-1 tw-min-w-0">
-                        <div className="tw-flex tw-items-center tw-gap-2 tw-mb-0.5">
-                          <h3 className="tw-font-semibold tw-text-slate-900 tw-text-2xl tw-truncate tw-cursor-pointer hover:tw-text-[#14395f]"
-                            onClick={() => openEdit(a)} >
-                            {a.title}
-                          </h3>
-                          {renderStatus(a.status)}
+              <>
+                <div className=" tw-max-h-[700px]  tw-overflow-y-auto tw-divide-y 
+                    [&::-webkit-scrollbar]:tw-w-1.5 [&::-webkit-scrollbar-thumb]:tw-bg-slate-300/70 [&::-webkit-scrollbar-thumb]:tw-rounded-full " >
+                  <ul className="tw-divide-y tw-divide-slate-100">
+                    {paginatedArticles.map((a) => (
+                      <li key={a.id} className="tw-px-4 tw-py-3.5 tw-flex tw-gap-3 hover:tw-bg-slate-50 tw-transition">
+                        <div className="tw-w-24 tw-h-24 tw-rounded-xl tw-overflow-hidden tw-flex-shrink-0 tw-bg-slate-100 tw-flex tw-items-center tw-justify-center">
+                          {a.thumbnail ? (
+                            <img src={a.thumbnail} alt={a.title} className="tw-w-full tw-h-full tw-object-cover" />
+                          ) : (
+                            <span className="tw-text-base tw-text-slate-500">
+                              {a.visibility === "multimedia" ? "MULTIMEDIA" : a.visibility === "featured" ? "FEATURED" : "NO IMAGE"}
+                            </span>
+                          )}
                         </div>
-                        <p className="tw-text-xl tw-text-sky-500 tw-py-2">
-                          {a.categoryName || "Chưa gán danh mục"} • {a.authorName ? `Tác giả: ${a.authorName}` : "Chưa gán tác giả"}
-                        </p>
-                        {a.summary && (
-                          <p className="tw-text-lg tw-text-slate-800 tw-mt-0.5 tw-line-clamp-2">
-                            {a.summary}
-                          </p>
-                        )}
-                      </div>
 
-                      <div className="tw-flex tw-flex-col tw-gap-1 tw-items-end tw-text-[9px]">
-                        {(a.status === "draft" || a.status === "rejected") && (
-                          <button onClick={() => openEdit(a)}
-                            className="tw-text-[#eb135b] tw-bg-pink-100 tw-px-3 tw-py-1 tw-rounded-lg hover:tw-bg-pink-200" >
-                            Sửa
-                          </button>
-                        )}
-                        {a.status === "draft" && (
-                          <button onClick={() => handleSubmitArticle(a.id)}
-                            className="tw-text-emerald-700 tw-bg-emerald-50 tw-px-3 tw-py-1 tw-rounded-lg hover:tw-bg-emerald-100" >
-                            Gửi duyệt
-                          </button>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                        <div className="tw-flex-1 tw-min-w-0">
+                          <div className="tw-flex tw-items-center tw-gap-2 tw-mb-0.5">
+                            <h3 className="tw-font-semibold tw-text-slate-900 tw-text-2xl tw-truncate tw-cursor-pointer hover:tw-text-[#14395f]"
+                              onClick={() => openEdit(a)} >
+                              {a.title}
+                            </h3>
+                            {renderStatus(a.status)}
+                          </div>
+                          <p className="tw-text-xl tw-text-sky-500 tw-py-2">
+                            {a.categoryName || "Chưa gán danh mục"} • {a.authorName ? `Tác giả: ${a.authorName}` : "Chưa gán tác giả"}
+                          </p>
+                          {a.summary && (
+                            <p className="tw-text-lg tw-text-slate-800 tw-mt-0.5 tw-line-clamp-2">
+                              {a.summary}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="tw-flex tw-flex-col tw-gap-1 tw-items-end tw-text-[9px]">
+                          {(a.status === "draft" || a.status === "rejected") && (
+                            <button onClick={() => openEdit(a)}
+                              className="tw-text-[#eb135b] tw-bg-pink-100 tw-px-3 tw-py-1 tw-rounded-lg hover:tw-bg-pink-200" >
+                              Sửa
+                            </button>
+                          )}
+                          {a.status === "draft" && (
+                            <button onClick={() => handleSubmitArticle(a.id)}
+                              className="tw-text-emerald-700 tw-bg-emerald-50 tw-px-3 tw-py-1 tw-rounded-lg hover:tw-bg-emerald-100" >
+                              Gửi duyệt
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <Pagination
+                  page={page} totalItems={filteredArticles.length}
+                  perPage={PER_PAGE} onPageChange={setPage}
+                />
+              </>
+              
             )}
           </div>
 

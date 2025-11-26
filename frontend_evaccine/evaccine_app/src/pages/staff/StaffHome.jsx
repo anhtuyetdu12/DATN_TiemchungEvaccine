@@ -254,18 +254,6 @@ export default function StaffHomeDB() {
     setActivities((prev) => [{ id: Date.now(), text }, ...prev].slice(0, 12));
 
   /* ========= Actions (call BE) ========= */
-  const doCheckIn = (item) => {
-    // Nếu có API check-in riêng thì gọi; tạm thời chỉ đánh dấu UI
-    setAppointments((prev) =>
-      prev.map((a) =>
-        a.id === item.id
-          ? { ...a, checkedIn: true, status: a.status === "pending" ? "confirmed" : a.status }
-          : a
-      )
-    );
-    toast.success(`Đã check-in #${item.id} • ${item.name}`);
-    pushActivity(`🟢 Check-in #${item.id} (${item.date})`);
-  };
 
   const postAndRefresh = async (url, okMsg, actMsg) => {
     try {
@@ -479,17 +467,6 @@ export default function StaffHomeDB() {
 
       <div className="tw-flex tw-items-center tw-justify-between">
         <div className="tw-flex tw-items-center tw-gap-2">
-          {a.checkedIn ? (
-            <span  className={`tw-text-base tw-rounded-full tw-px-2.5 tw-py-1 
-              ${ dark ? "tw-bg-emerald-500/20 tw-text-emerald-200" : "tw-bg-emerald-50 tw-text-emerald-700" }`} >
-              Đã check-in
-            </span>
-          ) : (
-            <button onClick={() => doCheckIn(a)}
-              className="tw-text-base tw-bg-blue-600 tw-text-white tw-rounded-full tw-px-3 tw-py-1 hover:tw-opacity-90" >
-              Check-in
-            </button>
-          )}
         </div>
         <div className="tw-flex tw-items-center tw-gap-2">
           <button

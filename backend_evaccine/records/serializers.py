@@ -171,11 +171,21 @@ class BookingSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"appointment_date": "Vui lòng chọn ngày hẹn tiêm."}
             )
+
+        # ✨ NEW: Ngày hẹn không được trong quá khứ
+        appt_date = attrs.get("appointment_date")
+        today = timezone.localdate()
+        if appt_date < today:
+            raise serializers.ValidationError(
+                {"appointment_date": "Ngày hẹn phải từ hôm nay trở đi."}
+            )
+
         # thành viên phải thuộc chủ
         if member.user != acting_user:
             raise serializers.ValidationError(
                 {"member_id": "Thành viên không thuộc tài khoản này."}
             )
+
         items = attrs.get("items") or []
         vaccine = attrs.get("vaccine")
         package = attrs.get("package")
@@ -184,6 +194,7 @@ class BookingSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"items": "Vui lòng chọn vắc xin hoặc gói vắc xin."}
             )
+
         # nếu gửi items → validate như cũ
         if items:
             from collections import defaultdict
@@ -215,6 +226,7 @@ class BookingSerializer(serializers.ModelSerializer):
                         "items": f"Vắc xin {v.name}: vượt số liều tối đa ({total}). "
                                  f"Còn có thể đặt {remain} liều."
                     })
+
         # nếu gửi 1 vaccine đơn → cũng kiểm tra vượt phác đồ
         if vaccine:
             total = vaccine.doses_required or 1
@@ -231,9 +243,8 @@ class BookingSerializer(serializers.ModelSerializer):
                         f"Còn có thể đặt {remain} liều."
                     )
                 })
-         # --- Kiểm tra không đặt lịch sớm hơn lịch phác đồ (nếu có) ---
-        appt_date = attrs.get("appointment_date")
 
+        # --- Kiểm tra không đặt lịch sớm hơn lịch phác đồ (nếu có) ---
         if appt_date:
             # CASE: items (nhiều vaccine)
             for it in items:
@@ -276,7 +287,9 @@ class BookingSerializer(serializers.ModelSerializer):
                             f"Vui lòng chọn ngày muộn hơn."
                         )
                     })
+
         return attrs
+
     # ----------------- create -----------------
     def create(self, validated_data):
         acting_user = self._acting_user()
@@ -499,3 +512,4 @@ class CustomerNotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomerNotification
         fields = ["id", "title", "message", "channels", "audience", "is_read", "created_at", "meta", "related_booking_id"]
+        

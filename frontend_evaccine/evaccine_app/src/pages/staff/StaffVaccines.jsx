@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import VaccineForm from "./modal/vaccines/VaccineForm"
 import Dropdown from "../../components/Dropdown";
-// import QuantityPicker from "../../components/QuantityPicker";
 import { getStockSummary } from "../../services/inventoryService";
 import Pagination from "../../components/Pagination";
 import {  toast } from "react-toastify";
@@ -15,8 +14,8 @@ export default function StaffVaccines() {
   const [vaccines, setVaccines] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [searchInput, setSearchInput] = useState("");      // người dùng đang gõ
-  const [appliedSearch, setAppliedSearch] = useState("");  // chỉ đổi khi bấm Tìm
+  const [searchInput, setSearchInput] = useState("");      
+  const [appliedSearch, setAppliedSearch] = useState(""); 
   const [showModal, setShowModal] = useState(false);
   const [currentVaccine, setCurrentVaccine] = useState(null);
 
@@ -207,9 +206,6 @@ export default function StaffVaccines() {
     }
   };
 
-   // Prefill thông báo
-  // const [notifyPreset, setNotifyPreset] = useState(null);
-
   const fmtDate = (d) => {
     if (!d || d === "-") return "-";
     const t = new Date(d);
@@ -244,13 +240,6 @@ export default function StaffVaccines() {
             }`} >
                 Quản lý vắc xin
             </button>
-            {/* <button onClick={() => setActiveTab("notify")}
-              className={`tw-py-3 tw-px-5 tw-font-medium tw-rounded-full transition ${
-                  activeTab === "notify" ? "tw-bg-[#ee1968] tw-text-white" 
-                  : "tw-bg-white tw-text-gray-600 tw-border tw-border-white hover:tw-bg-white"
-              }`}>
-              Gửi thông báo
-            </button> */}
             <button onClick={() => setActiveTab("expiry")}
               className={`tw-py-3 tw-px-5 tw-font-medium tw-rounded-full transition ${
                 activeTab === "expiry" ? "tw-bg-[#ee1968] tw-text-white"
@@ -346,14 +335,6 @@ export default function StaffVaccines() {
                                 <i className="fa-solid fa-eye"></i>
                                 <span className="tw-ml-2">Xem</span>
                               </button>
-                              {/* <button
-                                onClick={() => {
-                                  setNotifyPreset({ vaccine_id: v.id, title: "Đề nghị nhập thêm", desired_qty: "", message: "" });
-                                  setActiveTab("notify");
-                                }} className="tw-bg-pink-100 tw-text-pink-600 tw-rounded-full tw-px-3 tw-py-2 tw-border tw-border-transparent hover:tw-border-pink-600" >
-                                <i className="fa-solid fa-paper-plane"></i>
-                                <span className="tw-ml-2">Gửi </span>
-                              </button> */}
                           </td>
                       </tr>
                       );
@@ -402,14 +383,6 @@ export default function StaffVaccines() {
 
         </div>
       )}
-
-      {/* Tab thông báo */}
-      {/* {activeTab === "notify" && (
-        <div className="tw-bg-white tw-rounded-xl tw-shadow-md tw-p-6 tw-space-y-6 tw-mb-[50px]">
-          <h3 className="tw-text-2xl tw-font-semibold">Gửi thông báo cho Admin</h3>
-          <NotifyForm vaccines={vaccines} preset={notifyPreset} onSent={() => toast.success("Đã gửi thông báo tới admin")} />
-        </div>
-      )} */}
 
       {/* Tab cảnh báo */}
       {activeTab === "expiry" && (
@@ -521,13 +494,6 @@ export default function StaffVaccines() {
                               <i className="fa-solid fa-eye"></i>
                               <span className="tw-ml-2">Xem</span>
                             </button>
-                            {/* <button  onClick={() => {
-                                setNotifyPreset({ vaccine_id: v.id, title: "Đề nghị nhập thêm", desired_qty: "", message: "" });
-                                setActiveTab("notify");
-                              }}  className="tw-bg-pink-100 tw-text-pink-600 tw-text-lg tw-border tw-border-transparent hover:tw-border-pink-600 tw-rounded-full tw-px-4 tw-py-2" >
-                              <i className="fa-solid fa-paper-plane"></i>
-                              <span className="tw-ml-2">Gửi </span>
-                            </button> */}
                           </td>
                         </tr>
                         );

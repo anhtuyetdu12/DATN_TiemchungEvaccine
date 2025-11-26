@@ -264,7 +264,6 @@ export default function BookingForm() {
   // Khi đổi người tiêm → tính max theo sổ & sinh thông báo theo phác đồ
   useEffect(() => {
     if (!selectedCustomer?.id || items.length === 0) return;
-    // Chỉ gọi API cho những item chưa có maxDoses
     const pending = items.filter(it => typeof it.maxDoses === "undefined");
     if (pending.length === 0) return;
     let canceled = false;
@@ -277,7 +276,11 @@ export default function BookingForm() {
               const max = Math.max(res?.remaining ?? 0, 0);
               return { id: it.id, maxDoses: max, info: res };
             } catch {
-              return { id: it.id, maxDoses: it.doses_required ?? 5, info: null,};
+              return {
+                id: it.id,
+                maxDoses: it.doses_required ?? 5,
+                info: null,
+              };
             }
           })
         );
@@ -288,8 +291,14 @@ export default function BookingForm() {
             if (!found) return it;
             const { maxDoses: max, info } = found;
             let note = it.note || "";
+            let nextDoseDate = null;
+
             if (info) {
-              const nextDateStr = info.next_dose_date ? new Date(info.next_dose_date).toLocaleDateString("vi-VN") : null;
+              nextDoseDate = info.next_dose_date || null;
+              const nextDateStr = info.next_dose_date
+                ? new Date(info.next_dose_date).toLocaleDateString("vi-VN")
+                : null;
+
               if (info.status_code === "completed" || max === 0) {
                 note = `Quý khách đã tiêm đủ ${info.used}/${info.total} mũi cho vắc xin này.`;
               } else if (info.status_code === "not_started") {
@@ -303,8 +312,13 @@ export default function BookingForm() {
             } else if (max === 0) {
               note = "Quý khách đã chọn tối đa số liều có thể đặt cho vắc xin này.";
             }
-            return {  ...it, maxDoses: max,
-              qty: Math.min(it.qty || 1, Math.max(1, max || 1)), note,
+
+            return {
+              ...it,
+              maxDoses: max,
+              qty: Math.min(it.qty || 1, Math.max(1, max || 1)),
+              note,
+              nextDoseDate,    // 👈 LƯU THÊM
             };
           })
         );
@@ -327,6 +341,10 @@ export default function BookingForm() {
     if (!dateEl?.value) {
       return toast.error("Vui lòng chọn ngày hẹn tiêm trước khi đặt lịch.");
     }
+
+    const apptDate = new Date(dateEl.value);
+    apptDate.setHours(0, 0, 0, 0);
+
     const invalidAgeItems = (items || []).filter(it => it.ageEligible === false);
     if (invalidAgeItems.length) {
       toast.error(
@@ -336,18 +354,28 @@ export default function BookingForm() {
       return;
     }
 
+    // ⚠️ KIỂM TRA KHOẢNG CÁCH MŨI
+    for (const it of items || []) {
+      if (it.ageEligible === false) continue;
+      if ((it.maxDoses ?? 1) <= 0) continue; // đã đủ mũi
+      if (!it.nextDoseDate) continue;        // chưa có mũi kế tiếp dự kiến
+
+      const nd = new Date(it.nextDoseDate);
+      nd.setHours(0, 0, 0, 0);
+      if (apptDate < nd) {
+        return toast.error(
+          `Vắc xin ${it.name}: mũi tiếp theo nên tiêm từ ngày ${nd.toLocaleDateString("vi-VN")}. ` +
+          `Vui lòng chọn ngày hẹn muộn hơn.`
+        );
+      }
+    }
+
     const itemsPayload = (items || [])
       .filter(it => it.ageEligible !== false && (it.maxDoses ?? 1) > 0)
       .map(it => ({ vaccine_id: it.id, quantity: 1 }));
 
     if (itemsPayload.length === 0) return toast.warn("Không có vắc xin hợp lệ để đặt.");
-    // const payload = {
-    //   member_id: selectedCustomer.id,
-    //   appointment_date: dateEl.value,             
-    //   location: null,
-    //   notes: notesEl?.value || "",
-    //   items: itemsPayload,
-    // };
+
     let payload = {
       member_id: selectedCustomer.id,
       appointment_date: dateEl.value,
@@ -356,24 +384,28 @@ export default function BookingForm() {
     };
 
     if (items.length === 1 && (items[0].qty || 1) === 1) {
-      // 1 vaccine đơn → BE xử lý bằng field vaccine_id
       payload.vaccine_id = items[0].id;
     } else {
-      // nhiều vaccine → dùng items như cũ
       payload.items = itemsPayload;
     }
+
     try {
       await createBooking(payload);
-       clearBooking();
-        toast.success("Đặt lịch thành công! Đã ghi vào Sổ tiêm (Chờ tiêm).", {
-          icon: "🎉",  autoClose: 2500, pauseOnHover: true,
-          onClose: () => { window.location.href = `/recordbook?member=${selectedCustomer.id}`; }
-        });
+      clearBooking();
+      toast.success("Đặt lịch thành công! Đã ghi vào Sổ tiêm (Chờ tiêm).", {
+        icon: "🎉",
+        autoClose: 2500,
+        pauseOnHover: true,
+        onClose: () => {
+          window.location.href = `/recordbook?member=${selectedCustomer.id}`;
+        }
+      });
     } catch (e) {
       const msg = e?.response?.data?.items || e?.response?.data?.detail || "Không thể đặt lịch.";
       toast.error(msg);
     }
   };
+
 
   //xóa
   // mở modal

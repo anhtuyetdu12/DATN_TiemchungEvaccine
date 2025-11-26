@@ -5,6 +5,7 @@ import QuantityPicker from "../../../../components/QuantityPicker";
 import DeleteCustomerModal from "./DeleteCustomerModal";
 import { getAllVaccines, getAllDiseases, } from "../../../../services/vaccineService";
 import { getVaccinesByAge } from "../../../../services/recordBookService";
+import { getRemainingDoses } from "../../../../services/bookingService";
 import { staffUpdateCustomerProfile, createAppointment, setAppointmentStatus,
   addHistory, staffCreateMember, staffDeleteMember,} from "../../../../services/customerService";
 import { openPrintWindow, buildAppointmentConfirmationHtml, buildPostInjectionHtml, formatDateVi } from "../../../../utils/printHelpers";
@@ -457,22 +458,97 @@ export default function EditCustomerModal({
         toast.error("Chọn người tiêm");
         return;
       }
+
+      const apptDate = new Date(newAppointment.date);
+      apptDate.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (apptDate < today) {
+        toast.error("Ngày hẹn phải lớn hơn hoặc bằng hôm nay.");
+        return;
+      }
+
+      // Gom số mũi theo vaccine
       const want = {};
       for (const it of (newAppointment.items || [])) {
         if (!it.vaccineId) continue;
         const key = String(it.vaccineId);
-        want[key] = (want[key] || 0) + Number(it.doseQty || 1);
+        const qty = Number(it.doseQty || 1);
+        if (qty <= 0) continue;
+        want[key] = (want[key] || 0) + qty;
       }
-      const items = Object.entries(want).map(([vaccine_id, quantity]) => ({
-        vaccine_id: Number(vaccine_id),
-        quantity,
-      }));
-      if (!items.length) {
+      const entries = Object.entries(want); // [vaccine_id_str, quantity]
+
+      if (!entries.length) {
         toast.error("Chọn ít nhất 1 vắc xin");
         return;
       }
 
-      const isOwner = false; 
+      // ⚠️ CHECK PHÁC ĐỒ + KHOẢNG CÁCH CHO TỪNG VACCINE
+      const checks = await Promise.all(
+        entries.map(async ([vId, qty]) => {
+          try {
+            const res = await getRemainingDoses(newAppointment.memberId, vId);
+            return { vId, qty, info: res };
+          } catch (e) {
+            console.error("getRemainingDoses error:", e);
+            return { vId, qty, info: null };
+          }
+        })
+      );
+
+      for (const { vId, qty, info } of checks) {
+        const vaccine = findVaccine(vId); // bạn đã có helper findVaccine ở trên
+        const vName = vaccine?.name || `ID ${vId}`;
+
+        // Nếu API trả được info
+        if (info) {
+          const remaining = Math.max(info.remaining ?? 0, 0);
+
+          if (remaining <= 0) {
+            toast.error(
+              `Vắc xin ${vName}: khách đã tiêm đủ ${info.used}/${info.total} mũi theo phác đồ.`
+            );
+            return;
+          }
+          if (qty > remaining) {
+            toast.error(
+              `Vắc xin ${vName}: phác đồ còn tối đa ${remaining} mũi, ` +
+              `nhưng bạn đang đặt tổng cộng ${qty} mũi.`
+            );
+            return;
+          }
+
+          if (info.next_dose_date) {
+            const nd = new Date(info.next_dose_date);
+            nd.setHours(0, 0, 0, 0);
+            if (apptDate < nd) {
+              toast.error(
+                `Vắc xin ${vName}: mũi tiếp theo nên tiêm từ ngày ${nd.toLocaleDateString("vi-VN")}. `
+                + `Vui lòng chọn ngày hẹn muộn hơn.`
+              );
+              return;
+            }
+          }
+        } else {
+          // Không gọi được API -> fallback: check với doses_required nếu muốn
+          const maxByProtocol = getMaxDose(vId); // dựa vào vaccine.doses_required
+          if (qty > maxByProtocol) {
+            toast.error(
+              `Vắc xin ${vName}: phác đồ tối đa ${maxByProtocol} mũi trong một liệu trình. `
+              + `Bạn đang đặt ${qty} mũi.`
+            );
+            return;
+          }
+        }
+      }
+
+      // Nếu qua hết validation -> build payload
+      const items = entries.map(([vaccine_id, quantity]) => ({
+        vaccine_id: Number(vaccine_id),
+        quantity,
+      }));
+
       const payload = {
         member_id: Number(newAppointment.memberId),
         appointment_date: newAppointment.date || "",
@@ -480,18 +556,26 @@ export default function EditCustomerModal({
         location: center?.name || "",
         notes: newAppointment.note || "",
       };
+
       const created = await createAppointment(customer.id, payload);
-      let  slim = mapBookingToUi(created);
+      let slim = mapBookingToUi(created);
+
       if (!slim.memberName) {
         const opt = (memberSelectOptions || []).find(
           x => String(x.value) === String(newAppointment.memberId)
         );
         if (opt?.label) slim = { ...slim, memberName: opt.label };
-        if (isOwner && customer?.name) slim = { ...slim, memberName: `${customer.name} (Chủ hồ sơ)` };
       }
+
       const updated = [slim, ...(appointmentsList || [])];
-      setCustomers((prev) => prev.map((c) => c.id === customer.id ? { ...c, appointments: updated } : c ));
-      setSelectedCustomer((prev) => prev ? { ...prev, appointments: updated } : prev );
+      setCustomers((prev) =>
+        prev.map((c) =>
+          c.id === customer.id ? { ...c, appointments: updated } : c
+        )
+      );
+      setSelectedCustomer((prev) =>
+        prev ? { ...prev, appointments: updated } : prev
+      );
       setNewAppointment({ date: "", memberId: "", items: [], note: "", total: 0 });
       toast.success("Đã tạo lịch hẹn");
     } catch (e) {
@@ -501,7 +585,9 @@ export default function EditCustomerModal({
       if (data && typeof data === "object") {
         try {
           const firstField = Object.keys(data)[0];
-          const msg = Array.isArray(data[firstField]) ? data[firstField][0] : String(data[firstField]);
+          const msg = Array.isArray(data[firstField])
+            ? data[firstField][0]
+            : String(data[firstField]);
           return toast.error(msg || "Không tạo được lịch hẹn");
         } catch {}
       }
@@ -510,6 +596,7 @@ export default function EditCustomerModal({
       setCreating(false);
     }
   };
+
 
   // update trạng thái lịch (confirm/cancel)
   const updateAppointmentStatus = async (customerId, apptId, status) => {
