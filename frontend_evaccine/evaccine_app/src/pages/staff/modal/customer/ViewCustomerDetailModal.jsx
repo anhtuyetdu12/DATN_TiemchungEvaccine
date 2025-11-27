@@ -336,13 +336,13 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
               </div>
 
               {historyFiltered.length > 0 ? (
-                <div className="tw-p-4 md:tw-p-6">
+                <div className="tw-p-4 md:tw-p-6"> 
                   <div className="  tw-overflow-x-auto tw-max-h-[40vh] tw-overflow-y-auto tw-rounded-xl tw-pr-1  
                     tw-scrollbar-thin tw-scrollbar-thumb-gray-300 tw-scrollbar-track-transparent
                     [&::-webkit-scrollbar]:tw-h-2 [&::-webkit-scrollbar]:tw-w-2 [&::-webkit-scrollbar-thumb]:tw-rounded-full
                     [&::-webkit-scrollbar-track]:tw-bg-gray-100 [&::-webkit-scrollbar-thumb]:tw-bg-gradient-to-b
-                    [&::-webkit-scrollbar-thumb]:tw-from-purple-400 [&::-webkit-scrollbar-thumb]:tw-to-pink-400 tw-overscroll-contain ">
-                    <table className="tw-w-full tw-text-base tw-border-collapse">
+                    [&::-webkit-scrollbar-thumb]:tw-from-purple-400 [&::-webkit-scrollbar-thumb]:tw-to-pink-400 ">
+                    <table className="tw-w-full tw-text-base tw-border-collapse ">
                       <thead>
                         <tr className="tw-text-left tw-text-blue-600 tw-text-lg">
                           <th className="tw-font-medium tw-px-3 tw-py-2 tw-border-b tw-border-gray-100">Người tiêm</th>

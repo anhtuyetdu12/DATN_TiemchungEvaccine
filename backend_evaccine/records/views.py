@@ -103,8 +103,17 @@ class RemainingDosesView(APIView):
         vaccine_id = request.query_params.get("vaccine_id")
         if not member_id or not vaccine_id:
             return Response({"error": "Thiếu member_id/vaccine_id"}, status=400)
+        role = getattr(request.user, "role", "")
+        if role in ("staff", "admin", "superadmin"):
+            member = FamilyMember.objects.filter(id=member_id).first()
+        else:
+            # customer bình thường -> chỉ được xem member của chính mình
+            member = FamilyMember.objects.filter(
+                id=member_id,
+                user=request.user
+            ).first()
 
-        member = FamilyMember.objects.filter(id=member_id, user=request.user).first()
+        # member = FamilyMember.objects.filter(id=member_id, user=request.user).first()
         vaccine = Vaccine.objects.filter(id=vaccine_id).first()
         if not member or not vaccine:
             return Response({"error": "Không hợp lệ"}, status=400)
@@ -131,11 +140,37 @@ class RemainingDosesView(APIView):
             .first()
         )
         next_date = next_rec.next_dose_date if next_rec else None
-        # Nếu record có dose_number thì dùng, còn không suy ra từ used
+        # Nếu đã có record dự kiến thì dùng luôn dose_number từ đó
         if next_rec and next_rec.dose_number:
             next_dose_number = next_rec.dose_number
         else:
             next_dose_number = used + 1 if remaining > 0 else None
+        # Nếu CHƯA có record dự kiến mà vẫn còn mũi
+        if not next_date and remaining > 0:
+            interval = getattr(vaccine, "interval_days", None)
+            today = timezone.now().date()
+            last_rec = (
+                VaccinationRecord.objects
+                .filter(
+                    family_member=member,
+                    vaccine=vaccine,
+                    vaccination_date__isnull=False,
+                )
+                .order_by("-vaccination_date")
+                .first()
+            )
+
+            if last_rec and last_rec.vaccination_date and interval:
+                # đã tiêm ≥1 mũi -> giữ logic cũ
+                next_date = last_rec.vaccination_date + timedelta(days=interval)
+            elif used == 0:
+                # chưa tiêm mũi nào -> gợi ý có thể bắt đầu từ hôm nay
+                next_date = today
+                # nếu bạn muốn "hôm nay + interval" thì đổi thành:
+                # if interval:
+                #     next_date = today + timedelta(days=interval)
+                # else:
+                #     next_date = today
 
         # Trạng thái phác đồ
         if used >= total:

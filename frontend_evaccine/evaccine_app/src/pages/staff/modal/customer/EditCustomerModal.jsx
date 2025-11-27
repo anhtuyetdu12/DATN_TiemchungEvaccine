@@ -281,10 +281,12 @@ export default function EditCustomerModal({
   // Lấy vaccine theo disease_id
   const vaccinesByDiseaseId = (diseaseId) =>
     (vaccinesDb || []).filter((v) => String(v?.disease?.id) === String(diseaseId));
-  // Max mũi = min(doses_required, 5), fallback 1
-  const getMaxDose = (vId) =>
-    Math.max(1, Math.min(findVaccine(vId)?.doses_required ?? 1, 5));
-
+  //  lấy số mũi trong phác đồ
+  const getMaxDose = (vId) => {
+    const v = findVaccine(vId);
+    const total = Number(v?.doses_required ?? 1);
+    return Number.isFinite(total) && total > 0 ? total : 1;
+  };
 
   // ---------------- Early return: đặt SAU khi đã khai báo tất cả hooks ----------------
   if (!show || !customer) return null;
@@ -470,12 +472,21 @@ export default function EditCustomerModal({
 
       // Gom số mũi theo vaccine
       const want = {};
-      for (const it of (newAppointment.items || [])) {
+      for (const it of newAppointment.items || []) {
         if (!it.vaccineId) continue;
         const key = String(it.vaccineId);
         const qty = Number(it.doseQty || 1);
-        if (qty <= 0) continue;
-        want[key] = (want[key] || 0) + qty;
+
+        if (qty <= 0) {
+          toast.error("Số mũi phải lớn hơn 0.");
+          return;
+        }
+        if (want[key] != null) {
+          // Nếu có 2 item cùng 1 vaccine -> bắt user gộp lại
+          toast.error("Mỗi vắc xin chỉ được chọn 1 dòng trong 1 lịch hẹn.");
+          return;
+        }
+        want[key] = qty;
       }
       const entries = Object.entries(want); // [vaccine_id_str, quantity]
 
@@ -989,16 +1000,24 @@ export default function EditCustomerModal({
                               toast.error("Vui lòng chọn người tiêm trước khi thêm vắc xin");
                               return;
                             }
-                            setNewAppointment((s) => ({  ...s,
-                              items: [  ...(s.items || []),
-                                { diseaseId: "",
+                            setNewAppointment((s) => ({
+                              ...s,
+                              items: [
+                                ...(s.items || []),
+                                {
+                                  diseaseId: "",
                                   vaccineId: "",
                                   vaccineName: "",
                                   price: "",
                                   doseQty: 1,
                                   doseWarn: false,
-                                },],
+                                  maxDoseByRecord: undefined,
+                                  protocolInfo: null,
+                                  nextDoseDate: null,
+                                },
+                              ],
                             }));
+
                           }} className="tw-inline-flex tw-items-center tw-gap-2 tw-bg-cyan-500 hover:tw-bg-cyan-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-full tw-shadow" >
                           <i className="fa-solid fa-square-plus"></i>
                           Thêm vắc xin
@@ -1010,9 +1029,27 @@ export default function EditCustomerModal({
 
                       {/* Items */}
                      {(newAppointment.items || []).map((it, idx) => {
-                        const maxDose = it.vaccineId ? getMaxDose(it.vaccineId) : 5;
-                        const itemSubtotal = Number(it.price || 0) * Math.max(1, Number(it.doseQty || 1));
-                        // 👉 TÍNH DS VACCINE CHO ITEM NÀY
+                         const itemSubtotal =  Number(it.price || 0) * Number(it.doseQty || 1);
+                        // Tổng số mũi của phác đồ cho vắc xin này
+                        const totalProtocolDoses = it.protocolInfo?.total ?? (it.vaccineId ? findVaccine(it.vaccineId)?.doses_required : null);
+                        const remainingByRecord = it.maxDoseByRecord;
+                        const regimenMax = Number(it.maxDoseByRecord ?? getMaxDose(it.vaccineId) ?? 1) || 1;
+                        // Số mũi đã tiêm 
+                        const usedDoses =
+                          it.protocolInfo?.used != null
+                            ? it.protocolInfo.used
+                            : totalProtocolDoses != null && remainingByRecord != null
+                            ? totalProtocolDoses - remainingByRecord
+                            : null;
+                        // Nếu chưa tiêm mũi nào -> chỉ cho đặt tối đa 1 mũi trong 1 lịch hẹn
+                        let uiMaxDose = regimenMax;
+                        if (usedDoses === 0 || usedDoses == null) {
+                          uiMaxDose = 1;
+                        }
+                        //  ngày mũi tiếp theo 
+                        const nextDoseDateFormatted = it.nextDoseDate ? new Date(it.nextDoseDate).toLocaleDateString("vi-VN") : null;
+                        const showNextSuggestion = nextDoseDateFormatted && usedDoses != null && usedDoses > 0;
+                        //  TÍNH DS VACCINE CHO ITEM NÀY
                         const vaccinesForItem =
                           ageFiltered.memberId === newAppointment.memberId &&
                           ageFiltered.vaccines.length
@@ -1028,8 +1065,8 @@ export default function EditCustomerModal({
 
                         return (
                           <div key={idx} className="tw-rounded-xl tw-border tw-bg-[#ffefe5] tw-shadow-sm tw-ring-1 tw-ring-gray-100 tw-p-4 tw-text-left" >
-                            <div className="tw-flex tw-items-start tw-gap-3">
-                              <div className="tw-shrink-0 tw-w-7 tw-h-7 tw-rounded-full tw-text-base tw-bg-yellow-100 tw-text-yellow-700 tw-flex tw-items-center tw-justify-center tw-font-semibold">
+                            <div className="tw-flex tw-items-start tw-justify-between tw-mb-2">
+                              <div className="tw-shrink-0 tw-w-6 tw-h-6 tw-rounded-full tw-text-base tw-bg-yellow-100 tw-text-yellow-700 tw-flex tw-items-center tw-justify-center tw-font-semibold tw-mt-[2px]">
                                 {idx + 1}
                               </div>
                               <button  type="button"
@@ -1039,10 +1076,12 @@ export default function EditCustomerModal({
                                     clone.splice(idx, 1);
                                     return { ...s, items: clone };
                                   });
-                                }} className="tw-text-red-600 hover:tw-text-red-700 tw-ml-auto tw-p-2" title="Xoá vắc xin này" >
-                                <i className="fa-solid fa-trash"></i>
+                                }}
+                                className="tw-text-red-600 hover:tw-text-red-700 tw-p-1 tw-mt-[1px]" title="Xoá vắc xin này">
+                                <i className="fa-solid fa-trash tw-text-lg" />
                               </button>
                             </div>
+
                             <div className="tw-grid md:tw-grid-cols-2 tw-grid-cols-1 tw-gap-4">
                               {/* Phòng bệnh */}
                               <div>
@@ -1059,6 +1098,9 @@ export default function EditCustomerModal({
                                         price: "",
                                         doseQty: 1,
                                         doseWarn: false,
+                                        maxDoseByRecord: undefined,
+                                        protocolInfo: null,
+                                        nextDoseDate: null,
                                       };
                                       return { ...s, items: clone };
                                     });
@@ -1076,15 +1118,17 @@ export default function EditCustomerModal({
                               {/* Vắc xin */}
                               <div>
                                 <label className="tw-block tw-text-base tw-font-medium tw-text-gray-700 tw-mb-1"> Vắc xin </label>
-                                <Dropdown  disabled={!newAppointment.memberId || !it.diseaseId || loadingDicts}
+                               <Dropdown
+                                  disabled={!newAppointment.memberId || !it.diseaseId || loadingDicts}
                                   value={it.vaccineId}
                                   options={vaccinesForItem.map((v) => ({
                                     value: String(v.id),
                                     label: `${v.name} (${formatMoney(v.price || 0)} đ)`,
                                     title: v.name,
                                   }))}
-                                  onChange={(val) => {
-                                    const v = vaccinesForItem.find( (x) => String(x.id) === String(val) );
+                                  onChange={async (val) => {
+                                    const v = vaccinesForItem.find((x) => String(x.id) === String(val));
+                                    // 1. Cập nhật thông tin cơ bản ngay
                                     setNewAppointment((s) => {
                                       const clone = [...(s.items || [])];
                                       clone[idx] = {
@@ -1094,11 +1138,79 @@ export default function EditCustomerModal({
                                         price: v?.price || 0,
                                         doseQty: 1,
                                         doseWarn: false,
+                                        maxDoseByRecord: undefined,
+                                        protocolInfo: null,
+                                        nextDoseDate: null,
                                       };
                                       return { ...s, items: clone };
                                     });
-                                  }} className="tw-text-base"
+                                    // 2. Nếu chưa chọn người tiêm thì thôi
+                                    if (!newAppointment.memberId || !v?.id) return;
+                                    try {
+                                      const info = await getRemainingDoses(newAppointment.memberId, v.id);
+                                      const remaining = Math.max(info?.remaining ?? 0, 0);
+                                      if (remaining <= 0) {
+                                        toast.error(
+                                          `Vắc xin ${v.name}: khách đã tiêm đủ phác đồ, không thể đặt thêm mũi.`
+                                        );
+                                        // reset lại vaccine ở item này
+                                        setNewAppointment((s) => {
+                                          const clone = [...(s.items || [])];
+                                          const current = clone[idx];
+                                          if (!current || current.vaccineId !== String(v.id)) return s;
+                                          clone[idx] = {
+                                            ...current,
+                                            vaccineId: "",
+                                            vaccineName: "",
+                                            price: "",
+                                            doseQty: 1,
+                                            maxDoseByRecord: 1,
+                                            protocolInfo: info || null,
+                                            nextDoseDate: info?.next_dose_date || null,
+                                            doseWarn: false,
+                                          };
+                                          return { ...s, items: clone };
+                                        });
+                                        return;
+                                      }
+                                      setNewAppointment((s) => {
+                                        const clone = [...(s.items || [])];
+                                        const current = clone[idx];
+                                        if (!current || current.vaccineId !== String(v.id)) return s;
+                                        const showWarn = remaining === 1; //  nếu chỉ còn 1 mũi thì bật cảnh báo ngay
+                                        clone[idx] = {
+                                          ...current,
+                                          maxDoseByRecord: remaining,
+                                          protocolInfo: info || null,
+                                          nextDoseDate: info?.next_dose_date || info?.next_date || null,
+                                          doseQty: 1,
+                                          doseWarn: showWarn,      //  bật cảnh báo khi còn tối đa 1 mũi
+                                        };
+                                        return { ...s, items: clone };
+                                      });
+                                    } catch (err) {
+                                      console.error(err?.response?.data || err);
+                                      // fallback giống BookingForm: vẫn cho đặt 1 mũi
+                                      setNewAppointment((s) => {
+                                        const clone = [...(s.items || [])];
+                                        const current = clone[idx];
+                                        if (!current || current.vaccineId !== String(v.id)) return s;
+                                        clone[idx] = {
+                                          ...current,
+                                          maxDoseByRecord: 1,
+                                          protocolInfo: null,
+                                          nextDoseDate: null,
+                                          doseQty: 1,
+                                          doseWarn: true, 
+                                        };
+                                        return { ...s, items: clone };
+                                      });
+                                    }
+                                  }}
+
+                                  className="tw-text-base"
                                 />
+
                                 {!it.diseaseId && ( <div className="tw-text-xs tw-text-orange-500 tw-mt-1"> Chọn phòng bệnh trước để lọc vắc xin phù hợp. </div> )}
                               </div>
                             </div>
@@ -1111,42 +1223,83 @@ export default function EditCustomerModal({
                                 />
                               </div>
                               <div className="md:tw-col-span-1">
-                                <label className="tw-block tw-text-base tw-font-medium tw-text-gray-700 tw-mb-1"> Số mũi  </label>
-                                <div className="tw-inline-block tw-origin-left tw-scale-90">
-                                  <QuantityPicker  value={it.doseQty || 1}  min={1}  max={maxDose}
-                                    onChange={(val) => {
-                                      setNewAppointment((s) => {
-                                        const clone = [...(s.items || [])];
-                                        clone[idx] = {
-                                          ...clone[idx],
-                                          doseQty: val,
-                                          doseWarn: Number(val) > Number(maxDose),
-                                        };
-                                        return { ...s, items: clone };
-                                      });
-                                    }}
-                                  />
-                                </div>
-                                {it.vaccineId && (
-                                  <div className="tw-mt-1">
-                                    <span className="tw-inline-flex tw-items-center tw-gap-2 tw-text-xs tw-text-orange-600 tw-bg-orange-100 tw-rounded-full tw-px-3 tw-py-1">
-                                      <i className="fa-solid fa-circle-info"></i>
-                                      Phác đồ: tối đa {maxDose} mũi
-                                    </span>
-                                  </div>
-                                )}
+                                <label className="tw-block tw-text-base tw-font-medium tw-text-gray-700 tw-mb-1">
+                                  Số mũi
+                                </label>
+                                <QuantityPicker
+                                  value={Number(it.doseQty || 1)}  min={1}
+                                  max={uiMaxDose}  
+                                  disabled={!it.vaccineId}
+                                  onChange={(val) => {
+                                    setNewAppointment((s) => {
+                                      const clone = [...(s.items || [])];
+                                      const current = clone[idx];
+                                      if (!current) return s;
+                                      const maxAllowed = uiMaxDose;
+                                      const rawVal = Number(val || 1);
+                                      const safeVal = Math.max(1, Math.min(maxAllowed, rawVal));
+                                      // Hiện cảnh báo khi user cố vượt hoặc vừa chạm MAX
+                                      const showWarn = safeVal >= maxAllowed;
+                                      clone[idx] = {
+                                        ...current,
+                                        doseQty: safeVal,
+                                        doseWarn: showWarn,  
+                                      };
+                                      return { ...s, items: clone };
+                                    });
+                                  }}
+                                />
                               </div>
                               <div className="md:tw-col-span-1 tw-ml-10 tw-text-center">
                                 <div>
                                   <div className="tw-text-base tw-text-gray-600 tw-mt-2">Tạm tính</div>
                                   <div className="tw-text-base tw-font-semibold tw-text-orange-500">  {formatMoney(itemSubtotal)} VNĐ </div>
                                 </div>
-                              </div>
-                              {it.doseWarn && (
-                                <div className="tw-col-span-full tw-text-xs tw-text-red-600">
-                                  Đã vượt số liều tối đa có thể đặt cho vắc xin này.
+                              </div>  
+                              {(totalProtocolDoses != null || (usedDoses != null && remainingByRecord != null) || !!nextDoseDateFormatted) &&  (
+                                <div className="tw-col-span-full tw-mt-2">
+                                  <div className="tw-flex tw-items-center tw-gap-2 tw-rounded-lg tw-border tw-border-amber-300 tw-bg-amber-50 tw-px-3 tw-py-2 tw-shadow-sm">
+                                    <span className="tw-inline-flex tw-h-6 tw-w-6 tw-items-center tw-justify-center tw-rounded-full tw-bg-amber-100 tw-text-amber-700">
+                                      <i className="fa-solid fa-circle-exclamation tw-text-[10px]" />
+                                    </span>
+
+                                    <div className="tw-flex tw-flex-col tw-gap-0.5">
+                                      <p className="tw-text-sm tw-text-amber-800">
+                                        {totalProtocolDoses != null && (
+                                          <>
+                                            Phác đồ vắc xin này gồm tối đa{" "}
+                                            <span className="tw-font-semibold">{totalProtocolDoses} mũi</span>
+                                            {usedDoses != null && remainingByRecord != null ? ", " : "."}
+                                          </>
+                                        )}
+
+                                        {usedDoses != null &&
+                                          totalProtocolDoses != null &&
+                                          remainingByRecord != null && (
+                                            <>
+                                              {" "}
+                                              Khách đã tiêm{" "}
+                                              <span className="tw-font-semibold">
+                                                {usedDoses}/{totalProtocolDoses} mũi
+                                              </span>
+                                              , còn lại{" "}
+                                              <span className="tw-font-semibold">
+                                                {remainingByRecord} mũi chưa tiêm.
+                                              </span>
+                                            </>
+                                          )}
+                                      </p>
+                                     {showNextSuggestion && (
+                                        <p className="tw-text-[10px] tw-text-amber-700">
+                                          Gợi ý: mũi tiếp theo nên tiêm từ ngày{" "}
+                                          <span className="tw-font-semibold"> {nextDoseDateFormatted}</span>.
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
                               )}
+
                             </div>
 
                           </div>

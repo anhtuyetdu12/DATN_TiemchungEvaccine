@@ -1,42 +1,66 @@
-import { useState } from "react";
-
-export default function QuantityPicker() {
-  const [formData, setFormData] = useState({ quantity: 0 });
-
-  const handleChange = (e) => {
-    const value = e.target.value;
-    // Chỉ cho phép số nguyên >= 0
-    if (/^\d*$/.test(value)) {
-      setFormData((prev) => ({ ...prev, quantity: value === "" ? 0 : parseInt(value) }));
-    }
+// components/QuantityPicker.jsx
+export default function QuantityPicker({
+  value,
+  onChange,
+  min = 0,
+  max = 5,
+  disabled = false,
+  className = "",
+}) {
+  const clamp = (n) => {
+    const num = Number.isFinite(n) ? n : min;
+    return Math.max(min, Math.min(max, num));
   };
 
-  const MAX_QUANTITY = 5;
+  const dec = () => {
+    if (disabled) return;
+    onChange(clamp(value - 1));
+  };
 
-  const increment = () => { setFormData((prev) => ({ ...prev,  quantity: Math.min(prev.quantity + 1, MAX_QUANTITY),  }));};
+  const inc = () => {
+    if (disabled) return;
+    onChange(clamp(value + 1));
+  };
 
-  const decrement = () => { setFormData((prev) => ({  ...prev,  quantity: Math.max(prev.quantity - 1, 0),  }));};
+  const handleInput = (e) => {
+    if (disabled) return;
+    let raw = e.target.value.replace(/[^\d]/g, "");
+    if (raw === "") {
+      onChange(min);
+      return;
+    }
+    onChange(clamp(parseInt(raw, 10)));
+  };
 
   return (
-    <div>
-      <div className="tw-flex tw-items-center tw-gap-2">
-        {/* Nút trừ */}
-        <button type="button"  onClick={decrement}  disabled={formData.quantity <= 0}
-            className={`tw-bg-blue-200 hover:tw-bg-blue-300 tw-text-gray-800 tw-px-4 tw-py-2 tw-rounded-lg tw-border tw-border-blue-300 
-              ${formData.quantity <= 0 ? "tw-opacity-50 tw-cursor-not-allowed" : ""}`} >
-            <i className="fa-solid fa-minus"></i>
-          </button>
+    <div className={`tw-flex tw-items-center tw-gap-2 ${className}`}>
+      <button
+        type="button"
+        onClick={dec}
+        disabled={disabled || value <= min}
+        className={`tw-bg-blue-200 hover:tw-bg-blue-300 tw-text-gray-800 tw-px-4 tw-py-2 tw-rounded-lg tw-border tw-border-blue-300 
+          ${disabled || value <= min ? "tw-opacity-50 tw-cursor-not-allowed" : ""}`}
+      >
+        <i className="fa-solid fa-minus" />
+      </button>
 
-        <input  type="text"  name="quantity"  value={formData.quantity} onChange={handleChange}
-          className="tw-border tw-border-gray-300 tw-px-3 tw-py-2 tw-w-24 tw-rounded-lg tw-text-center focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
-        />
+      <input
+        type="text"
+        value={value}
+        onChange={handleInput}
+        disabled={disabled}
+        className="tw-border tw-border-gray-300 tw-px-3 tw-py-2 tw-w-16 tw-rounded-lg tw-text-center focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
+      />
 
-        <button  type="button"  onClick={increment}  disabled={formData.quantity >= MAX_QUANTITY}
-            className={`tw-bg-blue-200 hover:tw-bg-blue-300 tw-text-gray-800 tw-px-4 tw-py-2 tw-rounded-lg tw-border tw-border-blue-300 
-              ${formData.quantity >= MAX_QUANTITY ? "tw-opacity-50 tw-cursor-not-allowed" : ""}`} >
-            <i className="fa-solid fa-plus"></i>
-          </button>
-      </div>
+      <button
+        type="button"
+        onClick={inc}
+        disabled={disabled || value >= max}
+        className={`tw-bg-blue-200 hover:tw-bg-blue-300 tw-text-gray-800 tw-px-4 tw-py-2 tw-rounded-lg tw-border tw-border-blue-300 
+          ${disabled || value >= max ? "tw-opacity-50 tw-cursor-not-allowed" : ""}`}
+      >
+        <i className="fa-solid fa-plus" />
+      </button>
     </div>
   );
 }

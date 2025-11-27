@@ -199,7 +199,14 @@ class BookingSerializer(serializers.ModelSerializer):
         if items:
             from collections import defaultdict
             want = defaultdict(int)
+            seen = set()
             for it in items:
+                v_id = it["vaccine_id"]
+                #  không cho 1 vaccine xuất hiện nhiều hơn 1 item
+                if v_id in seen:
+                    raise serializers.ValidationError({ "items": "Mỗi vắc xin chỉ được chọn 1 lần trong một lịch hẹn." })
+                seen.add(v_id)
+                
                 if it["quantity"] != 1:
                     raise serializers.ValidationError({
                         "items": "Mỗi lần đặt lịch chỉ được chọn tối đa 1 liều cho mỗi vắc xin."

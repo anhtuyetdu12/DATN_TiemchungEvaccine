@@ -318,7 +318,7 @@ export default function BookingForm() {
               maxDoses: max,
               qty: Math.min(it.qty || 1, Math.max(1, max || 1)),
               note,
-              nextDoseDate,    // 👈 LƯU THÊM
+              nextDoseDate,    
             };
           })
         );
