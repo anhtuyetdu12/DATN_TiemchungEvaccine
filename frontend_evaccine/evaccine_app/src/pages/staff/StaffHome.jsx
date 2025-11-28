@@ -27,6 +27,7 @@ export default function StaffHomeDB() {
 
   /* ========= Filters & View ========= */
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState("all"); // all|pending|confirmed|cancelled|completed
   const [view, setView] = useState("calendar"); // calendar | list | kanban
   const [selectedDate, setSelectedDate] = useState(""); // dd/MM/yyyy
@@ -176,6 +177,22 @@ export default function StaffHomeDB() {
       setLoading(false);
     }
   }, [monthRangeISO, search, statusFilter, adaptBooking]);
+
+  const applySearch = useCallback(() => {
+      setSearch(searchInput.trim());
+    }, [searchInput]);
+
+    const handleSearchKeyDown = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        applySearch();
+      }
+    };
+
+    const handleClearSearch = () => {
+      setSearchInput("");
+      setSearch("");
+    };
 
   useEffect(() => {
     fetchMonth();
@@ -557,15 +574,25 @@ export default function StaffHomeDB() {
               <div className="tw-flex tw-items-center tw-gap-2">
                 <div className="tw-relative">
                   <i className={`fa-solid fa-magnifying-glass tw-absolute tw-left-3 tw-top-1/2 -tw-translate-y-1/2 
-                    ${ dark ? "tw-text-white/50" : "tw-text-gray-400" }`} ></i>
-                  <input  value={search} onChange={(e) => setSearch(e.target.value)}
-                    className={`tw-w-[220px] tw-rounded-full tw-py-1.5 tw-pl-9 tw-text-xl tw-pr-3 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800
-                       ${dark ? "tw-bg-white/10 tw-text-white tw-border tw-border-white/10"
-                           : "tw-bg-white tw-border tw-border-gray-300 focus:tw-ring-blue-200"
-                       }`}
-                    placeholder="Tìm tên khách hàng…"
+                      ${dark ? "tw-text-white/50" : "tw-text-gray-400"}`} ></i>
+                  <input  value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
+                    onKeyDown={handleSearchKeyDown}
+                    className={`tw-w-[220px] tw-rounded-full tw-py-1.5 tw-pl-9 tw-text-xl tw-pr-8
+                      focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800
+                      ${dark ? "tw-bg-white/10 tw-text-white tw-border tw-border-white/10"
+                        : "tw-bg-white tw-border tw-border-gray-300 focus:tw-ring-blue-200"
+                      }`} placeholder="Tìm tên khách hàng…"
                   />
+                  {searchInput && (
+                    <button type="button" onClick={handleClearSearch}
+                      className={`tw-absolute tw-right-4 tw-top-1/2 -tw-translate-y-1/2 tw-text-base
+                        ${dark ? "tw-text-white/60 hover:tw-text-white" : "tw-text-red-500 hover:tw-text-red-600"}`}
+                      aria-label="Xóa tìm kiếm" >
+                      <i className="fa-solid fa-xmark"></i>
+                    </button>
+                  )}
                 </div>
+
                 {renderStatusChips()}
               </div>
             </div>

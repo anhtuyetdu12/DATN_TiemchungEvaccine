@@ -2,6 +2,34 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { previewAudience } from "../../services/notificationService";
 import Pagination from "../../components/Pagination";
 
+const audienceOptions = [
+  {
+    value: "upcoming_today",
+    label: "Lịch hẹn hôm nay",
+    backend: { audience: "upcoming", days_before: 0 },
+  },
+  {
+    value: "upcoming_1",
+    label: "Lịch hẹn ngày mai",
+    backend: { audience: "upcoming", days_before: 1 },
+  },
+  {
+    value: "upcoming_3",
+    label: "Lịch hẹn sắp tới (3 ngày)",
+    backend: { audience: "upcoming", days_before: 3 },
+  },
+  {
+    value: "nextdose",
+    label: "Mũi tiếp theo (theo sổ tiêm)",
+    backend: { audience: "nextdose", next_dose_days: 7 }, // số ngày tới muốn nhắc
+  },
+  {
+    value: "overdue",
+    label: "Khách trễ hẹn",
+    backend: { audience: "overdue" },
+  },
+];
+
 export default function StaffAutoReminderDashboard() {
   const fetchIdRef = useRef(0);
 
@@ -14,10 +42,26 @@ export default function StaffAutoReminderDashboard() {
   const apptPerPage = 10;
 
   // Summary tổng quan 3 nhóm
-  const [summary, setSummary] = useState({ upcoming: null, nextdose: null, overdue: null, loadedAt: null });
+  const [summary, setSummary] = useState({
+    upcoming_today: null,
+    upcoming_1: null,
+    upcoming_3: null,
+    nextdose: null,
+    overdue: null,
+    loadedAt: null,
+  });
 
   // Sample để render preview nội dung
-  const [sample, setSample] = useState({ name: "", date: "", vaccine: "", interval: null, total_doses: null, disease: "", dob: "" });
+  const [sample, setSample] = useState({
+    customer_name: "",
+    member_name: "",
+    date: "",
+    vaccine: "",
+    interval: null,
+    total_doses: null,
+    disease: "",
+    dob: "",
+  });
 
   const formatDate = (isoStr) => {
     if (!isoStr) return "—";
@@ -91,13 +135,13 @@ export default function StaffAutoReminderDashboard() {
   const previewRendered = useMemo(() => {
     if (!currentTemplate) return "";
     const tpl = currentTemplate.msg || "";
-    const name = sample.name || "Khách hàng";
-    const date = sample.date || "dd/mm/yyyy";
+    const date = sample.date ? formatDate(sample.date) : "dd/mm/yyyy";
     const interval = sample.interval != null ? String(sample.interval) : "…";
     const total = sample.total_doses != null ? String(sample.total_doses) : "…";
     const vaccine = sample.vaccine || "vắc xin";
     const disease = sample.disease || "";
     const dob = sample.dob ? new Date(sample.dob).toLocaleDateString("vi-VN") : "";
+
     return tpl
       .replaceAll("{{name}}", sample.customer_name || "Khách hàng")
       .replaceAll("{{member}}", sample.member_name || "")
@@ -108,6 +152,7 @@ export default function StaffAutoReminderDashboard() {
       .replaceAll("{{disease}}", disease)
       .replaceAll("{{dob}}", dob);
   }, [currentTemplate, sample]);
+
 
   const fetchSummary = useCallback(async () => {
     try {
@@ -121,7 +166,7 @@ export default function StaffAutoReminderDashboard() {
         previewAudience({ audience: "upcoming", days_before: 0 }),
         previewAudience({ audience: "upcoming", days_before: 1 }),
         previewAudience({ audience: "upcoming", days_before: 3 }),
-        previewAudience({ audience: "nextdose", next_dose_days: 7 }),
+        previewAudience({ audience: "nextdose", next_dose_days: 7, only_unscheduled: 1 }), // chỉ đếm các mũi tiếp theo CHƯA có lịch hẹn
         previewAudience({ audience: "overdue" }),
       ]);
 
@@ -138,6 +183,15 @@ export default function StaffAutoReminderDashboard() {
       setSummary((prev) => ({ ...prev, loadedAt: new Date() }));
     }
   }, []);
+
+  // Phân trang client-side
+  const currentPageAppts = useMemo(() => {
+    const start = (apptPage - 1) * apptPerPage;
+    return appts.slice(start, start + apptPerPage);
+  }, [appts, apptPage]);
+
+  const audienceLabel = audienceOptions.find((o) => o.value === audience)?.label || "";
+  // const currentAudienceCfg = audienceOptions.find((o) => o.value === audience)?.backend || { audience: "upcoming", days_before: 0 };
 
   // Lấy danh sách chi tiết theo audience
   const fetchAppts = useCallback(async () => {
@@ -184,6 +238,8 @@ export default function StaffAutoReminderDashboard() {
           status_label: statusLabel,
           vaccine: r.vaccine || "",
           disease_name: r.disease_name || "",
+          interval: r.interval ?? null,
+          total_doses: r.total_doses ?? null,
         };
       });
 
@@ -197,13 +253,17 @@ export default function StaffAutoReminderDashboard() {
           member_name: first.member_name,
           date: first.appointment_date || "",
           vaccine: first.vaccine || "",
-          interval: null,
-          total_doses: null,
+          interval: first.interval ?? null,
+          total_doses: first.total_doses ?? null,
           disease: first.disease_name || "",
           dob: "",
         });
       } else {
-        setSample({ name: "", date: "", vaccine: "", interval: null, total_doses: null, disease: "", dob: "" });
+        setSample({
+          customer_name: "", member_name: "", date: "",
+          vaccine: "", interval: null, total_doses: null,
+          disease: "", dob: "",
+        });
       }
     } finally {
       if (fetchId === fetchIdRef.current) setApptLoading(false);
@@ -212,42 +272,6 @@ export default function StaffAutoReminderDashboard() {
 
   useEffect(() => { fetchSummary(); }, [fetchSummary]);
   useEffect(() => { setApptPage(1); fetchAppts(); }, [fetchAppts]);
-
-  // Phân trang client-side
-  const currentPageAppts = useMemo(() => {
-    const start = (apptPage - 1) * apptPerPage;
-    return appts.slice(start, start + apptPerPage);
-  }, [appts, apptPage]);
-
-  const audienceOptions = [
-    {
-      value: "upcoming_today",
-      label: "Lịch hẹn hôm nay",
-      backend: { audience: "upcoming", days_before: 0 },
-    },
-    {
-      value: "upcoming_1",
-      label: "Lịch hẹn ngày mai",
-      backend: { audience: "upcoming", days_before: 1 },
-    },
-    {
-      value: "upcoming_3",
-      label: "Lịch hẹn sắp tới (3 ngày)",
-      backend: { audience: "upcoming", days_before: 3 },
-    },
-    {
-      value: "nextdose",
-      label: "Mũi tiếp theo (theo sổ tiêm)",
-      backend: { audience: "nextdose", next_dose_days: 7 }, // số ngày tới muốn nhắc
-    },
-    {
-      value: "overdue",
-      label: "Khách trễ hẹn",
-      backend: { audience: "overdue" },
-    },
-  ];
-  const audienceLabel = audienceOptions.find((o) => o.value === audience)?.label || "";
-  // const currentAudienceCfg = audienceOptions.find((o) => o.value === audience)?.backend || { audience: "upcoming", days_before: 0 };
 
   return (
     <div className="tw-min-h-screen tw-bg-[#d5f9fa] tw-pt-[110px] tw-w-full tw-pb-12 tw-mx-auto">

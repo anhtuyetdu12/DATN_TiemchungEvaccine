@@ -54,6 +54,8 @@ export default function StaffKnowledgeManager() {
 
   const [filters, setFilters] = useState({ status: "", category: "", visibility: "", search: "" });
   const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState("");
+
   const PER_PAGE = 10;
   const emptyForm = {
     title: "",
@@ -118,9 +120,23 @@ export default function StaffKnowledgeManager() {
   };
 
   const handleSearchChange = (value) => {
-    const next = { ...filters, search: value };
-    setFilters(next);
-    setPage(1);  
+    setSearchInput(value);
+  };
+  const applySearch = () => {
+    const trimmed = searchInput.trim();
+    setFilters((prev) => ({ ...prev, search: trimmed }));
+    setPage(1);
+  };
+  const handleSearchKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      applySearch();
+    }
+  };
+  const handleClearSearch = () => {
+    setSearchInput("");
+    setFilters((prev) => ({ ...prev, search: "" }));
+    setPage(1);
   };
 
   const filteredArticles = useMemo(() => {
@@ -324,27 +340,30 @@ export default function StaffKnowledgeManager() {
           </button>
       
           <div className="tw-ml-auto tw-flex tw-items-center tw-gap-2">
-            <div className="tw-relative tw-min-w-[260px]">
-              <span className="tw-absolute tw-inset-y-0 tw-left-3 tw-flex tw-items-center tw-pointer-events-none">
-                <i className="fa-solid fa-magnifying-glass tw-text-[10px] tw-text-slate-400"></i>
-              </span>
-              <input  value={filters.search}  onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder="Tìm theo tiêu đề, tóm tắt, nội dung..."
-                className="  tw-w-full tw-text-[10px]  tw-pl-7 tw-pr-7 tw-py-1.5 tw-rounded-full tw-border tw-border-slate-200
-                  tw-bg-slate-50 tw-placeholder:tw-text-slate-400 focus:tw-outline-none focus:tw-border-[#14395f] focus:tw-bg-white
-                  focus:tw-ring-2 focus:tw-ring-sky-100 tw-transition "
-              />
-              {filters.search && (
-                <button onClick={() => handleSearchChange("")}
-                  className="  tw-absolute tw-inset-y-0 tw-right-3 tw-flex tw-items-center tw-justify-center tw-text-[12px] tw-text-red-500 hover:tw-text-red-600  tw-transition ">
-                  <i className="fa-solid fa-circle-xmark"></i>
-                </button>
-              )}
+            <div className="tw-relative tw-min-w-[380px]">
+              <div className="  tw-relative tw-rounded-full tw-border tw-border-slate-200 tw-bg-gradient-to-r 
+                tw-from-white tw-via-sky-50 tw-to-white tw-shadow-sm tw-transition
+                  focus-within:tw-ring-2 focus-within:tw-ring-sky-200 focus-within:tw-border-sky-400 ">
+                <span className="tw-absolute tw-inset-y-0 tw-left-3 tw-flex tw-items-center tw-pointer-events-none">
+                  <i className="fa-solid fa-magnifying-glass tw-text-[10px] tw-text-slate-400"></i>
+                </span>
+                <input value={searchInput} onChange={(e) => handleSearchChange(e.target.value)} onKeyDown={handleSearchKeyDown}
+                  placeholder="Tìm theo tiêu đề, tóm tắt, nội dung (nhấn Enter để tìm)..."
+                  className=" tw-w-full tw-text-[10px] tw-pl-10 tw-pr-7 tw-py-1.5 tw-rounded-full tw-bg-transparent tw-border-0
+                    tw-placeholder:tw-text-slate-400 focus:tw-outline-none "
+                />
+                {(searchInput || filters.search) && (
+                  <button type="button" onClick={handleClearSearch}
+                    className="tw-absolute tw-inset-y-0 tw-right-3 tw-flex tw-items-center tw-justify-center
+                      tw-text-[12px] tw-text-red-400 hover:tw-text-red-600 tw-transition ">
+                    <i className="fa-solid fa-circle-xmark"></i>
+                  </button>
+                )}
+              </div>
             </div>
-             <div className="tw-min-w-[160px] tw-text-[9px]">
+            <div className="tw-min-w-[160px] tw-text-[9px]">
               <Dropdown
-                value={filters.status}
-                options={statusOptions}
+                value={filters.status} options={statusOptions}
                 onChange={(val) => onChangeFilter("status", val)}
                 className="tw-text-[10px]"
               />

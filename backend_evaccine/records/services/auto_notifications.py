@@ -37,9 +37,7 @@ def send_auto_notifications(
                 n = int(days_before or 0)
             except Exception:
                 n = 0
-
             target_date = today + timedelta(days=n)
-
             bks = (
                 Booking.objects.filter(
                     appointment_date=target_date,
@@ -55,18 +53,137 @@ def send_auto_notifications(
                 .select_related("user", "member")
                 .prefetch_related("items__vaccine__disease")
             )
-
         recipients = {b.user_id for b in bks if b.user_id}
         created = 0
-
         with transaction.atomic():
+            # ============== TRỄ HẸN + distinct_user=True → MỖI USER 1 LỊCH ==============
+            if audience == "overdue" and distinct_user:
+                # Gom booking trễ theo user
+                grouped: dict[int, list[Booking]] = {}
+                for b in bks:
+                    if not b.user_id:
+                        continue
+                    grouped.setdefault(b.user_id, []).append(b)
+                for uid, user_bookings in grouped.items():
+                    # Chọn lịch trễ GẦN NHẤT: appointment_date lớn nhất nhưng vẫn < today
+                    # (vì query đã filter appointment_date__lt=today rồi)
+                    chosen = max(
+                        user_bookings,
+                        key=lambda x: x.appointment_date or today,
+                    )
+                    b = chosen
+                    member_name = b.member.full_name if b.member else ""
+                    appt_date = b.appointment_date
+                    vaccine_details: list[dict] = []
+                    vaccine_names: list[str] = []
+                    disease_names: list[str] = []
+                    total_price = 0
+                    # Duyệt item để lấy vắc xin / bệnh / giá
+                    for it in b.items.all():
+                        if not it.vaccine:
+                            continue
+                        v = it.vaccine
+                        try:
+                            unit_price = int(float(it.unit_price or 0))
+                        except Exception:
+                            unit_price = 0
+                        qty = int(it.quantity or 1)
+                        line_price = unit_price * qty
+                        total_price += line_price
+                        vaccine_details.append(
+                            {
+                                "vaccine_name": v.name,
+                                "disease_name": v.disease.name if v.disease else "",
+                                "quantity": qty,
+                                "unit_price": unit_price,
+                                "dose_number": None,  # trễ hẹn chỉ cần gợi ý, không bắt buộc mũi số mấy
+                            }
+                        )
+                        vaccine_names.append(v.name)
+                        if v.disease:
+                            disease_names.append(v.disease.name)
+                    # Booking không có items -> fallback vaccine / package
+                    if not vaccine_details:
+                        if b.vaccine:
+                            v = b.vaccine
+                            unit_price = int(getattr(v, "price", 0) or 0)
+                            total_price += unit_price
+                            vaccine_details.append(
+                                {
+                                    "vaccine_name": v.name,
+                                    "disease_name": v.disease.name if v.disease else "",
+                                    "quantity": 1,
+                                    "unit_price": unit_price,
+                                    "dose_number": None,
+                                }
+                            )
+                            vaccine_names.append(v.name)
+                            if v.disease:
+                                disease_names.append(v.disease.name)
+                        elif b.package:
+                            unit_price = int(getattr(b.package, "price", 0) or 0)
+                            total_price += unit_price
+                            vaccine_details.append(
+                                {
+                                    "vaccine_name": f"Gói: {b.package.name}",
+                                    "disease_name": "",
+                                    "quantity": 1,
+                                    "unit_price": unit_price,
+                                    "dose_number": None,
+                                }
+                            )
+                            vaccine_names.append(f"Gói: {b.package.name}")
+                    ctx = {
+                        "name": (b.user.full_name or b.user.email) if b.user else "",
+                        "member": member_name,
+                        "date": appt_date.isoformat() if appt_date else "",
+                        "vaccine": ", ".join(dict.fromkeys(vaccine_names)),
+                        "disease": ", ".join(dict.fromkeys(disease_names)),
+                        "price": total_price,
+                        "location": b.location or "",
+                        "interval": "",
+                        "total_doses": "",
+                        "dob": (
+                            b.member.date_of_birth.isoformat()
+                            if getattr(b.member, "date_of_birth", None)
+                            else ""
+                        ),
+                    }
+                    rendered_title = render_msg(title_tpl, ctx)
+                    rendered_msg = render_msg(msg_tpl, ctx)
+                    CustomerNotification.objects.create(
+                        user_id=uid,
+                        title=rendered_title,
+                        message=rendered_msg,
+                        channels=channels,
+                        audience=audience,
+                        meta={
+                            "summary": True,  # thông báo gộp
+                            "booking_id": b.id,
+                            "member_name": member_name,
+                            "appointment_date": appt_date.isoformat() if appt_date else None,
+                            "location": b.location or "",
+                            "status": "overdue",
+                            "vaccine_details": vaccine_details,
+                            "vaccines": list(dict.fromkeys(vaccine_names)),
+                            "diseases": list(dict.fromkeys(disease_names)),
+                            "price": total_price,
+                        },
+                    )
+                    created += 1
+                    if channels.get("email") and b.user and b.user.email:
+                        send_notification_email(
+                            to_email=b.user.email,
+                            subject=rendered_title,
+                            body=rendered_msg,
+                        )
+                return {"sent": created, "recipients": list(recipients)}
+            # ============== CÒN LẠI: LOGIC CŨ (upcoming, hoặc overdue khi distinct_user=False) ==============
             for b in bks:
                 if not b.user:
                     continue
-
                 member_name = b.member.full_name if b.member else ""
                 appt_date = b.appointment_date
-
                 # --- Lấy các record "dự kiến" để suy ra mũi số mấy ---
                 planned = (
                     VaccinationRecord.objects.filter(
@@ -79,12 +196,10 @@ def send_auto_notifications(
                 for p in planned:
                     key = p.vaccine_id or p.vaccine_name
                     planned_index[key] = p.dose_number
-
                 vaccine_details: list[dict] = []
                 vaccine_names: list[str] = []
                 disease_names: list[str] = []
                 total_price = 0
-
                 # --- Duyệt các item trong booking ---
                 for it in b.items.all():
                     if not it.vaccine:
@@ -109,11 +224,9 @@ def send_auto_notifications(
                             "dose_number": planned_index.get(key),
                         }
                     )
-
                     vaccine_names.append(v.name)
                     if v.disease:
                         disease_names.append(v.disease.name)
-
                 # --- Trường hợp booking không có items, chỉ vaccine/package ---
                 if not vaccine_details:
                     if b.vaccine:
@@ -147,7 +260,6 @@ def send_auto_notifications(
                             }
                         )
                         vaccine_names.append(f"Gói: {b.package.name}")
-
                 # --- Context để render template ---
                 ctx = {
                     "name": b.user.full_name or b.user.email,
@@ -165,10 +277,8 @@ def send_auto_notifications(
                         else ""
                     ),
                 }
-
                 rendered_title = render_msg(title_tpl, ctx)
                 rendered_msg = render_msg(msg_tpl, ctx)
-
                 CustomerNotification.objects.create(
                     user_id=b.user_id,
                     title=rendered_title,
@@ -183,14 +293,13 @@ def send_auto_notifications(
                         ),
                         "location": b.location or "",
                         "status": b.status,
-                        "vaccine_details": vaccine_details,  # 👈 FE dùng để "Xem chi tiết"
+                        "vaccine_details": vaccine_details,
                         "vaccines": list(dict.fromkeys(vaccine_names)),
                         "diseases": list(dict.fromkeys(disease_names)),
                         "price": total_price,
                     },
                 )
                 created += 1
-
                 # Gửi email nếu bật kênh email
                 if channels.get("email") and b.user.email:
                     send_notification_email(
@@ -198,7 +307,6 @@ def send_auto_notifications(
                         subject=rendered_title,
                         body=rendered_msg,
                     )
-
         return {"sent": created, "recipients": list(recipients)}
 
     # ===== 2) AUDIENCE THEO RECORD: nextdose =====

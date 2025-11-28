@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Dropdown from "../../../../components/Dropdown";
 import QuantityPicker from "../../../../components/QuantityPicker";
+import ConfirmModal from "../../../../components/ConfirmModal";
 import DeleteCustomerModal from "./DeleteCustomerModal";
 import { getAllVaccines, getAllDiseases, } from "../../../../services/vaccineService";
 import { getVaccinesByAge } from "../../../../services/recordBookService";
@@ -28,6 +29,7 @@ export default function EditCustomerModal({
   const [diseasesDb, setDiseasesDb] = useState([]);  
   const [loadingDicts, setLoadingDicts] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null); 
 
   const [newAppointment, setNewAppointment] = useState({
     date: "",
@@ -429,7 +431,8 @@ export default function EditCustomerModal({
       return m?.dob || m?.date_of_birth || "";
     })();
 
-    const regimenNote = record.dose ? `Đã tiêm mũi ${record.dose}. Vui lòng theo dõi lịch hẹn hoặc tư vấn tại trung tâm để sắp xếp mũi tiếp theo phù hợp.`
+    const regimenNote = record.dose 
+    ? `Đã tiêm mũi ${record.dose}. Vui lòng theo dõi lịch hẹn hoặc tư vấn tại trung tâm để sắp xếp mũi tiếp theo phù hợp.`
     : "Vui lòng tham khảo phác đồ với bác sĩ để lên lịch mũi tiếp theo.";
     try {
       const html = buildPostInjectionHtml({
@@ -489,13 +492,12 @@ export default function EditCustomerModal({
         want[key] = qty;
       }
       const entries = Object.entries(want); // [vaccine_id_str, quantity]
-
       if (!entries.length) {
         toast.error("Chọn ít nhất 1 vắc xin");
         return;
       }
 
-      // ⚠️ CHECK PHÁC ĐỒ + KHOẢNG CÁCH CHO TỪNG VACCINE
+      // CHECK PHÁC ĐỒ + KHOẢNG CÁCH CHO TỪNG VACCINE
       const checks = await Promise.all(
         entries.map(async ([vId, qty]) => {
           try {
@@ -517,16 +519,12 @@ export default function EditCustomerModal({
           const remaining = Math.max(info.remaining ?? 0, 0);
 
           if (remaining <= 0) {
-            toast.error(
-              `Vắc xin ${vName}: khách đã tiêm đủ ${info.used}/${info.total} mũi theo phác đồ.`
-            );
+            toast.error( `Vắc xin ${vName}: khách đã tiêm đủ ${info.used}/${info.total} mũi theo phác đồ.`);
             return;
           }
           if (qty > remaining) {
-            toast.error(
-              `Vắc xin ${vName}: phác đồ còn tối đa ${remaining} mũi, ` +
-              `nhưng bạn đang đặt tổng cộng ${qty} mũi.`
-            );
+            toast.error( `Vắc xin ${vName}: phác đồ còn tối đa ${remaining} mũi, ` +
+              `nhưng bạn đang đặt tổng cộng ${qty} mũi.`);
             return;
           }
 
@@ -534,10 +532,8 @@ export default function EditCustomerModal({
             const nd = new Date(info.next_dose_date);
             nd.setHours(0, 0, 0, 0);
             if (apptDate < nd) {
-              toast.error(
-                `Vắc xin ${vName}: mũi tiếp theo nên tiêm từ ngày ${nd.toLocaleDateString("vi-VN")}. `
-                + `Vui lòng chọn ngày hẹn muộn hơn.`
-              );
+              toast.error( `Vắc xin ${vName}: mũi tiếp theo nên tiêm từ ngày ${nd.toLocaleDateString("vi-VN")}. `
+                + `Vui lòng chọn ngày hẹn muộn hơn.` );
               return;
             }
           }
@@ -545,10 +541,8 @@ export default function EditCustomerModal({
           // Không gọi được API -> fallback: check với doses_required nếu muốn
           const maxByProtocol = getMaxDose(vId); // dựa vào vaccine.doses_required
           if (qty > maxByProtocol) {
-            toast.error(
-              `Vắc xin ${vName}: phác đồ tối đa ${maxByProtocol} mũi trong một liệu trình. `
-              + `Bạn đang đặt ${qty} mũi.`
-            );
+            toast.error( `Vắc xin ${vName}: phác đồ tối đa ${maxByProtocol} mũi trong một liệu trình. `
+              + `Bạn đang đặt ${qty} mũi.` );
             return;
           }
         }
@@ -608,7 +602,6 @@ export default function EditCustomerModal({
     }
   };
 
-
   // update trạng thái lịch (confirm/cancel)
   const updateAppointmentStatus = async (customerId, apptId, status) => {
     try {
@@ -636,21 +629,35 @@ export default function EditCustomerModal({
     }
   };
 
-  const handleConfirmAppointmentLocal = (customerId, apptId) => {
-    updateAppointmentStatus(customerId, apptId, "confirmed");
-    try {
-      onConfirmAppointment(customerId, apptId);
-    } catch {}
+  // mở modal xác nhận cho 1 lịch hẹn
+  const openConfirmAppointment = (action, appt) => {
+    setConfirmAction({ action, appt });
   };
 
-  const handleCancelAppointmentLocal = (customerId, apptId) => {
-    updateAppointmentStatus(customerId, apptId, "cancelled");
+  // thực hiện confirm/cancel sau khi user bấm Đồng ý trong modal
+  const doAppointmentAction = async () => {
+    if (!confirmAction || !customer) return;
+    const { action, appt } = confirmAction;
+    const status = action === "confirm" ? "confirmed" : "cancelled";
+
     try {
-      onCancelAppointment(customerId, apptId);
-    } catch {}
+      await updateAppointmentStatus(customer.id, appt.id, status);
+
+      // gọi callback từ parent nếu có
+      if (action === "confirm") {
+        try {
+          onConfirmAppointment(customer.id, appt.id);
+        } catch {}
+      } else if (action === "cancel") {
+        try {
+          onCancelAppointment(customer.id, appt.id);
+        } catch {}
+      }
+    } finally {
+      // đóng modal trong mọi trường hợp
+      setConfirmAction(null);
+    }
   };
-
-
 
   // ---------------- Render ----------------
   return (
@@ -1279,13 +1286,9 @@ export default function EditCustomerModal({
                                             <>
                                               {" "}
                                               Khách đã tiêm{" "}
-                                              <span className="tw-font-semibold">
-                                                {usedDoses}/{totalProtocolDoses} mũi
-                                              </span>
+                                              <span className="tw-font-semibold"> {usedDoses}/{totalProtocolDoses} mũi </span>
                                               , còn lại{" "}
-                                              <span className="tw-font-semibold">
-                                                {remainingByRecord} mũi chưa tiêm.
-                                              </span>
+                                              <span className="tw-font-semibold"> {remainingByRecord} mũi chưa tiêm. </span>
                                             </>
                                           )}
                                       </p>
@@ -1352,29 +1355,32 @@ export default function EditCustomerModal({
 
                               <div className="tw-flex tw-gap-2">
                                 {a.status === "pending" && (
-                                  <>
-                                    <button onClick={() => handleConfirmAppointmentLocal(customer.id, a.id) }
-                                      className="tw-bg-blue-600 hover:tw-bg-blue-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow" >
-                                      Xác nhận
-                                    </button>
-                                    <button onClick={() => handleCancelAppointmentLocal(customer.id, a.id) }
-                                      className="tw-bg-red-600 hover:tw-bg-red-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow" >
-                                      Hủy
-                                    </button>
-                                    <button onClick={() => handlePrintConfirmation(a)}
-                                        className="tw-bg-indigo-500 hover:tw-bg-indigo-600 tw-text-white tw-text-sm tw-px-3 tw-py-2 tw-rounded-lg tw-shadow" >
-                                        <i className="fa-solid fa-print tw-mr-1" />
-                                      In phiếu
-                                    </button>
-                                  </>
-                                )}
+                                <>
+                                  <button onClick={() => openConfirmAppointment("confirm", a)}
+                                    className="tw-bg-blue-600 hover:tw-bg-blue-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow">
+                                    Xác nhận
+                                  </button>
 
-                                {a.status === "confirmed" && (
-                                  <button  onClick={() => handleCancelAppointmentLocal(customer.id, a.id) }
-                                    className="tw-bg-red-600 hover:tw-bg-red-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow" >
+                                  <button onClick={() => openConfirmAppointment("cancel", a)}
+                                    className="tw-bg-red-600 hover:tw-bg-red-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow">
                                     Hủy
                                   </button>
-                                )}
+
+                                  <button onClick={() => handlePrintConfirmation(a)}
+                                    className="tw-bg-indigo-500 hover:tw-bg-indigo-600 tw-text-white tw-text-sm tw-px-3 tw-py-2 tw-rounded-lg tw-shadow">
+                                    <i className="fa-solid fa-print tw-mr-1" />
+                                    In phiếu
+                                  </button>
+                                </>
+                              )}
+
+                              {a.status === "confirmed" && (
+                                <button onClick={() => openConfirmAppointment("cancel", a)}
+                                  className="tw-bg-red-600 hover:tw-bg-red-700 tw-text-white tw-text-sm tw-px-4 tw-py-2 tw-rounded-lg tw-shadow">
+                                  Hủy
+                                </button>
+                              )}
+
                               </div>
                             </div>
                           </div>
@@ -1622,6 +1628,32 @@ export default function EditCustomerModal({
                 }
               }}
             />
+
+            <ConfirmModal
+              show={!!confirmAction} title="Xác nhận hành động"
+              message={
+                confirmAction && (
+                  <>
+                    {confirmAction.action === "confirm" && (
+                      <>
+                        Bạn có chắc muốn <b>xác nhận</b> lịch hẹn ngày{" "}
+                        <b> {formatDate( confirmAction.appt.date || confirmAction.appt.appointment_date )}</b>{" "}
+                        cho {" "} <b> {confirmAction.appt.memberName || customer.name || "khách hàng"}</b>{" "} không?
+                      </>
+                    )}
+                    {confirmAction.action === "cancel" && (
+                      <>
+                        Bạn có chắc muốn <b>hủy</b> lịch hẹn ngày{" "}
+                        <b>{formatDate( confirmAction.appt.date || confirmAction.appt.appointment_date )} </b>{" "}
+                        cho{" "}<b>{confirmAction.appt.memberName || customer.name || "khách hàng"} </b>{" "} không?
+                      </>
+                    )}
+                  </>
+                )
+              }
+              onCancel={() => setConfirmAction(null)} onConfirm={doAppointmentAction}
+            />
+
           </div>
         </div>
       </div>

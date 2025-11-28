@@ -221,18 +221,13 @@ class ForgotPasswordAPIView(APIView):
                 user = CustomUser.objects.get(phone=identifier)
             except CustomUser.DoesNotExist:
                 return Response({"detail": "Số điện thoại không tồn tại"}, status=400)
-
             # sinh mật khẩu tạm
-            
             temp_password = ''.join(random.choice(string.ascii_letters + string.digits + "!@#$%^&*") for _ in range(8))
             user.set_password(temp_password)
             user.must_change_password = True
             user.save()
-            
-             # Có thể gửi mật khẩu tạm qua SMS, ở đây trả về response cho dễ test
             return Response({
                 "detail": "Đã tạo mật khẩu tạm, vui lòng đăng nhập và đổi mật khẩu",
-                "temp_password": temp_password
             }, status=200)
     
         

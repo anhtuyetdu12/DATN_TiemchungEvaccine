@@ -126,12 +126,12 @@ class Command(BaseCommand):
             # chỉ chạy 1 lần/ngày khi đến đúng giờ
             if rule.last_run_date == today:
                 continue
-
             if now.hour < rule.run_hour or (
                 now.hour == rule.run_hour and now.minute < rule.run_minute
             ):
                 continue
-
+             #CHỈ gộp theo user cho rule overdue
+            is_overdue_rule = (rule.audience == "overdue")
             result = send_auto_notifications(
                 audience=rule.audience,
                 title_tpl=rule.title_tpl,
@@ -139,10 +139,9 @@ class Command(BaseCommand):
                 days_before=rule.days_before,
                 next_dose_days=rule.next_dose_days,
                 only_unscheduled=True,
-                distinct_user=False,
+                distinct_user=is_overdue_rule,   # rule overdue: True, còn lại: False
                 channels=rule.channels,
             )
-
             rule.last_run_date = today
             rule.save(update_fields=["last_run_date"])
 

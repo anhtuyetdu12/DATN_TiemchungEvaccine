@@ -11,7 +11,7 @@ export default function ResetPassword() {
   const token = params.get("token") || null;
 
   const isEmail = identifier.includes("@");
-  const isPhone = /^\d{10}$/.test(identifier);
+  // const isPhone = /^\d{10}$/.test(identifier);
 
   const [newPassword, setNewPassword] = useState("");
   const [rePassword, setRePassword] = useState("");
@@ -38,12 +38,10 @@ export default function ResetPassword() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!identifier) {
       toast.error("Thiếu thông tin tài khoản. Vui lòng thực hiện lại quên mật khẩu.");
       return navigate("/forgot-password");
     }
-
     if (isEmail && !token) {
       toast.error("Thiếu mã xác thực (token). Vui lòng mở đúng link trong email.");
       return;
