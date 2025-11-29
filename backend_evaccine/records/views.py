@@ -20,11 +20,11 @@ from datetime import timedelta
 from django.utils.dateparse import parse_date
 from inventory.models import VaccineStockLot, BookingAllocation
 from users.models import CustomUser 
-from .models import FamilyMember, VaccinationRecord, Booking, BookingItem, CustomerNotification
+from .models import FamilyMember, VaccinationRecord, Booking,  CustomerNotification
 from .serializers import ( 
     FamilyMemberSerializer, VaccinationRecordSerializer,                      
     CustomerListSerializer, CustomerMemberSlimSerializer,
-    AppointmentCreateInSerializer, AppointmentStatusPatchSerializer, CustomerNotificationSerializer,
+    AppointmentStatusPatchSerializer, CustomerNotificationSerializer,
     HistoryCreateInSerializer, StaffBookingCreateInSerializer, BookingSerializer
 )
 from django.core.mail import send_mail
@@ -185,6 +185,7 @@ class RemainingDosesView(APIView):
             "next_dose_date": next_date,         # ISO string khi serialize
             "next_dose_number": next_dose_number,
         })
+    
     
 # ---------- booking -----------
 class BookingViewSet(viewsets.ModelViewSet):
@@ -496,6 +497,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         wb.save(response)
         return response
+
 
 # ---------- Trả danh sách “khách hàng”  -----------
 class StaffCustomerListAPIView(APIView):
@@ -1334,10 +1336,6 @@ def render_msg(tpl: str, ctx: dict | None) -> str:
     return re.sub(r"\{\{([^}]+)\}\}", repl, tpl)
 
 def send_notification_email(to_email: str, subject: str, body: str):
-    """
-    variant: 'default' | 'upcoming' | 'nextdose' | 'overdue'
-    body: message đã render {{name}}, {{date}}, {{member}}... (text)
-    """
     if not to_email:
         return
 
@@ -1356,7 +1354,7 @@ def send_notification_email(to_email: str, subject: str, body: str):
         "http://localhost:3000/notifications"
     )
 
-    # HTML: dùng ảnh inline bằng CID: evaccine-logo
+    # Gửi mail nhắc lịch tự động
     html_body = f"""\
     <!DOCTYPE html>
     <html lang="vi">

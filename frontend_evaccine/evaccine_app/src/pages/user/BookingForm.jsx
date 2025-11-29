@@ -292,36 +292,35 @@ export default function BookingForm() {
             const { maxDoses: max, info } = found;
             let note = it.note || "";
             let nextDoseDate = null;
-
             if (info) {
-              nextDoseDate = info.next_dose_date || null;
-              const nextDateStr = info.next_dose_date
-                ? new Date(info.next_dose_date).toLocaleDateString("vi-VN")
-                : null;
-
-              if (info.status_code === "completed" || max === 0) {
-                note = `Quý khách đã tiêm đủ ${info.used}/${info.total} mũi cho vắc xin này.`;
-              } else if (info.status_code === "not_started") {
-                note = `Phác đồ gồm ${info.total} mũi. Bạn đang đặt mũi đầu tiên.`;
-              } else if (info.status_code === "in_progress") {
-                note = `Đã tiêm ${info.used}/${info.total} mũi.`;
-                if (nextDateStr && info.next_dose_number) {
-                  note += ` Mũi tiếp theo (mũi ${info.next_dose_number}) nên tiêm từ ngày ${nextDateStr}.`;
-                }
+              const {
+                status_code,
+                status_label,
+                next_dose_date,
+                remaining,
+              } = info;
+              nextDoseDate = next_dose_date || null;
+              // Hết mũi / không còn được đặt thêm: chỉ hiện 1 cảnh báo
+              if (status_code === "completed" || remaining <= 0 || max === 0) {
+                note = "Quý khách đã chọn tối đa số liều có thể đặt cho vắc xin này.";
+              } else {
+                // Còn mũi → dùng luôn text mô tả phác đồ từ backend
+                note = status_label || "";
               }
             } else if (max === 0) {
+              // Trường hợp không lấy được info nhưng max = 0
               note = "Quý khách đã chọn tối đa số liều có thể đặt cho vắc xin này.";
             }
-
             return {
               ...it,
               maxDoses: max,
               qty: Math.min(it.qty || 1, Math.max(1, max || 1)),
               note,
-              nextDoseDate,    
+              nextDoseDate,
             };
           })
         );
+
       } catch (err) {
         console.error(err);
         toast.error("Không kiểm tra được phác đồ tiêm. Vui lòng thử lại sau.");

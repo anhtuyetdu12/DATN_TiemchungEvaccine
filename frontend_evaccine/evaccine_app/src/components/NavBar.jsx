@@ -7,90 +7,100 @@ import { SELECTED_EVENT} from "../utils/selectedVaccines";
 import { readBooking } from "../utils/bookingStorage";
 
 export default function NavBar({ user, setUser }) {
-    // const navigate = useNavigate(); 
-    const [loading, setLoading] = useState(true);
-    const [showDropdown, setShowDropdown] = useState(false);
+  // const navigate = useNavigate(); 
+  const [loading, setLoading] = useState(true);
+  const [showDropdown, setShowDropdown] = useState(false);
 
-    // bộ đếm
-    const [count, setCount] = useState(0);
+  // bộ đếm
+  const [count, setCount] = useState(0);
 
-    const refreshBadge = () => {
-      const { user, access } = loadAuth();
-      if (!access || !user) {
-        setCount(0);               // chưa đăng nhập: không hiển thị số
-        return;
-      }
-       // Đếm tổng qty
-     const total = readBooking().reduce((s, it) => s  +  (Number(it.qty) || 1), 0);
-     setCount(total || 0);
-    };
-
-    useEffect(() => {
-      refreshBadge();
-      const onSel = () => refreshBadge();
-      window.addEventListener(SELECTED_EVENT, onSel);
-      return () => window.removeEventListener(SELECTED_EVENT, onSel);
-    }, []);
-
-    useEffect(() => {
-      refreshBadge();
-    }, [user]);
-
-    useEffect(() => {
-      const onStorage = (e) => {
-        if (e.key && e.key.startsWith("booking_items_")) {
-          refreshBadge();
-        }
-      };
-      window.addEventListener("storage", onStorage);
-      return () => window.removeEventListener("storage", onStorage);
-    }, []);
-
-    // tự động đóng khi click ra phía ngoài 
-    useEffect(() => {
-      const handleClickOutside = (e) => {
-        if (!e.target.closest(".user-dropdown")) {
-          setShowDropdown(false);
-        }
-      };
-      document.addEventListener("click", handleClickOutside);
-      return () => document.removeEventListener("click", handleClickOutside);
-    }, []);
-
-
-    const handleLogout = async () => {
-      try {
-        const store = getStorage();
-        const refresh = store.getItem("refresh");
-        if (refresh) {
-          await axios.post("http://127.0.0.1:8000/api/users/logout/", { refresh });
-        }
-      } catch (_) {}
-      finally {
-        // Xoá toàn bộ thông tin đăng nhập
-        clearAllAuth();
-        // Xoá luôn session + lịch sử chat EVaccine
-        localStorage.removeItem("evaccine_chat_session_id");
-        localStorage.removeItem("evaccine_chat_messages");
-        setUser(null);
-        window.location.href = "/login";
-      }
-    };
-
-    useEffect(() => {
-        // giả lập load xong sau 1.5 giây
-        const timer = setTimeout(() => setLoading(false), 1500);
-        return () => clearTimeout(timer);
-    }, []);
-    if (loading) {
-        return (
-        <section className="tw-fixed tw-inset-0 tw-z-[9999] tw-flex tw-items-center tw-justify-center tw-bg-white">
-            <div className="tw-relative tw-rounded tw-border tw-border-transparent">
-            <span className="tw-block tw-w-[45px] tw-h-[45px] tw-border tw-border-gray-500 tw-border-t-white tw-rounded-full tw-animate-spin"></span>
-            </div>
-        </section>
-        );
+  const refreshBadge = () => {
+    const { user, access } = loadAuth();
+    if (!access || !user) {
+      // Nếu chưa đăng nhập thì không hiển thị badge
+      setCount(0);
+      return;
     }
+
+    const items = readBooking() || [];
+
+    // Đếm theo SỐ VẮC XIN KHÁC NHAU (slug)
+    const uniqueSlugs = new Set(
+      items
+        .map(it => (typeof it === "string" ? it : it.slug)) // hỗ trợ cả kiểu ["slug"] và [{slug, qty}]
+        .filter(Boolean)
+    );
+
+    setCount(uniqueSlugs.size);
+  };
+
+
+  useEffect(() => {
+    refreshBadge();
+    const onSel = () => refreshBadge();
+    window.addEventListener(SELECTED_EVENT, onSel);
+    return () => window.removeEventListener(SELECTED_EVENT, onSel);
+  }, []);
+
+  useEffect(() => {
+    refreshBadge();
+  }, [user]);
+
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key && e.key.startsWith("booking_items_")) {
+        refreshBadge();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  // tự động đóng khi click ra phía ngoài 
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest(".user-dropdown")) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
+
+  const handleLogout = async () => {
+    try {
+      const store = getStorage();
+      const refresh = store.getItem("refresh");
+      if (refresh) {
+        await axios.post("http://127.0.0.1:8000/api/users/logout/", { refresh });
+      }
+    } catch (_) {}
+    finally {
+      // Xoá toàn bộ thông tin đăng nhập
+      clearAllAuth();
+      // Xoá luôn session + lịch sử chat EVaccine
+      localStorage.removeItem("evaccine_chat_session_id");
+      localStorage.removeItem("evaccine_chat_messages");
+      setUser(null);
+      window.location.href = "/login";
+    }
+  };
+
+  useEffect(() => {
+      // giả lập load xong sau 1.5 giây
+      const timer = setTimeout(() => setLoading(false), 1500);
+      return () => clearTimeout(timer);
+  }, []);
+  if (loading) {
+      return (
+      <section className="tw-fixed tw-inset-0 tw-z-[9999] tw-flex tw-items-center tw-justify-center tw-bg-white">
+          <div className="tw-relative tw-rounded tw-border tw-border-transparent">
+          <span className="tw-block tw-w-[45px] tw-h-[45px] tw-border tw-border-gray-500 tw-border-t-white tw-rounded-full tw-animate-spin"></span>
+          </div>
+      </section>
+      );
+  }
   return (
     <div>
       

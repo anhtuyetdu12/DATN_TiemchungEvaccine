@@ -142,7 +142,7 @@ class ForgotPasswordAPIView(APIView):
                 f"Xin chào {user.full_name},\n\n"
                 f"Bạn vừa yêu cầu đặt lại mật khẩu. Bấm link sau để đặt lại mật khẩu (hạn 15 phút):\n{reset_link}"
             )
-            # send_mail(subject, message, settings.EMAIL_HOST_USER, [identifier], fail_silently=False)
+            # Gửi mail đặt lại mật khẩu
             html_content = f"""
                 <!DOCTYPE html>
                 <html>

@@ -1,14 +1,13 @@
 // src/pages/VaccineKnowledge.jsx
 import React, { useEffect, useState } from "react";
-// import ChatWidget from "../../components/ChatWidget";
 import { getKnowledgeCategories, getPublicKnowledgeArticles,} from "../../services/knowledgeService";
+import KnowledgeQuickViewModal from "../user/modal/knowledge/KnowledgeQuickViewModal";
 
 export default function VaccineKnowledge() {
   const [categories, setCategories] = useState([]);
   const [articlesByCategory, setArticlesByCategory] = useState({});
   const [featured, setFeatured] = useState(null);
   const [activeCatId, setActiveCatId] = useState(null);
-  const [latest, setLatest] = useState([]);
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -52,7 +51,6 @@ export default function VaccineKnowledge() {
         setCategories(activeCats);
         setArticlesByCategory(byCat);
         setFeatured(hero);
-        setLatest(latestAll.slice(0, 8));
         setActiveCatId(activeCats[0]?.id || null);
       } catch (err) {
         console.error("Load VaccineKnowledge failed", err);
@@ -101,13 +99,8 @@ export default function VaccineKnowledge() {
 
   return (
     <div>
-      <section
-        className="tw-min-h-screen tw-pt-10 tw-pb-16
-                   tw-bg-[radial-gradient(circle_at_top,_#f9fafb_0%,_#eff6ff_40%,_#ffffff_100%)]"
-      >
+      <section className="tw-min-h-screen tw-pt-10 tw-pb-16 tw-bg-[radial-gradient(circle_at_top,_#f9fafb_0%,_#eff6ff_40%,_#ffffff_100%)]">
         <div className="tw-max-w-[1200px] tw-mx-auto tw-px-4 md:tw-px-6 tw-mt-[90px] tw-space-y-8">
-
-          {/* HEADER: vibe Instagram / lifestyle */}
           <header className="tw-flex tw-flex-col md:tw-flex-row tw-items-start md:tw-items-center tw-justify-between tw-gap-4">
             <div>
               <h3 className="tw-text-[30px] md:tw-text-[32px] tw-font-extrabold tw-mt-1 tw-py-3
@@ -123,7 +116,8 @@ export default function VaccineKnowledge() {
             </div>
             <div className="tw-flex tw-flex-col tw-items-end tw-gap-1">
               <div className="tw-flex tw-items-center tw-gap-2">
-                <div className="tw-w-7 tw-h-7 tw-rounded-full tw-bg-gradient-to-tr tw-from-pink-500 tw-to-sky-400 tw-flex tw-items-center tw-justify-center tw-text-[9px] tw-font-semibold tw-text-white">
+                <div className="tw-w-7 tw-h-7 tw-rounded-full tw-bg-gradient-to-tr tw-from-pink-500 tw-to-sky-400 tw-flex tw-items-center 
+                  tw-justify-center tw-text-[9px] tw-font-semibold tw-text-white">
                   KV
                 </div>
                 <span className="tw-text-[10px] tw-text-slate-500">
@@ -143,14 +137,11 @@ export default function VaccineKnowledge() {
 
           {/* FEATURED HERO CARD (như top post) */}
           {featured && (
-            <div
-              className="tw-relative tw-rounded-3xl tw-overflow-hidden tw-bg-slate-900 tw-text-white tw-p-4 md:tw-p-5 tw-flex tw-gap-4 tw-items-stretch tw-shadow-md tw-border tw-border-slate-800/60"
-            >
+            <div className="tw-relative tw-rounded-3xl tw-overflow-hidden tw-bg-slate-900 tw-text-white tw-p-4 md:tw-p-5 tw-flex tw-gap-4 
+                tw-items-stretch tw-shadow-md tw-border tw-border-slate-800/60">
               <div className="tw-w-24 tw-h-24 md:tw-w-32 md:tw-h-32 tw-rounded-2xl tw-overflow-hidden tw-bg-slate-800 tw-flex-shrink-0">
                 {featured.thumbnail ? (
-                  <img
-                    src={featured.thumbnail}
-                    alt={featured.title}
+                  <img  src={featured.thumbnail}  alt={featured.title}
                     className="tw-w-full tw-h-full tw-object-cover"
                   />
                 ) : (
@@ -190,10 +181,8 @@ export default function VaccineKnowledge() {
                       #{featured.vaccine}
                     </span>
                   )}
-                  <button
-                    onClick={() => setSelectedArticle(featured)}
-                    className="tw-ml-auto tw-text-[9px] tw-px-3 tw-py-1 tw-rounded-full tw-bg-white tw-text-slate-900 tw-font-semibold hover:tw-bg-slate-100 tw-transition"
-                  >
+                  <button  onClick={() => setSelectedArticle(featured)}
+                    className="tw-ml-auto tw-text-[9px] tw-px-3 tw-py-1 tw-rounded-full tw-bg-white tw-text-slate-900 tw-font-semibold hover:tw-bg-slate-100 tw-transition">
                     Đọc nhanh
                   </button>
                 </div>
@@ -207,16 +196,13 @@ export default function VaccineKnowledge() {
               {categories.map((cat) => {
                 const active = cat.id === activeCatId;
                 return (
-                  <button
-                    key={cat.id}
-                    onClick={() => setActiveCatId(cat.id)}
+                  <button  key={cat.id}  onClick={() => setActiveCatId(cat.id)}
                     className={`tw-flex tw-items-center tw-gap-1.5 tw-px-3 tw-py-1.5 tw-rounded-full tw-text-[10px] tw-border tw-whitespace-nowrap tw-transition
                       ${
                         active
                           ? "tw-bg-gradient-to-r tw-from-sky-600 tw-to-pink-500 tw-text-white tw-border-transparent tw-shadow-sm"
                           : "tw-bg-white tw-text-slate-600 tw-border-slate-200 hover:tw-bg-slate-50"
-                      }`}
-                  >
+                      }`}>
                     <span className="tw-w-5 tw-h-5 tw-rounded-full tw-bg-slate-100 tw-flex tw-items-center tw-justify-center tw-text-[8px] tw-text-slate-500">
                       {cat.name[0]?.toUpperCase()}
                     </span>
@@ -236,17 +222,12 @@ export default function VaccineKnowledge() {
                 </div>
               ) : (
                 activeArticles.map((a) => (
-                  <article
-                    key={a.id}
-                    onClick={() => setSelectedArticle(a)}
-                    className="tw-group tw-bg-white tw-rounded-2xl tw-overflow-hidden tw-shadow-sm tw-border tw-border-slate-100 tw-cursor-pointer tw-flex tw-flex-col tw-transition hover:tw-shadow-lg hover:tw-border-sky-200 hover:tw-translate-y-0.5"
-                  >
-                    {/* Ảnh / placeholder kiểu IG */}
+                  <article key={a.id} onClick={() => setSelectedArticle(a)}
+                    className="tw-group tw-bg-white tw-rounded-2xl tw-overflow-hidden tw-shadow-sm tw-border tw-border-slate-100 tw-cursor-pointer tw-flex tw-flex-col 
+                    tw-transition hover:tw-shadow-lg hover:tw-border-sky-200 hover:tw-translate-y-0.5">
                     <div className="tw-relative tw-w-full tw-h-[200px] md:tw-h-[250px] tw-bg-slate-100 tw-overflow-hidden">
                       {a.thumbnail ? (
-                        <img
-                          src={a.thumbnail}
-                          alt={a.title}
+                        <img  src={a.thumbnail}  alt={a.title}
                           className="tw-w-full tw-h-full tw-object-cover tw-transition group-hover:tw-scale-105"
                         />
                       ) : (
@@ -283,29 +264,15 @@ export default function VaccineKnowledge() {
                       </p>
                       <div className="tw-flex tw-gap-1 tw-max-w-full">
                         {a.disease && (
-                          <span
-                            className="
-                              tw-flex-1 
-                              tw-text-[8px] tw-px-1.5 tw-py-0.5 
-                              tw-rounded-full 
-                              tw-bg-sky-50 tw-text-sky-700
-                              tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap
-                            "
-                          >
+                          <span className=" tw-flex-1  tw-text-[8px] tw-px-1.5 tw-py-0.5 tw-rounded-full 
+                              tw-bg-sky-50 tw-text-sky-700 tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap " >
                             #{a.disease}
                           </span>
                         )}
 
                         {a.vaccine && (
-                          <span
-                            className="
-                              tw-flex-1
-                              tw-text-[8px] tw-px-1.5 tw-py-0.5
-                              tw-rounded-full 
-                              tw-bg-emerald-50 tw-text-emerald-700
-                              tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap
-                            "
-                          >
+                          <span className=" tw-flex-1 tw-text-[8px] tw-px-1.5 tw-py-0.5 tw-rounded-full  tw-bg-emerald-50 tw-text-emerald-700
+                              tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap ">
                             #{a.vaccine}
                           </span>
                         )}
@@ -317,114 +284,24 @@ export default function VaccineKnowledge() {
             </div>
           )}
 
-          {/* RỖNG */}
           {!loading && (!activeCatId || totalArticles === 0) && (
-            <div className="tw-text-center tw-text-slate-500 tw-text-sm tw-mt-8">
-              Chưa có bài viết kiến thức được xuất bản.
-            </div>
+            <div className="tw-text-center tw-text-slate-500 tw-text-sm tw-mt-8"> Chưa có bài viết kiến thức được xuất bản.</div>
           )}
 
           {loading && (
-            <div className="tw-text-center tw-text-slate-500 tw-text-sm tw-mt-4">
-              Đang tải nội dung kiến thức tiêm chủng...
-            </div>
+            <div className="tw-text-center tw-text-slate-500 tw-text-sm tw-mt-4">  Đang tải nội dung kiến thức tiêm chủng... </div>
           )}
         </div>
       </section>
 
-        {/* MODAL XEM NHANH BÀI VIẾT – phong cách IG/editorial */}
-        {selectedArticle && (
-        <div className="tw-fixed tw-inset-0 tw-z-50 tw-bg-black/50 tw-backdrop-blur-sm tw-flex tw-items-center tw-justify-center tw-px-3 tw-pt-[80px]"
-            onClick={() => setSelectedArticle(null)} >
-            <div
-            className="tw-bg-white tw-rounded-[28px] tw-w-full tw-max-w-[960px] tw-max-h-[80vh] tw-overflow-hidden tw-shadow-[0_18px_60px_rgba(15,23,42,0.32)] tw-border tw-border-slate-100/80 tw-grid md:tw-grid-cols-[1.25fr,1.75fr] tw-gap-0"
-            onClick={(e) => e.stopPropagation()}
-            >
-            {/* LEFT: Ảnh / gradient */}
-            <div className="tw-relative tw-bg-slate-900 tw-h-[180px] md:tw-h-full">
-                {selectedArticle.thumbnail ? (
-                <img  src={selectedArticle.thumbnail} alt={selectedArticle.title} className="tw-w-full tw-h-full tw-object-cover" />
-                ) : (
-                <div className="tw-w-full tw-h-full tw-bg-gradient-to-br tw-from-sky-500 tw-via-blue-500 tw-to-pink-500 tw-flex tw-items-center tw-justify-center">
-                    <span className="tw-text-[34px] tw-font-extrabold tw-text-white/90">
-                    {getInitials(selectedArticle.title)}
-                    </span>
-                </div>
-                )}
+      {selectedArticle && (
+        <KnowledgeQuickViewModal
+          article={selectedArticle}
+          onClose={() => setSelectedArticle(null)}
+        />
+      )}
 
-                {/* Overlay info nhỏ trên ảnh */}
-                <div className="tw-absolute tw-bottom-3 tw-left-3 tw-right-3 tw-flex tw-items-center tw-justify-between tw-gap-2">
-                <div className="tw-flex tw-items-center tw-gap-2">
-                    <div className="tw-w-7 tw-h-7 tw-rounded-full tw-bg-white/90 tw-flex tw-items-center tw-justify-center tw-text-[9px] tw-font-semibold tw-text-slate-900">
-                    KV
-                    </div>
-                    <div className="tw-flex tw-flex-col tw-text-white">
-                    <span className="tw-text-[8px] tw-uppercase tw-tracking-[0.16em] tw-text-white/80">
-                        Kiến thức tiêm chủng
-                    </span>
-                    <span className="tw-text-[8px] tw-text-white/75">
-                        {selectedArticle.categoryName || "Bài viết đã duyệt"}
-                    </span>
-                    </div>
-                </div>
-                <div className="tw-px-2.5 tw-py-1 tw-bg-black/55 tw-backdrop-blur-sm tw-rounded-full tw-text-[8px] tw-text-white/85">
-                    {renderDate(selectedArticle.publishedAt) || "Đã xuất bản"}
-                </div>
-                </div>
-            </div>
 
-            {/* RIGHT: Nội dung đọc nhanh (scroll riêng) */}
-            <div className="tw-relative tw-flex tw-flex-col tw-p-4 md:tw-p-5 tw-space-y-2 tw-max-h-[82vh] tw-overflow-hidden">
-                <button className="tw-absolute tw-top-4 tw-right-6 tw-w-9 tw-h-9 tw-rounded-full tw-flex tw-items-center tw-justify-center 
-                tw-bg-slate-100 hover:tw-bg-slate-200 tw-text-slate-500 hover:tw-text-red-600 tw-text-sm tw-transition"
-                    onClick={() => setSelectedArticle(null)} >
-                <i className="fa-solid fa-xmark tw-text-lg"></i>
-                </button>
-
-                <div className="tw-flex tw-flex-wrap tw-gap-2 tw-pr-8 tw-mb-1">
-                {selectedArticle.categoryName && (
-                    <span className="tw-text-[8px] tw-px-2 tw-py-0.5 tw-rounded-full tw-bg-pink-100 tw-text-pink-700">
-                    {selectedArticle.categoryName}
-                    </span>
-                )}
-                {selectedArticle.disease && (
-                    <span className="tw-text-[8px] tw-px-2 tw-py-0.5 tw-rounded-full tw-bg-sky-50 tw-text-sky-700">
-                    Bệnh: {selectedArticle.disease}
-                    </span>
-                )}
-                {selectedArticle.vaccine && (
-                    <span className="tw-text-[8px] tw-px-2 tw-py-0.5 tw-rounded-full tw-bg-emerald-50 tw-text-emerald-700">
-                    Vắc xin: {selectedArticle.vaccine}
-                    </span>
-                )}
-                </div>
-                <h2 className="tw-text-[15px] md:tw-text-[17px] tw-font-semibold tw-text-blue-900 tw-leading-snug">
-                    {selectedArticle.title}
-                </h2>
-                {selectedArticle.summary && (
-                <p className="tw-text-[10px] tw-text-slate-500 tw-italic">
-                    {selectedArticle.summary}
-                </p>
-                )}
-
-                {/* content: vùng scroll riêng */}
-                <div className="tw-mt-1.5 tw-flex-1 tw-pr-1.5 tw-text-[11px] tw-leading-relaxed tw-text-slate-700 tw-space-y-2 tw-overflow-y-auto [&::-webkit-scrollbar]:tw-w-1.5 [&::-webkit-scrollbar-track]:tw-bg-slate-50 [&::-webkit-scrollbar-thumb]:tw-bg-slate-300 [&::-webkit-scrollbar-thumb]:tw-rounded-full">
-                <div className="tw-whitespace-pre-line">
-                    {selectedArticle.content}
-                </div>
-                </div>
-
-                {/* footer nhỏ */}
-                <div className="tw-pt-1 tw-flex tw-items-center tw-justify-between tw-text-[8px] tw-text-slate-400">
-                <span>Nội dung cung cấp bởi hệ thống tiêm chủng điện tử • Đã kiểm duyệt</span>
-               
-                </div>
-            </div>
-            </div>
-        </div>
-        )}
-
-      {/* <ChatWidget /> */}
     </div>
   );
 }

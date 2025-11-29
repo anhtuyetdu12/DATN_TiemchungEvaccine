@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-// import ChatWidget from "../../components/ChatWidget";
 import { getPublicKnowledgeArticles } from "../../services/knowledgeService";
 import { getAllVaccines, getAllDiseases } from "../../services/vaccineService";
+import KnowledgeQuickViewModal from "./modal/knowledge/KnowledgeQuickViewModal";
+import { toast } from "react-toastify";
+import { addToBooking, getBookingSlugs } from "../../utils/bookingStorage";
+
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState(null);
@@ -12,6 +15,8 @@ export default function Home() {
   const [knowledgePosts, setKnowledgePosts] = useState([]);
   const [loadingKnowledge, setLoadingKnowledge] = useState(true);
   const [loadingSeason, setLoadingSeason] = useState(true); 
+  const [selectedArticle, setSelectedArticle] = useState(null);
+
 
   // ===== LOAD BÀI VIẾT KIẾN THỨC PUBLIC =====
   useEffect(() => {
@@ -110,6 +115,18 @@ export default function Home() {
     return (parts[0][0] || "").toUpperCase() + (parts[parts.length - 1][0] || "").toUpperCase();
   };
 
+  const handleBookNow = (slug) => {
+    if (!slug) {
+      toast.error("Không xác định được vắc xin để đặt hẹn.");
+      return;
+    }
+    // lưu vào giỏ
+    addToBooking(slug, 1);
+    // lấy toàn bộ slug hiện có trong giỏ để build query
+    const slugs = getBookingSlugs();
+    navigate(`/bookingform?v=${slugs.join(",")}`);
+  };
+
   // ===== CARD VACCINE =====
   const renderSeasonCard = (vaccine) => {
     const origin = (vaccine.origin || "").trim();
@@ -140,7 +157,7 @@ export default function Home() {
             </button>
           )}
 
-          <button onClick={() => navigate("/bookingform")} className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#3267fa] hover:tw-text-white">
+          <button onClick={() => handleBookNow(slug)} className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#3267fa] hover:tw-text-white">
             Đặt hẹn
           </button>
         </div>
@@ -275,7 +292,7 @@ export default function Home() {
         </div>
       </section>
 
- {/* ========== MÙA NÀY TIÊM GÌ ========== */}
+      {/* ========== MÙA NÀY TIÊM GÌ ========== */}
       <section className="tw-bg-white tw-pt-[20px] tw-pb-[40px] tw-px-10 tw-text-center">
         <h2 className="tw-text-[38px] tw-mb-5 tw-font-bold">
           Mùa này cần <span className="tw-text-orange-500 tw-italic">tiêm gì?</span>
@@ -357,7 +374,7 @@ export default function Home() {
             ) : (
               <div className="tw-grid tw-grid-cols-2 md:tw-grid-cols-3 lg:tw-grid-cols-4 tw-gap-4 md:tw-gap-5">
                 {knowledgePosts.map((a) => (
-                  <div key={a.id} onClick={() => navigate("/kien-thuc-tiem-chung")}
+                  <div key={a.id}  onClick={() => setSelectedArticle(a)}
                     className="tw-group tw-bg-white tw-rounded-2xl tw-overflow-hidden tw-shadow-sm tw-border tw-border-slate-100 tw-cursor-pointer tw-flex
                      tw-flex-col tw-transition hover:tw-shadow-lg hover:tw-border-sky-200 hover:tw-translate-y-0.5" >
                     <div className="tw-relative tw-w-full tw-h-[180px] md:tw-h-[220px] tw-bg-slate-100 tw-overflow-hidden">
@@ -387,29 +404,34 @@ export default function Home() {
 
                       <p className="tw-text-[10px] tw-text-slate-600 tw-line-clamp-3">{shortText(a.summary || a.content, 90)}</p>
 
-                      <div className="tw-flex tw-items-center tw-justify-between tw-mt-1.5">
-                        <div className="tw-flex tw-gap-1 tw-max-w-full">
-                          {a.disease && (
-                            <span className=" tw-flex-1  tw-text-[8px] tw-px-1.5 tw-py-0.5  tw-rounded-full 
-                                tw-bg-sky-50 tw-text-sky-700 tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap " >
+                      <div className="tw-grid tw-grid-cols-3 tw-gap-2 tw-items-center tw-mt-1.5">
+                        <div className="tw-flex tw-items-center">
+                          {a.disease ? (
+                            <span  className="tw-w-full tw-text-[8px] tw-px-1.5 tw-py-0.5 tw-rounded-full  tw-border tw-border-sky-100
+                                        tw-bg-sky-50 tw-text-sky-700 tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap ">
                               #{a.disease}
                             </span>
-                          )}
-
-                          {a.vaccine && (
-                            <span className=" tw-flex-1 tw-text-[8px] tw-px-1.5 tw-py-0.5 tw-rounded-full 
-                                tw-bg-emerald-50 tw-text-emerald-700 tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap " >
-                              #{a.vaccine}
-                            </span>
+                          ) : (
+                            <span className="tw-text-[8px] tw-text-transparent">.</span> 
                           )}
                         </div>
-
-                        <div className="tw-flex tw-items-center tw-gap-2 tw-text-[11px] tw-text-slate-400">
+                        <div className="tw-flex tw-items-center">
+                          {a.vaccine ? (
+                            <span className="tw-w-full tw-text-[8px] tw-px-1.5 tw-py-0.5 tw-rounded-full tw-border tw-border-emerald-100
+                                        tw-bg-emerald-50 tw-text-emerald-700 tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap ">
+                              #{a.vaccine}
+                            </span>
+                          ) : (
+                            <span className="tw-text-[8px] tw-text-transparent">.</span>
+                          )}
+                        </div>
+                        <div className="tw-flex tw-items-center tw-justify-end tw-gap-3 tw-text-[11px] tw-text-slate-400">
                           <i className="fa-regular fa-heart group-hover:tw-text-pink-500"></i>
                           <i className="fa-regular fa-comment-dots group-hover:tw-text-sky-500"></i>
                           <i className="fa-regular fa-bookmark group-hover:tw-text-amber-500"></i>
                         </div>
                       </div>
+
                     </div>
                   </div>
                 ))}
@@ -500,7 +522,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* <ChatWidget /> */}
+      {selectedArticle && (
+        <KnowledgeQuickViewModal
+          article={selectedArticle}
+          onClose={() => setSelectedArticle(null)}
+        />
+      )}
+
     </div>
   );
 }
