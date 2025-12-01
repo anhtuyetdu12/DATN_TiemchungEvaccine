@@ -191,6 +191,28 @@ export default function StaffAppointments() {
     return [];
   };
 
+  // Lấy danh sách "phòng bệnh" từ các item trong lịch hẹn
+  const getDiseaseList = (booking) => {
+    const items = booking?.items_detail || [];
+    if (items.length) {
+      return items
+        .map((it) => {
+          const diseaseName =
+            it?.vaccine?.disease?.name ||  // kiểu mới: vaccine.disease.name
+            it?.disease?.name ||           // nếu BE trả thẳng disease
+            it?.disease_name ||            // hoặc text disease_name
+            null;
+          return diseaseName ? diseaseName.trim() : null;
+        })
+        .filter(Boolean);
+    }
+
+    // fallback cho dữ liệu cũ
+    if (booking?.disease?.name) return [booking.disease.name];
+    if (booking?.disease_name) return [booking.disease_name];
+    return [];
+  };
+
   // Chỉ hiển thị 2 dòng; còn lại là "…". Hover sẽ thấy đầy đủ qua title
   const VaccineCell = ({ booking }) => {
     const list = getVaccineList(booking);
@@ -207,6 +229,26 @@ export default function StaffAppointments() {
       </div>
     );
   };
+
+  const DiseaseCell = ({ booking }) => {
+    const list = getDiseaseList(booking);
+    if (!list.length) return <>—</>;
+    const preview = list.slice(0, 2);
+    const hasMore = list.length > 2;
+    const title = list.join("\n");
+
+    return (
+      <div className="tw-space-y-1" title={title}>
+        {preview.map((line, idx) => (
+          <div key={idx} className="tw-truncate">
+            {line}
+          </div>
+        ))}
+        {hasMore && <div className="tw-text-gray-400">…</div>}
+      </div>
+    );
+  };
+
 
   //xác nhận phản ứng sau tiêm
   const submitComplete = async () => {
@@ -326,37 +368,46 @@ export default function StaffAppointments() {
       <div className="tw-bg-white tw-rounded-xl tw-shadow-md tw-overflow-x-auto">
         <table className="tw-w-full tw-text-xl tw-border-collapse tw-py-5 tw-table-fixed">
           <thead>
-            <tr className="tw-bg-green-100 tw-text-2xl">
-              <th className="tw-w-1/7 tw-py-4 tw-px-2 tw-text-center">Khách hàng</th>
-              <th className="tw-w-1/7 tw-py-4 tw-px-2 tw-text-center">Người tiêm</th>
-              <th className="tw-w-1/7 tw-py-4 tw-px-2 tw-text-center">Ngày hẹn</th>
-              <th className="tw-w-1/7 tw-py-4 tw-px-2 tw-text-center">Loại vắc xin</th>
-              <th className="tw-w-1/7 tw-py-4 tw-px-2 tw-text-center">Trạng thái</th>
-              <th className="tw-w-1/3 tw-py-4 tw-px-2 tw-text-center">Thao tác</th>
+            <tr className="tw-bg-green-100 tw-text-xl">
+              <th className="tw-w-[180px] tw-py-4 tw-px-2 tw-text-center">Khách hàng</th>
+              <th className="tw-w-[100px] tw-py-4 tw-px-2 tw-text-center ">Người tiêm</th>
+              <th className="tw-w-[100px] tw-py-4 tw-px-2 tw-text-center">Ngày hẹn</th>
+              <th className="tw-w-[150px] tw-py-4 tw-px-2 tw-text-center">Phòng bệnh</th>
+              <th className="tw-w-[150px] tw-py-4 tw-px-2 tw-text-center">Loại vắc xin</th>
+              <th className="tw-w-[100px] tw-py-4 tw-px-2 tw-text-center">Bệnh nền</th>
+              <th className="tw-w-[100px] tw-py-4 tw-px-2 tw-text-center">Trạng thái</th>
+              <th className="tw-w-[340px] tw-py-4 tw-px-2 tw-text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {!loading && appointments.length === 0 && (
               <tr>
-                <td colSpan={6} className="tw-text-center tw-text-red-500 tw-italic tw-p-6">
+                <td colSpan={8} className="tw-text-center tw-text-red-500 tw-italic tw-p-6">
                   Không có lịch hẹn nào cả !
                 </td>
               </tr>
             )}
             {loading && (
               <tr>
-                <td colSpan={6} className="tw-text-center tw-text-gray-500 tw-p-6">Đang tải…</td>
+                <td colSpan={8} className="tw-text-center tw-text-gray-500 tw-p-6">Đang tải…</td>
               </tr>
             )}
 
             {appointments.map((item) => (
-              <tr key={item.id} className="tw-border-b hover:tw-bg-pink-50">
+              <tr key={item.id} className="tw-border-b hover:tw-bg-pink-50 tw-text-xl">
                 <td className="tw-p-2">{item.user?.email || "—"}</td>
                 <td className="tw-p-2">{item.member?.full_name || "—"}</td>
                 <td className="tw-p-2">{formatDate(item.appointment_date)}</td>
+                <td className="tw-p-2 tw-text-center">
+                  <DiseaseCell booking={item} />
+                </td>
                 <td className="tw-p-2 "><VaccineCell booking={item} /></td>
+                <td className="tw-p-2  tw-text-slate-700 tw-max-w-[220px] tw-truncate"
+                  title={item.chronic_note || item.member?.chronic_note || ""} >
+                  {item.chronic_note || item.member?.chronic_note || "Không có"}
+                </td>
                 <td className="tw-p-2 tw-text-left">
-                  <div className="tw-flex tw-items-center tw-ml-[50px]"> {statusPillFromLabel(item.status_label || item.status)}</div>
+                  <div className="tw-flex tw-items-center "> {statusPillFromLabel(item.status_label || item.status)}</div>
                 </td>
                 <td className="tw-p-2 tw-space-x-3">
                   <button onClick={() => openConfirm("confirm", item)} disabled={item.status !== "pending"}
@@ -370,7 +421,7 @@ export default function StaffAppointments() {
                     Hủy
                   </button>
                   <button onClick={() => setDetail(item)}
-                    className="tw-bg-blue-100 tw-text-blue-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-blue-200" >
+                    className="tw-bg-yellow-100 tw-text-yellow-600 tw-px-3 tw-py-2 tw-rounded-full hover:tw-bg-yellow-200" >
                     <i className="fa-solid fa-eye tw-mr-2"></i>
                     Xem
                   </button>

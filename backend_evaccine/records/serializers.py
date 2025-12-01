@@ -19,7 +19,7 @@ class FamilyMemberSerializer(serializers.ModelSerializer):
         fields = [
             "id", "user_id", "user_email", "user_phone",
             "full_name", "nickname", "relation", "gender",
-            "date_of_birth", "phone", "notes", "created_at"
+            "date_of_birth", "phone", "notes","chronic_note", "created_at"
         ]
         
 class VaccinationRecordSerializer(serializers.ModelSerializer):
@@ -83,7 +83,7 @@ class UserSlimSerializer(serializers.ModelSerializer):
 class MemberSlimSerializer(serializers.ModelSerializer):
     class Meta:
         model = FamilyMember
-        fields = ("id", "full_name", "date_of_birth", "phone",)
+        fields = ("id", "full_name", "date_of_birth", "phone","chronic_note",)
 
 class BookingSerializer(serializers.ModelSerializer):
     # --- WRITE ---
@@ -94,7 +94,7 @@ class BookingSerializer(serializers.ModelSerializer):
     )
     items = BookingItemWriteSerializer(many=True, write_only=True, required=False)
 
-    # 👇 cho phép FE gửi thẳng 1 vaccine hoặc 1 package
+    #  cho phép FE gửi thẳng 1 vaccine hoặc 1 package
     vaccine_id = serializers.PrimaryKeyRelatedField(
         queryset=Vaccine.objects.all(),
         source="vaccine",
@@ -113,6 +113,7 @@ class BookingSerializer(serializers.ModelSerializer):
     # --- READ ---
     user = UserSlimSerializer(read_only=True)
     member = MemberSlimSerializer(read_only=True)
+    chronic_note = serializers.CharField( source="member.chronic_note", read_only=True, allow_blank=True, allow_null=True,)
     items_detail = BookingItemReadSerializer(many=True, read_only=True, source="items")
     vaccine = VaccineSerializer(read_only=True)
     package = VaccinePackageSerializer(read_only=True)
@@ -124,11 +125,9 @@ class BookingSerializer(serializers.ModelSerializer):
         model = Booking
         fields = [
             "id", "member_id", "appointment_date", "location", "status", "notes",
-            "vaccine", "vaccine_id",
-            "package", "package_id",
-            "created_at", "status_label",
-            "items", "items_detail", "is_overdue",
-            "user", "member", "items_summary",
+            "vaccine", "vaccine_id", "package", "package_id",
+            "created_at", "status_label", "items", "items_detail", "is_overdue",
+            "user", "member", "items_summary", "chronic_note",
         ]
 
     # ----------------- helpers -----------------
@@ -438,11 +437,11 @@ class BookingSerializer(serializers.ModelSerializer):
 class CustomerMemberSlimSerializer(serializers.ModelSerializer):
     class Meta:
         model = FamilyMember
-        fields = ("id", "full_name", "nickname", "date_of_birth", "gender", "relation", "phone")
+        fields = ("id", "full_name", "nickname", "date_of_birth", "gender", "relation", "phone", "chronic_note")
 
 class AppointmentSlimSerializer(serializers.Serializer):
     id = serializers.CharField()
-    date = serializers.DateField()  # <<< QUAN TRỌNG: DateField (tránh lỗi utcoffset)
+    date = serializers.DateField()  
     vaccine = serializers.CharField()
     center = serializers.CharField(required=False, allow_blank=True)
     status = serializers.CharField()

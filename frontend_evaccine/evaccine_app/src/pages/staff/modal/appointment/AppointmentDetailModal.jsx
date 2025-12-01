@@ -17,17 +17,49 @@ const formatVND = (n) => {
   return `${Number(n).toLocaleString("vi-VN")} VNĐ`;
 };
 
-const StatusPill = ({ status }) => {
-  const s = status === "canceled" ? "cancelled" : status;
-  if (s === "pending")
-    return <span className="tw-bg-yellow-100 tw-text-yellow-700 tw-px-4 tw-py-1 tw-text-xl tw-mt-3 tw-rounded-full">Chờ xác nhận</span>;
-  if (s === "confirmed")
-    return <span className="tw-bg-green-100 tw-text-green-700 tw-px-4 tw-py-1 tw-text-xl tw-mt-3 tw-rounded-full">Đã xác nhận</span>;
-  if (s === "cancelled")
-    return <span className="tw-bg-red-100 tw-text-red-700 tw-px-4 tw-py-1 tw-text-xl tw-mt-3 tw-rounded-full">Đã hủy</span>;
-  if (s === "completed")
-    return <span className="tw-bg-blue-100 tw-text-blue-700 tw-px-4 tw-py-1 tw-text-xl tw-mt-3 tw-rounded-full">Đã tiêm xong</span>;
-  return <span className="tw-bg-gray-100 tw-text-gray-700 tw-px-4 tw-py-1 tw-text-xl tw-mt-3 tw-rounded-full">{status || "—"}</span>;
+const STATUS_VN = {
+  pending:   "Chờ xác nhận",
+  confirmed: "Đã xác nhận",
+  cancelled: "Đã hủy",
+  completed: "Đã tiêm xong",
+};
+
+const STATUS_CLASS = {
+  "Chờ xác nhận": "tw-bg-yellow-100 tw-text-yellow-700",
+  "Đã xác nhận":  "tw-bg-green-100 tw-text-green-700",
+  "Đã hủy":       "tw-bg-red-100 tw-text-red-700",
+  "Đã tiêm xong": "tw-bg-blue-100 tw-text-blue-700",
+  "Trễ hẹn":      "tw-bg-orange-100 tw-text-orange-700",
+};
+
+const isOverdueAppointment = (booking) => {
+  if (!booking?.appointment_date) return false;
+  if (booking.status === "completed" || booking.status === "cancelled") return false;
+
+  const d = new Date(booking.appointment_date);
+  const today = new Date();
+  d.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  return d < today; // quá ngày hẹn
+};
+
+const StatusPill = ({ booking }) => {
+  if (!booking) {
+    return (
+      <span className="tw-bg-gray-100 tw-text-gray-700 tw-px-4 tw-py-1 tw-text-xl tw-mt-3 tw-rounded-full">
+        —
+      </span>
+    );
+  }
+  const overdue = isOverdueAppointment(booking);
+  // Nếu trễ hẹn (quá ngày, chưa completed/cancelled) => luôn hiển thị "Trễ hẹn"
+  const label = overdue ? "Trễ hẹn" : booking.status_label || STATUS_VN[booking.status] || booking.status || "—";
+  const cls = STATUS_CLASS[label] || "tw-bg-gray-100 tw-text-gray-700";
+  return (
+    <span className={`${cls} tw-px-4 tw-py-1 tw-text-xl tw-mt-3 tw-rounded-full`}>
+      {label}
+    </span>
+  );
 };
 
 export default function AppointmentDetailModal({ detail, onClose }) {
@@ -83,7 +115,7 @@ export default function AppointmentDetailModal({ detail, onClose }) {
             </h2>
           </div>
           <div className="tw-flex-1 tw-flex tw-justify-center">
-            <StatusPill status={detail?.status} />
+            <StatusPill booking={detail} />
           </div>
 
           <button  onClick={onClose} aria-label="Đóng"

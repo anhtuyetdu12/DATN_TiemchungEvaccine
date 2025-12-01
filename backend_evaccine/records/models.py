@@ -29,6 +29,7 @@ class FamilyMember(models.Model):
     date_of_birth = models.DateField(null=True, blank=True, verbose_name="Ngày sinh")
     phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Số điện thoại")
     notes = models.TextField(blank=True, null=True, verbose_name="Ghi chú")
+    chronic_note = models.TextField( blank=True, null=True, verbose_name="Bệnh nền / tiền sử bệnh" )
     created_at = models.DateTimeField("Ngày tạo", auto_now_add=True, null=True)
     is_self = models.BooleanField(default=False, verbose_name="Là bản thân")
 

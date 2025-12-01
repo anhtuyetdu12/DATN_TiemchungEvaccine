@@ -656,7 +656,7 @@ export default function BookingForm() {
                 <label className="tw-block tw-text-left">
                   <span className="tw-text-xl tw-text-gray-600">Ghi chú cho trung tâm (tuỳ chọn)</span>
                   <textarea rows={3} className="tw-mt-1 tw-w-full tw-border tw-border-gray-300 tw-text-lg tw-font-normal tw-rounded-lg tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800" 
-                  placeholder="VD: Mong muốn tiêm chung với người nhà, lưu ý sức khoẻ..." />
+                  placeholder="VD: Bệnh nền, lưu ý sức khoẻ..." />
                 </label>
               </div>
             </div>

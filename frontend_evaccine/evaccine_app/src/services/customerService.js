@@ -26,14 +26,7 @@ export async function fetchCustomerAppointments(customerId, params = {}) {
   const res = await api.get(`/records/staff/customers/${customerId}/appointments/list`, { params });
   return res.data || [];
 }
-// export async function createAppointment(customerId, payload) {
-//   try {
-//     const res = await api.post(`/records/staff/customers/${customerId}/appointments`, payload);
-//     return res.data;
-//   } catch (err) {
-//     throw err?.response?.data || err;
-//   }
-// }
+
 
 export async function createAppointment(customerId, payload) {
   // payload giống customer: { member_id, appointment_date, items, location?, notes? }
@@ -55,14 +48,12 @@ export async function addHistory(customerId, payload) {
 
 // ----------cập nhật hồ sơ cá nhân (STAFF)-------------
 export async function staffUpdateCustomerProfile(userId, payload) {
-  // payload: { full_name?, phone?, date_of_birth?, gender? }
   const { data } = await api.patch(`/records/staff/customers/${userId}/profile`, payload);
   return data;
 }
 
 // -----------thêm /sửa/xoá thành viên cho KH (STAFF)-----------
 export async function staffCreateMember(userId, payload) {
-  // payload: { full_name, nickname?, relation?, gender?, date_of_birth?, phone? }
   const { data } = await api.post(`/records/staff/customers/${userId}/members`, payload);
   return data;
 }

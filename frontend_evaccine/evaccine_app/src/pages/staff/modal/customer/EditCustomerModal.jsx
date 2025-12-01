@@ -7,7 +7,7 @@ import DeleteCustomerModal from "./DeleteCustomerModal";
 import { getAllVaccines, getAllDiseases, } from "../../../../services/vaccineService";
 import { getVaccinesByAge } from "../../../../services/recordBookService";
 import { getRemainingDoses } from "../../../../services/bookingService";
-import { staffUpdateCustomerProfile, createAppointment, setAppointmentStatus,
+import { staffUpdateCustomerProfile, createAppointment, setAppointmentStatus, staffUpdateMember,
   addHistory, staffCreateMember, staffDeleteMember,} from "../../../../services/customerService";
 import { openPrintWindow, buildAppointmentConfirmationHtml, buildPostInjectionHtml, formatDateVi } from "../../../../utils/printHelpers";
 import { toast } from "react-toastify";
@@ -41,6 +41,7 @@ export default function EditCustomerModal({
 
   const [form, setForm] = useState({ doses: 1 });
   const [newMember, setNewMember] = useState({});
+  const [editingMemberId, setEditingMemberId] = useState(null);
   const [detailTab, setDetailTab] = useState("info");
   const [newVaccineRecord, setNewVaccineRecord] = useState({
     date: "",
@@ -223,6 +224,7 @@ export default function EditCustomerModal({
           ? customer.gender
           : mapLabelToCode(customer.gender || "Khác"),
         dob: customer.dob || customer.date_of_birth || "",
+        chronic_note: customer.chronic_note || "", 
       }));
     }
   }, [customer]);
@@ -321,6 +323,7 @@ export default function EditCustomerModal({
     const toSave = {
       ...form,
       gender: mapLabelToCode(mapCodeToLabel(form.gender)),
+      dob: form.dob || customer.dob || customer.date_of_birth || "",
     };
     try {
       await staffUpdateCustomerProfile(customer.id, {
@@ -328,11 +331,15 @@ export default function EditCustomerModal({
         phone: toSave.phone,
         date_of_birth: toSave.dob,
         gender: toSave.gender, // "male" | "female" | "other"
+        chronic_note: toSave.chronic_note || "", 
       });
 
       setCustomers((prev) =>
         prev.map((c) =>
-          c.id === customer.id ? { ...c, ...toSave, gender_text: mapCodeToLabel(toSave.gender),dob: toSave.dob,}: c
+          c.id === customer.id ? { ...c, ...toSave, 
+            gender_text: mapCodeToLabel(toSave.gender),
+            dob: toSave.dob,
+          }: c
         )
       );
       setSelectedCustomer((prev) => ({
@@ -450,6 +457,73 @@ export default function EditCustomerModal({
       toast.error(err.message || "Không in được phiếu sau tiêm");
     }
   };
+
+  //cập nhật thông tin khách hàng
+  const handleSaveMember = async () => {
+    if (!newMember?.name) return;
+    const payload = {
+      full_name: newMember.name,
+      nickname: newMember.nickname || "",
+      relation: newMember.relation,
+      gender: mapLabelToCode(newMember.sex || "Khác"),
+      date_of_birth: newMember.dob || null,
+      phone: newMember.phone || "",
+      chronic_note: newMember.chronic_note || "",
+    };
+    try {
+      let updatedMembers;
+      if (editingMemberId) {
+        // UPDATE
+        const updatedFromApi = await staffUpdateMember(customer.id, editingMemberId, payload);
+        updatedMembers = membersList.map((m) =>
+          m.id === editingMemberId
+            ? {
+                ...m,
+                id: updatedFromApi.id,
+                name: updatedFromApi.full_name,
+                nickname: updatedFromApi.nickname || "",
+                relation: updatedFromApi.relation,
+                sex: mapCodeToLabel(updatedFromApi.gender || newMember.sex || "Khác"),
+                dob: updatedFromApi.date_of_birth,
+                chronic_note: updatedFromApi.chronic_note || "",
+              }
+            : m
+        );
+        toast.success("Đã cập nhật thành viên");
+      } else {
+        //  CREATE (logic giống hiện tại)
+        const created = await staffCreateMember(customer.id, payload);
+        const member = {
+          id: created.id,
+          name: created.full_name,
+          nickname: created.nickname || "", 
+          relation: created.relation,
+          sex: mapCodeToLabel(created.gender || newMember.sex || "Khác"),
+          dob: created.date_of_birth,
+          chronic_note: created.chronic_note || "",
+          expanded: false,
+        };
+        updatedMembers = [...membersList, member];
+        toast.success("Đã thêm thành viên");
+      }
+
+      setCustomers((prev) =>
+        prev.map((c) =>
+          c.id === customer.id ? { ...c, members: updatedMembers } : c
+        )
+      );
+      setSelectedCustomer((prev) => ({
+        ...prev,
+        members: updatedMembers,
+      }));
+
+      setNewMember({});
+      setEditingMemberId(null);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Lưu thành viên thất bại");
+    }
+  };
+
 
   // thêm lịch hẹn mới (version cũ — nếu còn dùng)
   const handleCreateAppointments = async () => {
@@ -764,6 +838,18 @@ export default function EditCustomerModal({
                         })}
                       </div>
                     </div>
+                    <div>
+                      <label className="tw-text-lg tw-font-medium">Bệnh nền / tiền sử bệnh</label>
+                      <textarea
+                        name="chronic_note"
+                        value={form.chronic_note || ""}
+                        onChange={handleChange}
+                        className="tw-text-lg tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-min-h-[55px] tw-resize-none 
+                                  focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
+                        placeholder="VD: Tăng huyết áp, đái tháo đường, hen suyễn..."
+                      />
+                    </div>
+
                   </div>
                 </div>
 
@@ -834,40 +920,35 @@ export default function EditCustomerModal({
                                   focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
                       />
                     </div>
+                    <div className="tw-flex tw-flex-col">
+                      <label className="tw-text-lg tw-font-medium tw-text-left">Bệnh nền / tiền sử bệnh</label>
+                      <textarea
+                        placeholder="VD: Tăng huyết áp, tiểu đường..."
+                        value={newMember?.chronic_note || ""}
+                        onChange={(e) => setNewMember((s) => ({ ...s, chronic_note: e.target.value }))}
+                        className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-min-h-[50px] tw-resize-none 
+                          focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
+                      />
+                     </div>
+                  </div>
+                  <div className="tw-flex tw-justify-between tw-items-center tw-mt-2">
+                    <span className="tw-text-sm tw-italic tw-text-orange-500">
+                      {editingMemberId
+                        ? "Đang chỉnh sửa thành viên hiện tại"
+                        : "Đang thêm mới thành viên"}
+                    </span>
+                    <button type="button"
+                      onClick={() => {
+                        setNewMember({});
+                        setEditingMemberId(null);
+                      }} className="tw-text-sm tw-text-red-600 tw-underline hover:tw-text-red-700">
+                      Xóa bộ lọc
+                    </button>
                   </div>
 
-                  <button className="tw-bg-green-600 tw-text-white tw-px-6 tw-py-2 tw-rounded-full tw-mt-4"
-                    onClick={async () => {
-                      if (!newMember?.name) return;
-                      try {
-                        const payload = {
-                          full_name: newMember.name,
-                          nickname: newMember.nickname || newMember.name,
-                          relation: newMember.relation,
-                          gender: mapLabelToCode(newMember.sex || "Khác"),
-                          date_of_birth: newMember.dob || null,
-                          phone: newMember.phone || "",
-                        };
-                        const created = await staffCreateMember(customer.id, payload);
-                        const member = {
-                          id: created.id,
-                          name: created.full_name,
-                          nickname: created.nickname || created.full_name,
-                          relation: created.relation,
-                          sex: newMember.sex || "Khác",
-                          dob: created.date_of_birth,
-                          expanded: false,
-                        };
-                        const updated = [...membersList, member];
-                        setCustomers((prev) => prev.map((c) => c.id === customer.id ? { ...c, members: updated } : c ) );
-                        setSelectedCustomer((prev) => ({ ...prev, members: updated,}));
-                        setNewMember({});
-                        toast.success("Đã thêm thành viên");
-                      } catch (e) {
-                        toast.error( e?.response?.data?.detail || "Không thêm được thành viên" );
-                      }
-                    }} >
-                    Thêm thành viên mới
+                  <button className="tw-bg-green-600 tw-text-white tw-px-6 tw-py-2 tw-rounded-full tw-mt-6"
+                    onClick={handleSaveMember}>
+                    {editingMemberId ? "Cập nhật thành viên" : "Thêm thành viên mới"}
                   </button>
                 </div>
 
@@ -879,14 +960,31 @@ export default function EditCustomerModal({
                       <div key={f.id} className="tw-border tw-rounded tw-p-2">
                         <div className="tw-flex tw-justify-between tw-items-center ">
                           {/* Thông tin + toggle */}
-                          <div className="tw-flex-1 tw-cursor-pointer tw-text-left  tw-text-blue-600"
+                          <div className="tw-flex-1 tw-cursor-pointer tw-text-left tw-text-blue-600"
                             onClick={() => {
-                              const updated = membersList.map((m) => m.id === f.id ? { ...m, expanded: !m.expanded } : m);
-                              setCustomers((prev) =>  prev.map((c) => c.id === customer.id ? { ...c, members: updated }  : c ));
-                            }}>
-                            {(f.name || f.full_name) ?? ""} - {f.relation} - {formatDate(f.dob || f.date_of_birth)}
+                              const updated = membersList.map((m) => m.id === f.id ? { ...m, expanded: !m.expanded } : m );
+                              setCustomers((prev) =>
+                                prev.map((c) => c.id === customer.id ? { ...c, members: updated } : c )
+                              );
+                              setSelectedCustomer((prev) => ({
+                                ...prev,
+                                members: updated,
+                              }));
+                              // Đổ dữ liệu lên form + vào chế độ chỉnh sửa
+                              setNewMember({
+                                id: f.id,
+                                nickname: f.nickname || "",
+                                name: f.name || f.full_name || "",
+                                relation: f.relation || "",
+                                sex: mapCodeToLabel(f.sex || f.gender || "Khác"),
+                                dob: f.dob || f.date_of_birth || "",
+                                chronic_note: f.chronic_note || "",
+                              });
+                              setEditingMemberId(f.id);
+                            }} >
+                            {(f.name || f.full_name) ?? ""} - {f.relation} -{" "}
+                            {formatDate(f.dob || f.date_of_birth)}
                           </div>
-
                           {/* Nút xóa */}
                           <button
                             onClick={(e) => { e.stopPropagation(); setDeleteModal({ open: true, member: f }); }}
@@ -939,6 +1037,12 @@ export default function EditCustomerModal({
                                 <span className="tw-text-left">{f.relation}</span>
                               </div>
                             </div>
+                            <div className="tw-flex tw-justify-start">
+                              <div className="tw-flex tw-items-center tw-gap-[15px]">
+                                <span className="tw-w-[120px] tw-font-medium tw-text-left">Bệnh nền:</span>
+                                <span className="tw-text-left">{f.chronic_note || "Không ghi nhận"}</span>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -950,15 +1054,11 @@ export default function EditCustomerModal({
             {detailTab === "appointments" && (
               <div className="tw-space-y-4 tw-h-full tw-overflow-y-auto  tw-scrollbar-hide tw-pr-2">
                 <p className="tw-font-semibold tw-text-[17px]  tw-text-blue-400">
-                  <i className="fa-solid fa-calendar-week  tw-mr-3"></i> Lịch hẹn
+                  <i className="fa-solid fa-calendar-week  tw-mr-3"></i> Tạo mới lịch hẹn
                 </p>
                 <div className="tw-space-y-4">
                   {/* --- TẠO LỊCH HẸN MỚI (đa vắc xin) --- */}
                   <div className="tw-border-t tw-pt-3">
-                    <h5 className="tw-font-semibold tw-text-xl tw-mb-2 tw-text-green-600 flex items-center">
-                      <i className="fa-solid fa-calendar-plus tw-mr-3"></i>Tạo lịch hẹn mới
-                    </h5>
-
                     <div className="tw-grid lg:tw-grid-cols-2 tw-grid-cols-1 tw-gap-6">
                       {/* Ngày */}
                       <div className="tw-flex tw-flex-col">
@@ -1398,15 +1498,9 @@ export default function EditCustomerModal({
               <div className="tw-space-y-6 tw-h-full tw-overflow-y-auto  tw-scrollbar-hide tw-pr-2">
                 <p className="tw-font-bold tw-text-[17px] tw-text-blue-400 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-center">
                   <i className="fa-solid fa-syringe"></i>
-                  Lịch sử tiêm
+                  Lịch sử tiêm <span className="tw-text-xl tw-mt-2">(Ghi nhận mũi tiêm)</span>
                 </p>
-
-                {/* --- Ghi nhận mũi tiêm mới --- */}
                 <div className="tw-border-t tw-pt-5">
-                  <h5 className="tw-font-semibold tw-text-xl tw-mb-3 tw-text-orange-600">
-                    <i className="fa-solid fa-plus"></i> Ghi nhận mũi tiêm mới
-                  </h5>
-
                   <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-3 tw-gap-3">
                     {/* Người tiêm */}
                     <div className="tw-flex tw-flex-col">
@@ -1471,7 +1565,8 @@ export default function EditCustomerModal({
                       <label className="tw-text-lg tw-font-medium tw-mb-2"> Ghi chú (Bệnh nền)</label>
                       <textarea value={newVaccineRecord.note || ""}
                         onChange={(e) =>  setNewVaccineRecord((s) => ({ ...s, note: e.target.value })) }
-                        className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-h-[40px] tw-text-lg tw-resize-none focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
+                        className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-h-[40px] tw-text-lg tw-resize-none 
+                        focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
                       />
                     </div>
                   </div>

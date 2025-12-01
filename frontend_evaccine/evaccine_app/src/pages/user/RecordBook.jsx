@@ -26,7 +26,7 @@ const buildVaccinationMap = (records) => {
     const doseIndex =
       Number.isFinite(rawDose) && rawDose > 0
         ? rawDose - 1
-        : 0; // 👈 cho mũi không có dose_number dồn về mũi 1
+        : 0; // cho mũi không có dose_number dồn về mũi 1
 
     const current = structuredData[diseaseId][doseIndex];
     // nếu chưa có thì gán luôn
@@ -85,6 +85,8 @@ export default function RecordBook() {
     const [ageVaccines, setAgeVaccines] = useState([]);
     const [showMoreAgeVax, setShowMoreAgeVax] = useState(false);
     const navigate = useNavigate();
+    const [editChronicNote, setEditChronicNote] = useState("");
+
 
     // Gọi API lấy danh sách thành viên
     useEffect(() => {
@@ -97,6 +99,7 @@ export default function RecordBook() {
                 relation: m.relation,
                 gender: m.gender === "male" ? "Nam" : m.gender === "female" ? "Nữ" : "Khác",
                 dob: m.date_of_birth,
+                chronic_note: m.chronic_note || "",
             }));
             setUsers(formatted);
             // Chọn mặc định "Bản thân" nếu có, nếu không lấy thành viên đầu tiên
@@ -130,6 +133,7 @@ export default function RecordBook() {
             relation: newMember.relation || "Khác",
             nickname: newMember.nickname || newMember.full_name,
             phone: newMember.phone || "",
+            chronic_note: newMember.chronic_note || "",
         };
         setUsers((prev) => [...prev, formattedMember]);
         setActiveUser(newMember.id);
@@ -231,6 +235,7 @@ export default function RecordBook() {
         if (!currentUser) return;
         setEditGender(currentUser.gender || "Khác");
         setEditDOB(currentUser.dob || "");
+        setEditChronicNote(currentUser.chronic_note || ""); 
     }, [currentUser]);
     const genderOptions = [
         { label: "Nam", icon: "fa-solid fa-mars", color: "tw-text-teal-500" },
@@ -454,74 +459,120 @@ export default function RecordBook() {
                                 <i className="fa-solid fa-user-pen tw-text-[#fd812e] tw-text-lg tw-pl-4 tw-mb-3 tw-cursor-pointer hover:tw-text-[#e77d03]"
                                     onClick={() => setIsEditing(true)} ></i>
                             </div>
-                            {/* thông tin chỉnh sửa */}
-                            {!isEditing && ( <p className="tw-text-gray-700 tw-text-lg"> {currentUser.gender || "Khác"} · {getAgeText(currentUser.dob)}  </p> )}
-                            <p className="tw-text-gray-700 tw-text-lg">{currentUser.relation}</p>
-
+                            {/* thông tin hiển thị khi KHÔNG chỉnh sửa */}
+                            {!isEditing && (
+                            <>
+                                <p className="tw-text-gray-700 tw-text-lg"> {currentUser.gender || "Khác"} · {getAgeText(currentUser.dob)} </p>
+                                <p className="tw-text-gray-700 tw-text-lg"> {currentUser.relation} </p>
+                                {currentUser.chronic_note && (
+                                    <p className="tw-text-pink-700 tw-text-lg"> Bệnh nền: {currentUser.chronic_note}</p>
+                                )}
+                            </>
+                            )}
                             {/* Form chỉnh sửa nhỏ */}
                             {isEditing && (
-                                <div className="tw-flex tw-gap-4 tw-mt-2 tw-items-center">
-                                    {/* Giới tính */}
-                                    <div className="tw-w-full">
-                                        <p className="tw-mb-2 tw-text-lg tw-font-medium tw-text-gray-700 tw-text-left tw-px-1"> Giới tính </p>
-                                        <div className="tw-grid tw-grid-cols-3 tw-gap-2">
-                                            {genderOptions.map((opt) => (
-                                            <button key={opt.label} type="button"
-                                                onClick={() => setEditGender(opt.label)}
-                                                className={`tw-flex tw-items-center tw-justify-center tw-gap-1 tw-px-4 tw-py-1 tw-rounded-full tw-border tw-w-full tw-text-lg
-                                                ${  editGender === opt.label
-                                                    ? "tw-border-[#17bef0] tw-bg-[#e7feff]"
-                                                    : "tw-border-gray-300 tw-bg-white"
-                                                }`} >
-                                                <i className={`${opt.icon} ${opt.color}`}></i>
-                                                <span>{opt.label}</span>
+                                <div className="tw-mt-4 tw-pt-4 tw-border-t tw-border-blue-200">
+                                    <div className="tw-w-[800px] tw-mx-auto tw-space-y-6">
+                                    <p className="tw-text-base tw-font-semibold tw-text-blue-700 tw-text-center">
+                                        Cập nhật thông tin cá nhân
+                                    </p>
+                                    <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-8">
+                                        {/* cột trái */}
+                                        <div className="tw-space-y-4 tw-ml-[150px]">
+                                            {/* Giới tính  */}
+                                            <div className="tw-flex tw-flex-col tw-items-center tw-gap-2">
+                                                <p className="tw-text-base tw-font-medium tw-text-gray-700"> Giới tính</p>
+                                                <div className="tw-w-full tw-grid tw-grid-cols-3 tw-gap-2">
+                                                {genderOptions.map((opt) => (
+                                                    <button key={opt.label}  type="button"  onClick={() => setEditGender(opt.label)}
+                                                        className={`tw-flex tw-items-center tw-justify-center tw-gap-1 tw-px-3 tw-py-2 tw-rounded-full tw-border tw-text-base
+                                                            ${ editGender === opt.label
+                                                                ? "tw-border-[#17bef0] tw-bg-[#e7feff]"
+                                                                : "tw-border-gray-300 tw-bg-white hover:tw-border-[#56b6f7]"
+                                                            }`}>
+                                                        <i className={`${opt.icon} ${opt.color}`}></i>
+                                                        <span>{opt.label}</span>
+                                                    </button>
+                                                ))}
+                                                </div>
+                                            </div>
+                                            {/* Ngày sinh  */}
+                                            <div className="tw-flex tw-flex-col tw-items-center ">
+                                                <label htmlFor="dob" className="tw-text-base tw-font-medium tw-text-gray-700" >
+                                                    Ngày sinh
+                                                </label>
+                                                <input id="dob" type="date" value={editDOB}
+                                                    onChange={(e) => setEditDOB(e.target.value)}
+                                                    className="tw-w-full tw-border tw-rounded-xl tw-px-3 tw-py-2 tw-text-base tw-text-gray-700 
+                                                                hover:tw-border-[#56b6f7] hover:tw-ring-1 hover:tw-ring-[#56b6f7]
+                                                                focus:tw-outline-none focus:tw-border-[#1999ee] focus:tw-ring-2 focus:tw-ring-[#1999ee]/40"
+                                                />
+                                            </div>
+                                        </div>
+                                        {/* CỘT PHẢI */}
+                                        <div className="tw-flex tw-flex-col tw-h-full">
+                                            <label className="tw-block tw-mb-2 tw-text-base tw-font-medium tw-text-gray-700 tw-text-center">
+                                                Bệnh nền / tiền sử bệnh
+                                            </label>
+                                            <textarea value={editChronicNote}  onChange={(e) => setEditChronicNote(e.target.value)}
+                                                placeholder="VD: Tăng huyết áp, đái tháo đường, hen suyễn..."
+                                                className="tw-flex-1 tw-border tw-rounded-xl tw-px-3 tw-py-2 tw-text-base tw-text-gray-700  tw-resize-none 
+                                                        tw-min-h-[75px] tw-w-[340px] hover:tw-border-[#56b6f7] hover:tw-ring-1 hover:tw-ring-[#56b6f7] 
+                                                        focus:tw-outline-none focus:tw-border-[#1999ee] focus:tw-ring-2 focus:tw-ring-[#1999ee]/40"
+                                            />                                       
+                                        </div>
+                                        {/* Nút hành động */}
+                                        <div className="md:tw-col-span-2 tw-flex tw-justify-center tw-gap-3">
+                                            <button onClick={async () => {
+                                                try {
+                                                    if (!editDOB) {
+                                                        toast.error("Vui lòng chọn ngày sinh hợp lệ!");
+                                                        return;
+                                                    }
+                                                    const payload = {
+                                                        date_of_birth: editDOB,
+                                                        gender:
+                                                        editGender === "Nam" ? "male" : editGender === "Nữ" ? "female" : "other",
+                                                        chronic_note: editChronicNote,
+                                                    };
+                                                    await updateFamilyMember(currentUser.id, payload);
+                                                    toast.success("Cập nhật thông tin thành công!");
+                                                    setUsers((prev) =>
+                                                        prev.map((u) =>
+                                                        u.id === currentUser.id
+                                                            ? {  ...u,
+                                                                dob: editDOB,
+                                                                gender:
+                                                                payload.gender === "male" ? "Nam" : payload.gender === "female" ? "Nữ": "Khác",
+                                                                chronic_note: editChronicNote,
+                                                            }: u
+                                                        )
+                                                    );
+                                                    setIsEditing(false);
+                                                    } catch (err) {
+                                                        toast.error("Không thể cập nhật thông tin, vui lòng thử lại!");
+                                                    }
+                                                }}
+                                                className="tw-inline-flex tw-items-center tw-justify-center
+                                                            tw-min-w-[100px] tw-px-4 tw-py-2 tw-rounded-full
+                                                            tw-bg-[#04cac0] tw-text-white tw-text-base tw-font-semibold
+                                                            hover:tw-bg-[#2ae7de] hover:tw-shadow-md tw-transition-all tw-duration-200">
+                                                Lưu
                                             </button>
-                                            ))}
+                                            <button
+                                                onClick={() => {
+                                                    setIsEditing(false);
+                                                    setEditDOB(currentUser.dob || "");
+                                                    setEditGender(currentUser.gender || "Khác");
+                                                    setEditChronicNote(currentUser.chronic_note || "");
+                                                }}
+                                                className="tw-inline-flex tw-items-center tw-justify-center tw-min-w-[100px] tw-px-4 tw-py-2 tw-rounded-full
+                                                            tw-bg-red-500 tw-text-white tw-text-base tw-font-semibold
+                                                            hover:tw-bg-red-600 hover:tw-shadow-md tw-transition-all tw-duration-200" >
+                                                Hủy
+                                            </button>
                                         </div>
                                     </div>
-
-                                    {/* Ngày sinh */}
-                                     <div className="tw-w-full tw-text-left">
-                                        <label htmlFor="dob" className="tw-block tw-mb-1 tw-font-medium tw-text-lg  tw-text-gray-700">Ngày sinh</label>
-                                        <input  id="dob" type="date"  value={editDOB} onChange={(e) => setEditDOB(e.target.value)}
-                                            className="tw-w-full tw-border tw-rounded-lg tw-px-2 tw-py-1 tw-text-gray-700 
-                                            hover:tw-border-[#56b6f7] hover:tw-ring-1 hover:tw-ring-[#56b6f7]
-                                            focus:tw-outline-none focus:tw-border-[#1999ee] focus:tw-ring-2 focus:tw-ring-[#1999ee]/40"/>
-                                    </div>
-
-                                    {/* Nút Lưu */}
-                                    <div className="tw-flex tw-justify-end tw-gap-3 tw-mt-8">
-                                        <button  onClick={async () => {
-                                            try { 
-                                                if (!editDOB) {
-                                                    toast.error("Vui lòng chọn ngày sinh hợp lệ!");
-                                                    return;
-                                                }
-                                                const payload = {
-                                                    date_of_birth: editDOB,
-                                                    gender:  editGender === "Nam" ? "male" : editGender === "Nữ"  ? "female" : "other",
-                                                };
-                                                await updateFamilyMember(currentUser.id, payload);
-                                                toast.success("Cập nhật thông tin thành công!");
-                                                setUsers((prev) =>
-                                                    prev.map((u) =>  u.id === currentUser.id  
-                                                    ? { ...u, dob: editDOB, 
-                                                        gender: payload.gender === "male" ? "Nam" : payload.gender === "female" ? "Nữ" : "Khác",  }  
-                                                    : u ) );
-                                                setIsEditing(false);
-                                            } catch (err) {
-                                                toast.error("Không thể cập nhật thông tin, vui lòng thử lại!");
-                                            } }} className="tw-px-4 tw-py-1 tw-rounded-lg tw-bg-[#04cac0] tw-text-white hover:tw-bg-[#2ae7de] hover:tw-shadow-md tw-transition-all tw-duration-200" >
-                                            Lưu
-                                        </button> 
-                                        <button  onClick={() => {
-                                            setIsEditing(false);
-                                            setEditDOB(currentUser.dob || "");
-                                            setEditGender(currentUser.gender || "Khác");
-                                            }}
-                                            className="tw-px-4 tw-py-1 tw-rounded-lg tw-bg-red-500 tw-text-white hover:tw-bg-red-600 hover:tw-shadow-md tw-transition-all tw-duration-200" >
-                                            Hủy
-                                        </button>                                   
                                     </div>
                                 </div>
                             )}

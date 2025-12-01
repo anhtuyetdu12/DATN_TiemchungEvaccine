@@ -25,6 +25,7 @@ const adaptMember = (m) => ({
   gender: m.gender,          // "male"/"female"/"other" (đổi text ở FE nếu cần)
   date_of_birth: m.date_of_birth,
   phone: m.phone || "",
+  chronic_note: m.chronic_note || "", 
 });
 
 const adaptRecord = (r) => ({

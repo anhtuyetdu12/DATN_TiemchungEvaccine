@@ -10,6 +10,9 @@ export default function VaccineKnowledge() {
   const [activeCatId, setActiveCatId] = useState(null);
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
 
   useEffect(() => {
     const load = async () => {
@@ -83,9 +86,17 @@ export default function VaccineKnowledge() {
     0
   );
 
-  const activeArticles = activeCatId
-    ? articlesByCategory[activeCatId] || []
-    : [];
+  const activeArticles = activeCatId ? articlesByCategory[activeCatId] || [] : [];
+
+  const filteredArticles = activeArticles.filter((a) => {
+    if (!searchQuery.trim()) return true;
+    const keyword = searchQuery.toLowerCase();
+    return (
+      a.title?.toLowerCase().includes(keyword) ||
+      a.summary?.toLowerCase().includes(keyword) ||
+      a.content?.toLowerCase().includes(keyword)
+    );
+  });
 
   const getInitials = (title = "") => {
     const parts = title.trim().split(" ");
@@ -97,15 +108,24 @@ export default function VaccineKnowledge() {
     );
   };
 
+  const applySearch = () => { setSearchQuery(searchInput.trim()); };
+  const handleSearchKeyDown = (e) => {
+    if (e.key === "Enter") { applySearch(); }
+  };
+  const handleClearSearch = () => {
+    setSearchInput("");
+    setSearchQuery("");
+  };
+
   return (
     <div>
       <section className="tw-min-h-screen tw-pt-10 tw-pb-16 tw-bg-[radial-gradient(circle_at_top,_#f9fafb_0%,_#eff6ff_40%,_#ffffff_100%)]">
         <div className="tw-max-w-[1200px] tw-mx-auto tw-px-4 md:tw-px-6 tw-mt-[90px] tw-space-y-8">
           <header className="tw-flex tw-flex-col md:tw-flex-row tw-items-start md:tw-items-center tw-justify-between tw-gap-4">
-            <div>
+            <div className="tw-flex-1 tw-max-w-[520px] tw-text-center">
               <h3 className="tw-text-[30px] md:tw-text-[32px] tw-font-extrabold tw-mt-1 tw-py-3
-                           tw-bg-gradient-to-r tw-from-sky-600 tw-via-blue-500 tw-to-pink-500
-                           tw-text-transparent tw-bg-clip-text">
+                          tw-bg-gradient-to-r tw-from-sky-600 tw-via-blue-500 tw-to-pink-500
+                          tw-text-transparent tw-bg-clip-text ">
                 Góc Kiến Thức Tiêm Chủng
               </h3>
               <p className="tw-text-[11px] tw-md:text-sm tw-text-slate-600 tw-mt-2 tw-max-w-[520px]">
@@ -114,15 +134,14 @@ export default function VaccineKnowledge() {
                 Nội dung được biên soạn & duyệt bởi đội ngũ chuyên môn.
               </p>
             </div>
-            <div className="tw-flex tw-flex-col tw-items-end tw-gap-1">
+
+            <div className="tw-flex tw-flex-col tw-items-end tw-gap-1 tw-w-full md:tw-w-[280px] lg:tw-w-[340px]">
               <div className="tw-flex tw-items-center tw-gap-2">
                 <div className="tw-w-7 tw-h-7 tw-rounded-full tw-bg-gradient-to-tr tw-from-pink-500 tw-to-sky-400 tw-flex tw-items-center 
                   tw-justify-center tw-text-[9px] tw-font-semibold tw-text-white">
                   KV
                 </div>
-                <span className="tw-text-[10px] tw-text-slate-500">
-                  Nội dung đã kiểm duyệt
-                </span>
+                <span className="tw-text-[10px] tw-text-slate-500"> Nội dung đã kiểm duyệt </span>
               </div>
               <div className="tw-flex tw-items-baseline tw-gap-3">
                 <span className="tw-text-[12px] tw-font-bold tw-text-slate-900">
@@ -132,8 +151,32 @@ export default function VaccineKnowledge() {
                   bài viết • {categories.length} danh mục
                 </span>
               </div>
+              <div className="tw-mt-4 tw-w-full">
+                <div className="tw-relative tw-w-full">
+                  {/* Icon search (bấm = áp dụng tìm kiếm) */}
+                  <button type="button" onClick={applySearch}
+                    className="tw-absolute tw-inset-y-0 tw-left-3 tw-flex tw-items-center tw-text-blue-500 hover:tw-text-blue-600 tw-transition">
+                    <i className="fa-solid fa-magnifying-glass tw-text-[13px]"></i>
+                  </button>
+                  <input  type="text"  placeholder="Tìm kiếm bài viết..."
+                    className="tw-w-full tw-pl-9 tw-pr-9 tw-py-2 tw-text-xl tw-rounded-xl tw-border tw-border-sky-300
+                      focus:tw-outline-none focus:tw-border-[#1999ee] focus:tw-ring-2 focus:tw-ring-[#1999ee]/40 tw-bg-white tw-text-gray-700"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    onKeyDown={handleSearchKeyDown}
+                  />
+                  {searchInput && (
+                    <button type="button"  onClick={handleClearSearch}
+                      className="tw-absolute tw-inset-y-0 tw-right-3 tw-flex tw-items-center tw-text-red-500 hover:tw-text-red-600 tw-transition">
+                     <i className="fa-solid fa-xmark tw-text-[12px]"></i>
+                    </button>
+                  )}
+                </div>
+              </div>
+
             </div>
           </header>
+
 
           {/* FEATURED HERO CARD (như top post) */}
           {featured && (
@@ -141,9 +184,7 @@ export default function VaccineKnowledge() {
                 tw-items-stretch tw-shadow-md tw-border tw-border-slate-800/60">
               <div className="tw-w-24 tw-h-24 md:tw-w-32 md:tw-h-32 tw-rounded-2xl tw-overflow-hidden tw-bg-slate-800 tw-flex-shrink-0">
                 {featured.thumbnail ? (
-                  <img  src={featured.thumbnail}  alt={featured.title}
-                    className="tw-w-full tw-h-full tw-object-cover"
-                  />
+                  <img  src={featured.thumbnail}  alt={featured.title} className="tw-w-full tw-h-full tw-object-cover" />
                 ) : (
                   <div className="tw-w-full tw-h-full tw-flex tw-items-center tw-justify-center tw-text-[18px] tw-font-semibold tw-bg-gradient-to-br tw-from-sky-500 tw-to-pink-500">
                     {getInitials(featured.title)}
@@ -198,8 +239,7 @@ export default function VaccineKnowledge() {
                 return (
                   <button  key={cat.id}  onClick={() => setActiveCatId(cat.id)}
                     className={`tw-flex tw-items-center tw-gap-1.5 tw-px-3 tw-py-1.5 tw-rounded-full tw-text-[10px] tw-border tw-whitespace-nowrap tw-transition
-                      ${
-                        active
+                      ${  active
                           ? "tw-bg-gradient-to-r tw-from-sky-600 tw-to-pink-500 tw-text-white tw-border-transparent tw-shadow-sm"
                           : "tw-bg-white tw-text-slate-600 tw-border-slate-200 hover:tw-bg-slate-50"
                       }`}>
@@ -216,12 +256,14 @@ export default function VaccineKnowledge() {
           {/* GRID BÀI VIẾT: INSTAGRAM-STYLE CARD FEED */}
           {!loading && activeCatId && (
             <div className="tw-grid tw-grid-cols-2 md:tw-grid-cols-3 lg:tw-grid-cols-4 tw-gap-4 tw-mt-2">
-              {activeArticles.length === 0 ? (
+             {filteredArticles.length === 0 ? (
                 <div className="tw-col-span-4 tw-bg-white tw-rounded-2xl tw-p-6 tw-text-sm tw-text-slate-500 tw-text-center tw-shadow-sm">
-                  Chưa có bài viết trong danh mục này.
+                  {activeArticles.length === 0
+                    ? "Chưa có bài viết trong danh mục này."
+                    : "Không tìm thấy bài viết phù hợp với từ khoá tìm kiếm."}
                 </div>
-              ) : (
-                activeArticles.map((a) => (
+                ) : (
+                filteredArticles.map((a) => (
                   <article key={a.id} onClick={() => setSelectedArticle(a)}
                     className="tw-group tw-bg-white tw-rounded-2xl tw-overflow-hidden tw-shadow-sm tw-border tw-border-slate-100 tw-cursor-pointer tw-flex tw-flex-col 
                     tw-transition hover:tw-shadow-lg hover:tw-border-sky-200 hover:tw-translate-y-0.5">

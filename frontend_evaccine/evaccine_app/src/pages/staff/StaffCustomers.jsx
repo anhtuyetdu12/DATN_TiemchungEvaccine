@@ -39,7 +39,7 @@ function MemberPanel({ members = [], searchGlobal = "" }) {
   const filtered = useMemo(() => {
     if (!effectiveQ) return members;
     return members.filter(m =>
-      [m.name, m.nickname, m.relation, m.phone]
+      [m.name, m.nickname, m.relation, m.phone, m.chronic_note]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
@@ -96,6 +96,11 @@ function MemberPanel({ members = [], searchGlobal = "" }) {
                   </div>
                 </div>
               </div>
+              {m.chronic_note && (
+                <div className="tw-mt-2 tw-text-[10px] tw-text-red-600 tw-text-left">
+                  <span className="tw-font-semibold">Bệnh nền:</span> {m.chronic_note}
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -152,6 +157,7 @@ export default function StaffCustomers() {
               sex: m.gender || "",
               dob: m.date_of_birth || "",
               phone: m.phone || "",
+              chronic_note: m.chronic_note || "", 
             }));
             return { ...c, members, showMembers: false };
           } catch {
@@ -187,6 +193,7 @@ export default function StaffCustomers() {
         (c.phone || "").toLowerCase().includes(term) ||
         (c.email || "").toLowerCase().includes(term) ||
         (c.code || "").toLowerCase().includes(term);
+        (c.chronic_note || "").toLowerCase().includes(term); 
       const inMembers = (c.members || []).some((m) =>
         [m.name, m.nickname, m.relation, m.phone]
           .filter(Boolean).join(" ").toLowerCase().includes(term)
@@ -283,13 +290,13 @@ export default function StaffCustomers() {
             <table className="tw-w-full tw-text-xl tw-border-collapse tw-py-5 tw-mb-5 tw-table-fixed">
               <thead className="tw-bg-red-100 ">
                 <tr>
-                  <th className="tw-px-4 tw-py-4 tw-w-1/6 tw-text-center">Họ tên</th>
+                  <th className="tw-px-4 tw-py-4 tw-w-1/7 tw-text-center">Họ tên</th>
                   <th className="tw-px-4 tw-py-4 tw-w-1/9 tw-text-center">Thành viên</th>
                   <th className="tw-px-4 tw-py-4 tw-w-1/6 tw-text-center">Điện thoại/Email</th>
                   <th className="tw-px-4 tw-py-4 tw-w-1/9 tw-text-center">Ngày sinh</th>
                   <th className="tw-px-4 tw-py-4 tw-w-1/9 tw-text-center">Giới tính</th>
                   <th className="tw-px-4 tw-py-4 tw-w-1/9 tw-text-center">Quốc gia</th>
-                  <th className="tw-px-4 tw-py-4 tw-w-1/9 tw-text-center">Số mũi</th>
+                  <th className="tw-px-4 tw-py-4 tw-w-1/9 tw-text-center">Bệnh nền</th>
                   <th className="tw-px-4 tw-py-4 tw-w-1/9 tw-text-center">Trạng thái</th>
                   <th className="tw-px-4 tw-py-4 tw-w-1/6 tw-text-center">Hành động</th>
                 </tr>
@@ -312,11 +319,10 @@ export default function StaffCustomers() {
                   const memberHits = getMemberHits(c, term);
                   //  Auto mở panel khi có kết quả khớp (không cần bấm nút)
                   const isOpen = c.showMembers || (term && memberHits.length > 0);
-                    // 👉 Lấy ngày sinh từ customer
+                  // Lấy ngày sinh từ customer
                   const rawDob = c.date_of_birth || c.dob; // tuỳ backend đang gửi field nào
                   const dobText = rawDob ? toLocalDate(rawDob).toLocaleDateString("vi-VN") : "-";
                   const gender = formatGender(c.gender || c.sex);
-                  // const doses =  c.doses != null ? c.doses : Array.isArray(c.history) ? c.history.length : "-";
 
                   return (
                     <Fragment key={c.id}>
@@ -331,7 +337,6 @@ export default function StaffCustomers() {
                               setCustomers(prev => prev.map(x => x.id === c.id ? { ...x, showMembers: !x.showMembers } : x))
                             }
                             className="tw-bg-indigo-100 tw-text-indigo-700 tw-px-3 tw-py-1 tw-rounded-full hover:tw-bg-indigo-200">
-                            {/* khi đang tìm: hiển thị số KHỚP; không thì tổng */}
                             Thành viên ({term ? (memberHits.length) : (c.members?.length || 0)})
                           </button>
 
@@ -354,18 +359,13 @@ export default function StaffCustomers() {
                         <td className="tw-px-4 tw-py-2 tw-max-w-[220px] tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap" title={c.phone || c.email || "-"} >
                           {term ? <Highlight text={c.phone || c.email || "-"} q={term} /> : (c.phone || c.email || "-")}
                         </td>
-                        {/* <td className="tw-whitespace-nowrap">
-                          {appt?.date ? toLocalDate(appt.date).toLocaleDateString("vi-VN") : "-"}
-                        </td>
-                        <td className="tw-px-4 tw-py-2 tw-max-w-[260px] tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap"  title={appt?.vaccine || "-"}>
-                          {appt?.vaccine || "-"}
-                        </td> */}
                         <td className="tw-px-4 tw-py-2 tw-text-center">{dobText}</td>
                         <td className="tw-px-4 tw-py-2 tw-text-center">{gender}</td>
                         <td className="tw-px-4 tw-py-2">{c.country || "-"}</td>
-                        <td>{c.doses != null ? c.doses : "-"}</td>
-                        {/* <td className="tw-px-4 tw-py-2 tw-text-center">{doses}</td> */}
-                        {/* <td>{appt?.price != null ? appt.price.toLocaleString("vi-VN") : "-"}</td> */}
+                        <td className="tw-px-4 tw-py-2 tw-max-w-[260px] tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap"
+                          title={c.chronic_note || "Không có"}>
+                          {c.chronic_note  ? (term ? <Highlight text={c.chronic_note} q={term} /> : c.chronic_note) : "Không có"}
+                        </td>
                         <td>
                           <span className={`${getStatusClass(statusText)} tw-inline-block tw-px-3 tw-py-2`}>
                             {statusText}
