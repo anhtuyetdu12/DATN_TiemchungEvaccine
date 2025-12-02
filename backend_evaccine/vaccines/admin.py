@@ -8,9 +8,18 @@ from .models import (
 
 @admin.register(Disease)
 class DiseaseAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "created_at")  # "Tên bệnh", "Ngày tạo" lấy từ verbose_name field
+    list_display = ("id", "name", "doses_required", "interval_days", "created_at")
     search_fields = ("name",)
     ordering = ("-created_at",)
+
+    fieldsets = (
+        ("Thông tin bệnh", {
+            "fields": ("name", "description", "cause", "symptom", "prevention", "status")
+        }),
+        ("Phác đồ tiêm chủng", {
+            "fields": ("doses_required", "interval_days"),
+        }),
+    )
 
 @admin.register(VaccineCategory)
 class VaccineCategoryAdmin(admin.ModelAdmin):
@@ -25,7 +34,7 @@ class VaccineAdmin(admin.ModelAdmin):
         "id", "name", "category", "disease",
         "manufacturer", "origin", "vaccine_type",
         "min_age", "max_age", "age_unit",
-        "doses_required", "colored_status", "formatted_price",
+        "colored_status", "formatted_price",
     )
     list_filter = ("status", "category", "disease", "origin", "vaccine_type", "age_unit")
     search_fields = ("name", "manufacturer", "origin", "vaccine_type", "description")
@@ -39,7 +48,7 @@ class VaccineAdmin(admin.ModelAdmin):
             "fields": ("name","category","disease","manufacturer","origin","vaccine_type","unit","price","status")
         }),
         ("Phác đồ & độ tuổi", {
-            "fields": ("doses_required","interval_days",("min_age","max_age","age_unit"),"schedule_text")
+            "fields": (("min_age","max_age","age_unit"),"schedule_text")
         }),
         ("Mô tả & khác", {
             "fields": (

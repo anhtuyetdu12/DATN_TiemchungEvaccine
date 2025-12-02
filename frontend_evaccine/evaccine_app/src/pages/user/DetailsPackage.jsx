@@ -36,7 +36,7 @@ export default function DetailsPackage() {
 
   return (
     <section className="tw-bg-white tw-pt-[120px] tw-pb-[60px] tw-px-10 tw-text-center">
-      <div className="tw-flex tw-justify-start tw-mb-4 tw-ml-10">
+      <div className="tw-sticky tw-top-[90px] tw-z-20 tw-flex tw-justify-start tw-mb-4 tw-ml-10">
         <button onClick={handleBack} aria-label="Quay lại"
           className="tw-inline-flex tw-items-center tw-gap-2 tw-text-blue-600 hover:tw-text-blue-800
                     tw-bg-white tw-border tw-border-blue-200 hover:tw-border-blue-400

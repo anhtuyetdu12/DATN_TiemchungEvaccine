@@ -5,16 +5,18 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 class DiseaseSerializer(serializers.ModelSerializer):
-    dose_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Disease
         fields = "__all__"
-
-    def get_dose_count(self, obj):  # ← đổi tên cho khớp field
-        from django.db.models import Max
-        max_doses = obj.vaccines.aggregate(m=Max("doses_required")).get("m") or 1
-        return min(max_doses, 5)
+        
+    dose_count = serializers.SerializerMethodField()
+    def get_dose_count(self, obj):
+        if obj.doses_required is None:
+            # nếu không cấu hình, hiểu là 1 mũi hoặc tuỳ bạn
+            return 1
+        # Giới hạn tối đa 5 mũi như FE đang hiển thị
+        return min(obj.doses_required, 5)
 
 
 class VaccineCategorySerializer(serializers.ModelSerializer):
@@ -43,6 +45,13 @@ class VaccineSerializer(serializers.ModelSerializer):
     max_months = serializers.IntegerField(read_only=True, allow_null=True)
     doses_used = serializers.IntegerField(read_only=True)
     next_dose_number = serializers.IntegerField(read_only=True)
+    
+    doses_required = serializers.IntegerField(
+        source="disease.doses_required", read_only=True
+    )
+    interval_days = serializers.IntegerField(
+        source="disease.interval_days", read_only=True
+    )
 
     class Meta:
         model = Vaccine

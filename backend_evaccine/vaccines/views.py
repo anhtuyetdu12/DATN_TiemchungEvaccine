@@ -25,7 +25,8 @@ class DiseaseViewSet(viewsets.ModelViewSet):
     queryset = Disease.objects.all()
     serializer_class = DiseaseSerializer
     permission_classes = [AllowAny]
-
+    pagination_class = None 
+    
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
@@ -142,38 +143,34 @@ class VaccineViewSet(viewsets.ModelViewSet):
             & (Q(max_months__gte=age_months) | Q(max_months__isnull=True))
         )
 
-        # --- ĐÃ TIÊM BAO NHIÊU MŨI CHO TỪNG VACCINE NÀY? ---
+        # --- ĐÃ TIÊM BAO NHIÊU MŨI CHO TỪNG bệnh NÀY? ---
         dose_subquery = (
             VaccinationRecord.objects.filter(
                 family_member=member,
-                vaccine=OuterRef("pk"),
+                vaccine__disease_id=OuterRef("disease_id"),   # nhóm theo bệnh
                 vaccination_date__isnull=False,
             )
-            .values("vaccine")
-            .order_by() 
+            .values("vaccine__disease_id")
+            .order_by()
             .annotate(c=Count("id"))
             .values("c")[:1]
         )
-
         qs = qs.annotate(
             doses_used=Coalesce(Subquery(dose_subquery), Value(0), output_field=IntegerField()),
+            disease_doses_required=F("disease__doses_required"),     # phác đồ theo bệnh
+            disease_interval_days=F("disease__interval_days"),
         )
-
-        # --- MŨI KẾ TIẾP LÀ MŨI SỐ MẤY? ---
+        # --- MŨI KẾ TIẾP LÀ MŨI SỐ MẤY? (THEO BỆNH) ---
         qs = qs.annotate(
             next_dose_number=Case(
-                When(doses_required__isnull=True, then=Value(1)),
+                When(disease_doses_required__isnull=True, then=Value(1)),
                 default=F("doses_used") + 1,
                 output_field=IntegerField(),
-            )
+            ) 
         )
-
-        # --- LOẠI BỎ VACCINE ĐÃ TIÊM ĐỦ LIỀU ---
-        qs = qs.filter(
-            Q(doses_required__isnull=True) | Q(doses_used__lt=F("doses_required"))
-        )
-
-        # --- NẾU FE GỬI THÊM dose_number THÌ LỌC THEO MŨI CỤ THỂ ---
+        # --- LOẠI BỎ CÁC VACCINE CỦA BỆNH ĐÃ TIÊM ĐỦ LIỀU ---
+        qs = qs.filter( Q(disease_doses_required__isnull=True) | Q(doses_used__lt=F("disease_doses_required")))
+        # --- NẾU FE GỬI THÊM dose_number THÌ LỌC THEO MŨI CỤ THỂ (THEO BỆNH) ---
         if dose_number and str(dose_number).isdigit():
             qs = qs.filter(next_dose_number=int(dose_number))
 

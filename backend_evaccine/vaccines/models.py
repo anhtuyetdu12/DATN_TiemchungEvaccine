@@ -14,9 +14,9 @@ class Disease(models.Model):
     cause = models.TextField("Nguyên nhân", blank=True, null=True)
     symptom = models.TextField("Triệu chứng", blank=True, null=True)
     prevention = models.TextField("Phòng ngừa", blank=True, null=True)
-    status = models.CharField(
-        "Trạng thái",
-        max_length=20,
+    doses_required = models.IntegerField("Phác đồ điều trị", default=1)
+    interval_days = models.IntegerField("Khoảng cách giữa các mũi tiêm (ngày)", blank=True, null=True)
+    status = models.CharField( "Trạng thái", max_length=20,
         choices=(("active", "Đang hoạt động"), ("inactive", "Ngừng hoạt động")),
         default="active"
     )
@@ -72,10 +72,9 @@ class Vaccine(models.Model):
     )
     unit = models.CharField("Đơn vị tính", max_length=50, choices=UNIT_CHOICES, default="liều")
     price = models.DecimalField("Giá tiền", max_digits=12, decimal_places=2, blank=True, null=True)
-    doses_required = models.IntegerField("Phác đồ điều trị", default=1)
-    interval_days = models.IntegerField("Khoảng cách giữa các mũi tiêm (ngày)", blank=True, null=True)
+
     # Khoảng tuổi áp dụng
-    min_age = models.IntegerField("Tuổi nhỏ nhất", blank=True, null=True, help_text="VD: 0 hoặc 2")
+    min_age = models.IntegerField("Tuổi nhỏ nhất", blank=True, null=True, help_text="VD: 0 hoặc 1")
     max_age = models.IntegerField("Tuổi lớn nhất", blank=True, null=True, help_text="VD: 5 hoặc 12")
     age_unit = models.CharField(
         "Đơn vị tuổi",

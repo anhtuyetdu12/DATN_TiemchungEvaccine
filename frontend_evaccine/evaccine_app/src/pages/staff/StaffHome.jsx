@@ -261,14 +261,14 @@ export default function StaffHomeDB() {
   const canceled = appointments.filter((a) => a.status === "canceled").length;
 
   /* ========= Right column (alerts demo) ========= */
-  const alerts = [
-    { color: "amber", text: "3 vắc xin sắp hết hạn", href: "/staff/vaccines?tab=expiry" },
-    { color: "rose", text: "5 nhắc lịch quá hạn", href: "/staff/notifications?filter=overdue" },
-    { color: "cyan", text: "2 khách có lưu ý dị ứng", href: "/staff/customers?tag=allergy" },
-  ];
-  const [activities, setActivities] = useState([]);
-  const pushActivity = (text) =>
-    setActivities((prev) => [{ id: Date.now(), text }, ...prev].slice(0, 12));
+  // const alerts = [
+  //   { color: "amber", text: "3 vắc xin sắp hết hạn", href: "/staff/vaccines?tab=expiry" },
+  //   { color: "rose", text: "5 nhắc lịch quá hạn", href: "/staff/notifications?filter=overdue" },
+  //   { color: "cyan", text: "2 khách có lưu ý dị ứng", href: "/staff/customers?tag=allergy" },
+  // ];
+  // const [activities, setActivities] = useState([]);
+  // const pushActivity = (text) =>
+  //   setActivities((prev) => [{ id: Date.now(), text }, ...prev].slice(0, 12));
 
   /* ========= Actions (call BE) ========= */
 
@@ -277,7 +277,7 @@ export default function StaffHomeDB() {
       await api.post(url);
       toast.success(okMsg);
       await fetchMonth();
-      pushActivity(actMsg);
+      // pushActivity(actMsg);
     } catch (e) {
       const msg = e?.response?.data?.detail || "Thao tác thất bại";
       toast.error(msg);
@@ -790,7 +790,7 @@ export default function StaffHomeDB() {
           </section>
 
           {/* Cảnh báo + hoạt động (giữ nguyên) */}
-          <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-2 tw-gap-6 tw-py-10">
+          {/* <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-2 tw-gap-6 tw-py-10">
             <section>
               <div className={`tw-rounded-2xl tw-border 
                 ${ dark ? "tw-bg-white/5 tw-border-white/10" : "tw-bg-white tw-border-gray-100 tw-shadow-sm"}`} >
@@ -844,7 +844,7 @@ export default function StaffHomeDB() {
                 </div>
               </div>
             </section>
-          </div>
+          </div> */}
         </div>
 
         {/* FAB */}

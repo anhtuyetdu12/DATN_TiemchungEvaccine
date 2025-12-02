@@ -137,7 +137,7 @@ const buildIntro = (v) => {
   return (
     <div className="tw-bg-sky-100 tw-min-h-screen  ">
       <div className="tw-max-w-[1100px] tw-mx-auto tw-px-5 tw-py-[120px]">
-        <div className="tw-flex tw-justify-start tw-mb-4">
+        <div className="tw-sticky tw-top-[90px] tw-z-20 tw-flex tw-justify-start tw-mb-4">
           <button onClick={handleBack} aria-label="Quay lại"
             className="tw-inline-flex tw-items-center tw-gap-2 tw-text-blue-600 hover:tw-text-blue-800
                       tw-bg-white tw-border tw-border-blue-200 hover:tw-border-blue-400

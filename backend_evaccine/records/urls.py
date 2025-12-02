@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from django.urls import path
 from .views import (
     FamilyMemberViewSet, VaccinationRecordViewSet, RemainingDosesView, BookingViewSet,
-    StaffCustomerListAPIView, StaffCustomerMembersAPIView,
+    StaffCustomerListAPIView, StaffCustomerMembersAPIView, MyUpdateHistoryByDiseaseAPIView,
     StaffCreateAppointmentAPIView, StaffUpdateAppointmentStatusAPIView, StaffManageMemberAPIView, 
     StaffAddHistoryAPIView, StaffListAppointmentsAPIView, StaffUpdateCustomerProfileAPIView, 
     CustomerNotificationPreviewAPIView, MyNotificationMarkReadAPIView, MyNotificationsAPIView
@@ -34,6 +34,8 @@ urlpatterns = [
     path("staff/customers/<int:user_id>/members", StaffManageMemberAPIView.as_view(), name="records-staff-members-create"),
     path("staff/customers/<int:user_id>/members/<int:member_id>", StaffManageMemberAPIView.as_view(), name="records-staff-members-manage"),
     path("staff/customers/notifications/preview", CustomerNotificationPreviewAPIView.as_view()),
+    
+    path("me/history/by-disease/", MyUpdateHistoryByDiseaseAPIView.as_view(), name="my-update-history-by-disease"),
     path("me/notifications/", MyNotificationsAPIView.as_view()),
     path("me/notifications/<int:pk>/read", MyNotificationMarkReadAPIView.as_view()),
 

@@ -2,16 +2,25 @@
 import { useState, useEffect  } from "react";
 // import { addVaccinationRecord } from "../../../../services/recordBookService";
 import { toast } from "react-toastify";
+import { updateDiseaseHistory } from "../../../../services/recordBookService";
 
-export default function UpdateDose({ disease, selectedDoseNumber = 1, initialDoses = [], onClose, onSave }) {
-   const [doses, setDoses] = useState([]);
-   const [expanded, setExpanded] = useState(false); 
+export default function UpdateDose({ disease,  memberId, selectedDoseNumber = 1, initialDoses = [], onClose, onSave }) {
+  const [doses, setDoses] = useState([]);
+  const [expanded, setExpanded] = useState(false); 
 
-   useEffect(() => {
+  useEffect(() => {
     // Nếu có dữ liệu cũ: giữ nguyên vaccine, date, location, sắp thứ tự 1..n
     const base = (Array.isArray(initialDoses) && initialDoses.length > 0)
-      ? initialDoses.map((d, idx) => ({ ...d, id: idx + 1, open: false }))
-      : [{ id: 1, date: "", vaccine: "", location: "", open: false }];
+      ? initialDoses.map((d, idx) => ({
+          id: d.id ?? idx + 1,
+          date: d.date || "",
+          vaccine: d.vaccine || "",
+          location: d.location || d.place || "",
+          open: false,
+          // nếu BE/parent truyền từ booking thì set locked = true
+          locked: !!(d.locked || d.from_booking),
+        }))
+      : [{ id: 1, date: "", vaccine: "", location: "", open: false, locked: false }];
     // Mở sẵn tab mũi được chọn (nếu trong khoảng)
     const openIndex = Math.min(Math.max(1, selectedDoseNumber), base.length) - 1;
     base[openIndex].open = true;
@@ -32,35 +41,31 @@ export default function UpdateDose({ disease, selectedDoseNumber = 1, initialDos
 
   const handleDoseChange = (index, field, value) => {
     const newDoses = [...doses];
-
-    // Nếu là field date, chặn ngày lớn hơn today (nếu today đã có)
+    //chặn ngày lớn hơn today (nếu today đã có)
     if (field === "date" && today) {
       if (value > today) {
         value = today;
       }
     }
-
     newDoses[index][field] = value;
     setDoses(newDoses);
   };
 
   // thêm mũi 
   const handleAddDose = () => {
-  const limit = disease?.maxDoses || 1;
-  if (doses.length >= limit) {
-    toast && toast.warn ? toast.warn(`Chỉ được thêm tối đa ${limit} mũi tiêm`) : void 0;
-    return;
-  }
-  setDoses(prev => [
-    ...prev,
-    { id: prev.length + 1, date: "", vaccine: "", location: "", open: true },
-  ]);
-};
-
-  const handleRemoveDose = (index) => {
-    const newDoses = doses.filter((_, i) => i !== index);
-    setDoses(newDoses);
+    const limit = disease?.doseCount || 1;     
+    if (doses.length >= limit) {
+      toast && toast.warn
+        ? toast.warn(`Chỉ được thêm tối đa ${limit} mũi tiêm`)
+        : void 0;
+      return;
+    }
+    setDoses((prev) => [
+      ...prev,
+      { id: prev.length + 1, date: "", vaccine: "", location: "", open: true },
+    ]);
   };
+
 
   const toggleOpen = (index) => {
     const newDoses = [...doses];
@@ -68,30 +73,49 @@ export default function UpdateDose({ disease, selectedDoseNumber = 1, initialDos
     setDoses(newDoses);
   };
 
-  const handleConfirm = () => {
-    console.log("Dữ liệu cập nhật:", doses);
-    if (onSave) {
-      onSave(disease.id, doses);
+  const handleConfirm = async () => {
+    try {
+      const cleaned = doses.filter((d) => {
+        // Mũi locked thì luôn giữ lại, không cho biến mất khỏi payload
+        if (d.locked) return true;
+        return (
+          (d.date && d.date.trim() !== "") ||
+          (d.vaccine && d.vaccine.trim() !== "") ||
+          (d.location && d.location.trim() !== "")
+        );
+      });
+      if (!cleaned.length) {
+        toast.warn("Vui lòng nhập ít nhất 1 mũi tiêm.");
+        return;
+      }
+      const res = await updateDiseaseHistory({
+        memberId,
+        diseaseId: disease.id,
+        doses: cleaned.map((d) => ({
+          date: d.date || "",
+          vaccine: d.vaccine || "",
+          location: d.location || "",
+          locked: !!d.locked,      // gửi luôn locked lên BE
+        })),
+      });
+      toast.success("Cập nhật lịch sử tiêm thành công!");
+      if (onSave) {
+        onSave(disease.id, res.results || cleaned);
+      }
+      onClose();
+    } catch (err) {
+      console.error("Lỗi cập nhật lịch sử tiêm:", err);
+      const msg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.doses ||
+        "Cập nhật thất bại. Vui lòng thử lại.";
+      toast.error(msg);
     }
-    onClose();
-  };
-  // dropdown chọn vacxin
-  const [openIndex, setOpenIndex] = useState(null);
-
-  const toggleDropdown = (index) => {
-    setOpenIndex(openIndex === index ? null : index);
-  };
-
-  const handleSelectVaccine = (index, value) => {
-    const newDoses = [...doses];
-    newDoses[index].vaccine = value;
-    setDoses(newDoses);
-    setOpenIndex(null);
   };
 
   return (
     <div className="tw-fixed tw-inset-0 tw-bg-black/50 tw-flex tw-items-center tw-justify-center tw-z-50 ">
-      <div className="tw-bg-white tw-rounded-2xl tw-w-full md:tw-w-[600px] tw-min-h-[400px] tw-max-h-[80vh] tw-flex tw-flex-col tw-mt-[100px]">
+      <div className="tw-bg-white tw-rounded-2xl tw-w-full md:tw-w-[600px] tw-min-h-[400px] tw-max-h-[80vh] tw-flex tw-flex-col tw-mt-[90px]">
         {/* Header */}
         <div className="tw-flex tw-items-center tw-justify-between tw-p-4 tw-border-b">
           <h2 className="tw-text-[20px] tw-font-bold">Cập nhật mũi đã tiêm</h2>
@@ -140,13 +164,14 @@ export default function UpdateDose({ disease, selectedDoseNumber = 1, initialDos
                     {index + 1}
                   </span>
                 </div>
-                <div className="tw-flex tw-items-center tw-gap-3">
-                  <button onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveDose(index);
-                    }} className="tw-text-red-600 hover:tw-text-red-700" title="Xoá mũi này">
-                     <i className="fa-solid fa-trash-can"></i>
-                  </button> 
+               <div className="tw-flex tw-items-center tw-gap-3">
+                  {!dose.locked && (
+                    <button onClick={(e) => {
+                        e.stopPropagation();  setDoses(prev => prev.filter((_, i) => i !== index));
+                      }}  className="tw-text-red-600 hover:tw-text-red-700"  title="Xoá mũi này" >
+                      <i className="fa-solid fa-trash-can"></i>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -155,44 +180,24 @@ export default function UpdateDose({ disease, selectedDoseNumber = 1, initialDos
                 <div className="tw-px-4 tw-pb-4 tw-flex tw-flex-col tw-gap-3">
                   {/* Ngày tiêm */}
                   <div className="tw-relative">
-                    <input type="date" value={dose.appointmentDate || ""}
-                      onChange={(e) => handleDoseChange(index, "appointmentDate", e.target.value)}
-                      max={today}                                   // <-- khóa không cho chọn ngày lớn hơn
+                    <input type="date" value={dose.date || ""} max={today}  disabled={dose.locked}
+                      onChange={(e) => handleDoseChange(index, "date", e.target.value)}
                       className="tw-w-full tw-border tw-rounded-lg tw-px-3 tw-py-2 pr-10 tw-border-gray-300 tw-text-gray-700
-                                hover:tw-border-[#56b6f7] hover:tw-ring-1 hover:tw-ring-[#56b6f7]
-                                focus:tw-outline-none focus:tw-border-[#1999ee] focus:tw-ring-2 focus:tw-ring-[#1999ee]/40"
-                      placeholder="Ngày tiêm (không bắt buộc)"
+                        hover:tw-border-[#56b6f7] hover:tw-ring-1 hover:tw-ring-[#56b6f7]
+                        focus:tw-outline-none focus:tw-border-[#1999ee] focus:tw-ring-2 focus:tw-ring-[#1999ee]/40
+                        disabled:tw-bg-gray-100 disabled:tw-text-gray-500"
+                      placeholder="Ngày tiêm "
                     />
                   </div>
 
                   {/* Chọn vắc xin */}
                   <div className="tw-relative">
-                    <button type="button" onClick={() => toggleDropdown(index)}
-                      className="tw-w-full tw-flex tw-justify-between tw-items-center 
-                                tw-border tw-border-gray-300 tw-rounded-lg tw-px-3 tw-py-2 tw-text-gray-700 
+                    <input  type="text" placeholder="Tên vắc xin "  value={dose.vaccine || ""}
+                      onChange={(e) => handleDoseChange(index, "vaccine", e.target.value)}
+                      className="tw-w-full tw-border tw-border-gray-300 tw-rounded-lg tw-px-3 tw-py-2 tw-text-gray-700
                                 hover:tw-border-[#56b6f7] hover:tw-ring-1 hover:tw-ring-[#56b6f7]
-                                focus:tw-outline-none focus:tw-border-[#1999ee] focus:tw-ring-2 focus:tw-ring-[#1999ee]/40" >
-                      <span>{dose.vaccine || "Chọn vắc xin (không bắt buộc)"}</span>
-                      <i className={`fa-solid ${openIndex === index ? "fa-angle-up" : "fa-angle-down"}`}></i>
-                    </button>
-
-                    {/* Dropdown list */}
-                    {openIndex === index && (
-                      <div className="tw-absolute tw-top-full tw-mt-2 tw-left-1/2 -tw-translate-x-1/2
-                                      tw-w-[95%] tw-bg-white  tw-z-10 tw-text-xl tw-space-y-0.5
-                                      tw-border tw-border-gray-300 tw-rounded-lg tw-shadow-lg tw-py-2  ">
-                        {["Vaccine A", "Vaccine B"].map((item, i) => (
-                          <div key={i} onClick={() => handleSelectVaccine(index, item)}
-                            className={`tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-cursor-pointer 
-                              ${dose.vaccine === item ? "tw-bg-[#e6f7fa]" : "hover:tw-bg-[#e6f7fa]"}`} >
-                            <span>{item}</span>
-                            {dose.vaccine === item && (
-                              <i className="fa-solid fa-check tw-text-[#1999ee]"></i>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                                focus:tw-outline-none focus:tw-border-[#1999ee] focus:tw-ring-2 focus:tw-ring-[#1999ee]/40"
+                    />
                   </div>
 
                   {/* Cơ sở tiêm */}
@@ -209,7 +214,7 @@ export default function UpdateDose({ disease, selectedDoseNumber = 1, initialDos
           ))}
 
           {/* Nút thêm mũi */}
-          {doses.length < (disease?.maxDoses || 1) && (
+          {doses.length < (disease?.doseCount || 1) && (  
             <button onClick={handleAddDose}
               className="tw-flex tw-items-center tw-gap-2 tw-text-blue-600 tw-font-semibold tw-mt-2" >
               <span className="tw-flex tw-items-center tw-text-xl tw-text-white tw-bg-blue-500 tw-w-10 tw-h-10 tw-rounded-full tw-justify-center tw-border">
