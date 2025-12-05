@@ -26,7 +26,7 @@ export default function StaffAppointments() {
   const [openStatus, setOpenStatus] = useState(false);
 
   const [detail, setDetail] = useState(null); // đối tượng booking để xem modal
-  const [confirmAction, setConfirmAction] = useState(null); // { action: 'confirm'|'cancel', item }
+  const [confirmAction, setConfirmAction] = useState(null);
   const [reactionNote, setReactionNote] = useState("");
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [completingItem, setCompletingItem] = useState(null);

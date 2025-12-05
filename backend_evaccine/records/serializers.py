@@ -3,7 +3,7 @@ from .models import FamilyMember, VaccinationRecord, Booking, BookingItem, Custo
 from vaccines.serializers import DiseaseSerializer, VaccineSerializer, VaccinePackageSerializer
 from vaccines.models import Disease, Vaccine, VaccinePackage
 from datetime import date, datetime
-from django.db.models import Q
+from django.db.models import Q, Max
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
@@ -31,35 +31,58 @@ class VaccinationRecordSerializer(serializers.ModelSerializer):
 
     vaccine = VaccineSerializer(read_only=True)
     vaccine_id = serializers.PrimaryKeyRelatedField(queryset=Vaccine.objects.all(), source="vaccine", write_only=True, required=False)
-    status_label = serializers.SerializerMethodField(read_only=True)
+    # status_label = serializers.SerializerMethodField(read_only=True)
+    status_label = serializers.SerializerMethodField()
     locked = serializers.SerializerMethodField(read_only=True)
-
+    can_delete = serializers.SerializerMethodField()
+    
     class Meta:
         model = VaccinationRecord
         fields = [
             "id", "family_member", "family_member_id",
             "disease", "disease_id", "vaccine", "vaccine_id",
             "dose_number", "vaccine_name", "vaccine_lot",
-            "vaccination_date", "next_dose_date", "note","status_label",   "locked",
+            "vaccination_date", "next_dose_date", "note","status_label",  
+            "locked", "can_delete"
         ]
+    def get_can_delete(self, obj):
+        return obj.source_booking_id is None
     
     def get_locked(self, obj):
         # mũi có source_booking là mũi từ booking → khoá xoá
         return obj.source_booking_id is not None
     
-    def get_status_label(self, obj):
+    def get_status_label(self, obj: VaccinationRecord) -> str:
+        today = timezone.now().date()
+        booking = getattr(obj, "source_booking", None)
+        # 1. Có ngày tiêm thật → Đã tiêm
         if obj.vaccination_date:
             return "Đã tiêm"
-
-        if obj.next_dose_date:
-            today = timezone.localdate()
-            if obj.next_dose_date > today:
-                return "Chờ tiêm"
-            elif obj.next_dose_date < today:
+        # 2. Có booking (mũi dự kiến từ lịch hẹn)
+        if booking:
+            is_overdue = (
+                booking.status not in ("completed", "cancelled") and
+                obj.next_dose_date is not None and
+                obj.next_dose_date < today
+            )
+            if booking.status == "cancelled":
+                return "Chưa tiêm"
+            if is_overdue:
                 return "Trễ hẹn"
-            else:
-                # đúng ngày hôm nay vẫn coi là “Chờ tiêm”
+            if booking.status in ("pending", "confirmed"):
                 return "Chờ tiêm"
+            # fallback nếu status booking lạ mà vẫn có next_dose_date
+            if obj.next_dose_date:
+                if obj.next_dose_date < today:
+                    return "Trễ hẹn"
+                return "Chờ tiêm"
+            return "Chưa tiêm"
+        # 3. Record không gắn booking → dùng thuần theo next_dose_date
+        if obj.next_dose_date:
+            if obj.next_dose_date < today:
+                return "Trễ hẹn"
+            return "Chờ tiêm"
+        # 4. Không có gì cả
         return "Chưa tiêm"
         
     def validate(self, attrs):
@@ -164,41 +187,53 @@ class BookingSerializer(serializers.ModelSerializer):
         }
         return mapping.get(obj.status, obj.status)
 
+    def _get_next_dose_number(self, member, vaccine: Vaccine | None):
+        if vaccine and vaccine.disease_id:
+            qs = VaccinationRecord.objects.filter(
+                family_member=member,
+                disease=vaccine.disease,
+            )
+        else:
+            qs = VaccinationRecord.objects.filter(
+                family_member=member,
+                vaccine=vaccine,
+            )
+
+        qs = qs.filter(
+            Q(vaccination_date__isnull=False) | Q(next_dose_date__isnull=False)
+        )
+        last = qs.aggregate(mx=Max("dose_number"))["mx"] or 0
+        return last + 1
+
     # ----------------- validate -----------------
     def validate(self, attrs):
         acting_user = self._acting_user()
         member = attrs["member"]
-
         # bắt buộc có ngày
         if not attrs.get("appointment_date"):
             raise serializers.ValidationError(
                 {"appointment_date": "Vui lòng chọn ngày hẹn tiêm."}
             )
-
-        # ✨ NEW: Ngày hẹn không được trong quá khứ
+        # Ngày hẹn không được trong quá khứ
         appt_date = attrs.get("appointment_date")
         today = timezone.localdate()
         if appt_date < today:
             raise serializers.ValidationError(
                 {"appointment_date": "Ngày hẹn phải từ hôm nay trở đi."}
             )
-
         # thành viên phải thuộc chủ
         if member.user != acting_user:
             raise serializers.ValidationError(
                 {"member_id": "Thành viên không thuộc tài khoản này."}
             )
-
         items = attrs.get("items") or []
         vaccine = attrs.get("vaccine")
         package = attrs.get("package")
-
         if not items and not vaccine and not package:
             raise serializers.ValidationError(
                 {"items": "Vui lòng chọn vắc xin hoặc gói vắc xin."}
             )
-
-        # nếu gửi items → validate như cũ
+        # ===== Validate items (nhiều vaccine) =====
         if items:
             from collections import defaultdict
             want = defaultdict(int)
@@ -233,14 +268,14 @@ class BookingSerializer(serializers.ModelSerializer):
                 if disease:
                     used = VaccinationRecord.objects.filter(
                         family_member=member,
-                        vaccine__disease=disease,
                         vaccination_date__isnull=False
+                    ).filter(
+                        Q(disease=disease) | Q(vaccine__disease=disease)
                     ).count()
                 else:
-                    # fallback theo từng vaccine
                     used = VaccinationRecord.objects.filter(
                         family_member=member,
-                        vaccine=v,
+                        vaccine=v,                 # hoặc vaccine
                         vaccination_date__isnull=False
                     ).count()
                 if used + qty > total:
@@ -251,7 +286,7 @@ class BookingSerializer(serializers.ModelSerializer):
                             f"Còn có thể đặt {remain} liều."
                         )
                     })
-        # nếu gửi 1 vaccine đơn → cũng kiểm tra vượt phác đồ
+        # ===== Validate 1 vaccine đơn (vaccine_id) =====
         if vaccine:
             disease = getattr(vaccine, "disease", None)
             total = (
@@ -262,13 +297,14 @@ class BookingSerializer(serializers.ModelSerializer):
             if disease:
                 used = VaccinationRecord.objects.filter(
                     family_member=member,
-                    vaccine__disease=disease,
                     vaccination_date__isnull=False
+                ).filter(
+                    Q(disease=disease) | Q(vaccine__disease=disease)
                 ).count()
             else:
                 used = VaccinationRecord.objects.filter(
                     family_member=member,
-                    vaccine=vaccine,
+                    vaccine=vaccine,                 
                     vaccination_date__isnull=False
                 ).count()
             if used + 1 > total:
@@ -289,7 +325,21 @@ class BookingSerializer(serializers.ModelSerializer):
                     v = Vaccine.objects.get(id=v_id)
                 except Vaccine.DoesNotExist:
                     continue
-
+                disease = getattr(v, "disease", None)
+                if disease:
+                    base_qs = VaccinationRecord.objects.filter(
+                        family_member=member,
+                        disease=disease,
+                        vaccination_date__isnull=True,
+                        next_dose_date__isnull=False,
+                    )
+                else:
+                    base_qs = VaccinationRecord.objects.filter(
+                        family_member=member,
+                        vaccine=v,
+                        vaccination_date__isnull=True,
+                        next_dose_date__isnull=False,
+                    )
                 next_planned = VaccinationRecord.objects.filter(
                     family_member=member,
                     vaccine=v,
@@ -297,6 +347,15 @@ class BookingSerializer(serializers.ModelSerializer):
                     next_dose_date__isnull=False,
                 ).order_by("next_dose_date").first()
 
+                # if next_planned and appt_date < next_planned.next_dose_date:
+                #     raise serializers.ValidationError({
+                #         "appointment_date": (
+                #             f"Vắc xin {v.name}: mũi tiếp theo theo phác đồ "
+                #             f"nên tiêm từ ngày {next_planned.next_dose_date.strftime('%d/%m/%Y')}. "
+                #             f"Vui lòng chọn ngày muộn hơn."
+                #         )
+                #     })
+                next_planned = base_qs.order_by("next_dose_date").first()
                 if next_planned and appt_date < next_planned.next_dose_date:
                     raise serializers.ValidationError({
                         "appointment_date": (
@@ -306,15 +365,41 @@ class BookingSerializer(serializers.ModelSerializer):
                         )
                     })
 
+
             # CASE: vaccine đơn (gửi vaccine_id riêng)
             if vaccine:
-                next_planned = VaccinationRecord.objects.filter(
-                    family_member=member,
-                    vaccine=vaccine,
-                    vaccination_date__isnull=True,
-                    next_dose_date__isnull=False,
-                ).order_by("next_dose_date").first()
+                disease = getattr(vaccine, "disease", None)
+                if disease:
+                    base_qs = VaccinationRecord.objects.filter(
+                        family_member=member,
+                        disease=disease,
+                        vaccination_date__isnull=True,
+                        next_dose_date__isnull=False,
+                    )
+                else:
+                    base_qs = VaccinationRecord.objects.filter(
+                        family_member=member,
+                        vaccine=vaccine,
+                        vaccination_date__isnull=True,
+                        next_dose_date__isnull=False,
+                    )
 
+                # next_planned = VaccinationRecord.objects.filter(
+                #     family_member=member,
+                #     vaccine=vaccine,
+                #     vaccination_date__isnull=True,
+                #     next_dose_date__isnull=False,
+                # ).order_by("next_dose_date").first()
+
+                # if next_planned and appt_date < next_planned.next_dose_date:
+                #     raise serializers.ValidationError({
+                #         "appointment_date": (
+                #             f"Vắc xin {vaccine.name}: mũi tiếp theo theo phác đồ "
+                #             f"nên tiêm từ ngày {next_planned.next_dose_date.strftime('%d/%m/%Y')}. "
+                #             f"Vui lòng chọn ngày muộn hơn."
+                #         )
+                #     })
+                next_planned = base_qs.order_by("next_dose_date").first()
                 if next_planned and appt_date < next_planned.next_dose_date:
                     raise serializers.ValidationError({
                         "appointment_date": (
@@ -348,6 +433,10 @@ class BookingSerializer(serializers.ModelSerializer):
                     unit_price=v.price or 0,
                 )
                 # ---- cập nhật / tạo VaccinationRecord như bạn đã làm ----
+                name_cond = Q(vaccine_name__iexact=v.name) | Q(vaccine_name__icontains=v.name)
+                if v.disease_id:
+                    name_cond |= Q(vaccine_name__icontains=v.disease.name)
+
                 overdue_qs = (
                     VaccinationRecord.objects
                     .filter(
@@ -359,11 +448,9 @@ class BookingSerializer(serializers.ModelSerializer):
                         Q(disease=v.disease)
                         | Q(vaccine=v)
                         | (
-                            Q(vaccine__isnull=True) & Q(disease__isnull=True) & (
-                                Q(vaccine_name__iexact=v.name)
-                                | Q(vaccine_name__icontains=v.name)
-                                | (v.disease and Q(vaccine_name__icontains=v.disease.name))
-                            )
+                            Q(vaccine__isnull=True)
+                            & Q(disease__isnull=True)
+                            & name_cond
                         )
                     )
                     .order_by("next_dose_date")
@@ -380,21 +467,21 @@ class BookingSerializer(serializers.ModelSerializer):
                         target.vaccine = v
                         update_fields.append("vaccine")
                     target.save(update_fields=update_fields)
-
                     overdue_qs.exclude(id=target.id).update(next_dose_date=None, note="")
                 else:
-                    current = VaccinationRecord.objects.filter(
-                        family_member=booking.member,
-                        vaccine=v,
-                    ).filter(
-                        Q(vaccination_date__isnull=False) | Q(next_dose_date__isnull=False)
-                    ).count()
+                    # current = VaccinationRecord.objects.filter(
+                    #     family_member=booking.member,
+                    #     vaccine=v,
+                    # ).filter(
+                    #     Q(vaccination_date__isnull=False) | Q(next_dose_date__isnull=False)
+                    # ).count()
+                    dose_number = self._get_next_dose_number(booking.member, v)
 
                     VaccinationRecord.objects.create(
                         family_member=booking.member,
                         disease=v.disease,
                         vaccine=v,
-                        dose_number=current + 1,
+                        dose_number=dose_number,
                         vaccination_date=None,
                         next_dose_date=booking.appointment_date,
                         note=f"Đặt lại lịch #{booking.id}",
@@ -410,6 +497,10 @@ class BookingSerializer(serializers.ModelSerializer):
                 unit_price=vaccine.price or 0,
             )
             # cập nhật mũi trễ / tạo mới giống trên
+            name_cond = Q(vaccine_name__iexact=vaccine.name) | Q(vaccine_name__icontains=vaccine.name)
+            if vaccine.disease_id:
+                name_cond |= Q(vaccine_name__icontains=vaccine.disease.name)
+
             overdue_qs = (
                 VaccinationRecord.objects
                 .filter(
@@ -421,11 +512,9 @@ class BookingSerializer(serializers.ModelSerializer):
                     Q(disease=vaccine.disease)
                     | Q(vaccine=vaccine)
                     | (
-                        Q(vaccine__isnull=True) & Q(disease__isnull=True) & (
-                            Q(vaccine_name__iexact=vaccine.name)
-                            | Q(vaccine_name__icontains=vaccine.name)
-                            | (vaccine.disease and Q(vaccine_name__icontains=vaccine.disease.name))
-                        )
+                        Q(vaccine__isnull=True)
+                        & Q(disease__isnull=True)
+                        & name_cond
                     )
                 )
                 .order_by("next_dose_date")
@@ -444,24 +533,19 @@ class BookingSerializer(serializers.ModelSerializer):
                 target.save(update_fields=update_fields)
                 overdue_qs.exclude(id=target.id).update(next_dose_date=None, note="")
             else:
-                current = VaccinationRecord.objects.filter(
-                    family_member=booking.member,
-                    vaccine=vaccine,
-                ).filter(
-                    Q(vaccination_date__isnull=False) | Q(next_dose_date__isnull=False)
-                ).count()
-
+                dose_number = self._get_next_dose_number(booking.member, vaccine)
                 VaccinationRecord.objects.create(
                     family_member=booking.member,
                     disease=vaccine.disease,
                     vaccine=vaccine,
-                    dose_number=current + 1,
+                    dose_number=dose_number,
                     vaccination_date=None,
                     next_dose_date=booking.appointment_date,
                     note=f"Đặt lại lịch #{booking.id}",
                     source_booking=booking,
                 )
             return booking
+
         # ===== CASE 3: package =====
         return booking
     
@@ -493,7 +577,9 @@ class HistorySlimSerializer(serializers.Serializer):
     note = serializers.CharField(required=False, allow_blank=True)
     batch = serializers.CharField(required=False, allow_blank=True)
     status_label = serializers.CharField(required=False, default="Đã tiêm")
-
+    locked = serializers.BooleanField(required=False, default=False)
+    can_delete = serializers.BooleanField(required=False, default=True)
+    
 
 class CustomerListSerializer(serializers.Serializer):
     id = serializers.IntegerField()
@@ -562,7 +648,7 @@ class MyUpdateHistoryByDiseaseInSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         request = self.context["request"]
-        user = request.user
+        user = request.user 
         member_id = attrs["member_id"]
         disease_id = attrs["disease_id"]
 

@@ -7,12 +7,16 @@ export async function getVaccineBySlug(slug) {
   return data; // có: name, disease{name}, price, formatted_price, image, origin,...
 }
 
-/** Nếu bạn lưu ID thay vì slug */
+/** Nếu  lưu ID thay vì slug */
+// export async function getVaccinesByIds(ids = []) {
+//   const { data } = await api.get(`/vaccines/vaccines/?ids=${ids.join(",")}`);
+//   return data;
+// }
 export async function getVaccinesByIds(ids = []) {
-  const { data } = await api.get(`/vaccines/vaccines/?ids=${ids.join(",")}`);
+  const { data } = await api.get(`/vaccines/vaccines/by-ids/?ids=${ids.join(",")}`);
   return data;
 }
-/** ⬇️ NEW: Lấy chi tiết 1 gói theo slug
+/**  Lấy chi tiết 1 gói theo slug
  * BE đã có router "packages" với lookup theo slug → /api/packages/{slug}/
  */
 export async function getPackageBySlug(slug) {
@@ -41,7 +45,7 @@ export async function getAllVaccines(params = {}) {
   return all;
 }
 
-/** ⬇️ LẤY TOÀN BỘ DISEASES (có dose_count) */
+/**  LẤY TOÀN BỘ DISEASES (có dose_count) */
 export async function getAllDiseases() {
   const { data } = await api.get("/vaccines/diseases/");
   const list = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];

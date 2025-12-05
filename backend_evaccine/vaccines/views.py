@@ -10,7 +10,6 @@ from io import BytesIO
 from openpyxl import Workbook
 from inventory.models import VaccineStockLot
 from datetime import date
-
 from .models import Disease, VaccineCategory, Vaccine, VaccinePackage, VaccinePackageGroup
 from .serializers import (
     DiseaseSerializer, VaccineCategorySerializer,
@@ -19,7 +18,7 @@ from .serializers import (
 from records.models import FamilyMember, VaccinationRecord
 from records.serializers import BookingSerializer  
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
-
+from records.views import create_planned_records_for_booking
 
 class DiseaseViewSet(viewsets.ModelViewSet):
     queryset = Disease.objects.all()
@@ -42,12 +41,11 @@ class VaccineCategoryViewSet(viewsets.ModelViewSet):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
         return ctx
-
-
+ 
 class VaccineViewSet(viewsets.ModelViewSet):
     queryset = Vaccine.objects.all().select_related("disease", "category").order_by("-created_at")
     serializer_class = VaccineSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]  # 👈 an toàn hơn AllowAny
+    permission_classes = [IsAuthenticatedOrReadOnly]  #  an toàn hơn AllowAny
     filterset_fields = ["id", "slug", "status", "disease", "category"]
 
     lookup_field = "slug"
@@ -145,12 +143,16 @@ class VaccineViewSet(viewsets.ModelViewSet):
 
         # --- ĐÃ TIÊM BAO NHIÊU MŨI CHO TỪNG bệnh NÀY? ---
         dose_subquery = (
-            VaccinationRecord.objects.filter(
+            VaccinationRecord.objects
+            .filter(
                 family_member=member,
-                vaccine__disease_id=OuterRef("disease_id"),   # nhóm theo bệnh
                 vaccination_date__isnull=False,
             )
-            .values("vaccine__disease_id")
+            .filter(
+                Q(disease_id=OuterRef("disease_id")) |
+                Q(vaccine__disease_id=OuterRef("disease_id"))
+            )
+            .values("disease_id")
             .order_by()
             .annotate(c=Count("id"))
             .values("c")[:1]
@@ -168,8 +170,6 @@ class VaccineViewSet(viewsets.ModelViewSet):
                 output_field=IntegerField(),
             ) 
         )
-        # --- LOẠI BỎ CÁC VACCINE CỦA BỆNH ĐÃ TIÊM ĐỦ LIỀU ---
-        qs = qs.filter( Q(disease_doses_required__isnull=True) | Q(doses_used__lt=F("disease_doses_required")))
         # --- NẾU FE GỬI THÊM dose_number THÌ LỌC THEO MŨI CỤ THỂ (THEO BỆNH) ---
         if dose_number and str(dose_number).isdigit():
             qs = qs.filter(next_dose_number=int(dose_number))
@@ -206,6 +206,7 @@ class VaccineViewSet(viewsets.ModelViewSet):
         ser = BookingSerializer(data=payload, context={"request": request})
         ser.is_valid(raise_exception=True)
         booking = ser.save()
+        create_planned_records_for_booking(booking)
         return Response(BookingSerializer(booking, context={"request": request}).data, status=201)
 
     # ======  đặt nhiều vaccine cùng lúc (giỏ) ======
@@ -234,6 +235,7 @@ class VaccineViewSet(viewsets.ModelViewSet):
         )
         ser.is_valid(raise_exception=True)
         booking = ser.save()
+        create_planned_records_for_booking(booking)
         return Response(BookingSerializer(booking, context={"request": request}).data, status=201)
 
     

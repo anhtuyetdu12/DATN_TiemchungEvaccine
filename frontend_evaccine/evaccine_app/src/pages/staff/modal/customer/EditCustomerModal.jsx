@@ -45,11 +45,15 @@ export default function EditCustomerModal({
   const [detailTab, setDetailTab] = useState("info");
   const [newVaccineRecord, setNewVaccineRecord] = useState({
     date: "",
-    disease: "",   
-    vaccine: "",   
-    dose: "",      
-    price: "",     
+    memberId: "",
+    diseaseId: "",   
+    disease: "",    
+    vaccine: "",    
+    dose: "",        
+    maxDose: 5,  
+    price: "",
     batch: "",
+    place: "",
     note: "",
   });
   const [ageFiltered, setAgeFiltered] = useState({
@@ -64,6 +68,8 @@ export default function EditCustomerModal({
   const membersList = useMemo(() => customer?.members ?? [], [customer?.members]);
   const appointmentsList = useMemo(() => customer?.appointments ?? [], [customer?.appointments]);
   const historyList = useMemo(() => customer?.history ?? [], [customer?.history]);
+
+
 
   // Options chọn người tiêm (owner + members)
   const memberSelectOptions = useMemo(() => {
@@ -96,10 +102,12 @@ export default function EditCustomerModal({
     );
     setNewAppointment((prev) => ({ ...prev, total: sum }));
   }, [newAppointment.items]);
-  // Chon ng tiêm => vc theo tuổi
+
+  // Ưu tiên member đang chọn ở Lịch sử tiêm, nếu không có thì lấy ở Lịch hẹn
+  const memberIdForAge = newVaccineRecord.memberId || newAppointment.memberId;
+
   useEffect(() => {
-    // Nếu chưa chọn người tiêm thì reset
-    if (!newAppointment.memberId) {
+    if (!memberIdForAge) {
       setAgeFiltered({
         loading: false,
         memberId: "",
@@ -108,20 +116,21 @@ export default function EditCustomerModal({
       });
       return;
     }
+
     let cancelled = false;
+
     (async () => {
       try {
-        setAgeFiltered((prev) => ({
+        setAgeFiltered(prev => ({
           ...prev,
           loading: true,
-          memberId: newAppointment.memberId,
+          memberId: memberIdForAge,
         }));
-        // gọi BE: /vaccines/by-age/?member_id=...
-        const data = await getVaccinesByAge(newAppointment.memberId);
+        const data = await getVaccinesByAge(memberIdForAge);
         if (cancelled) return;
         setAgeFiltered({
           loading: false,
-          memberId: newAppointment.memberId,
+          memberId: memberIdForAge,
           ageText: data.age_text || "",
           vaccines: data.vaccines || [],
         });
@@ -130,16 +139,20 @@ export default function EditCustomerModal({
         if (!cancelled) {
           setAgeFiltered({
             loading: false,
-            memberId: newAppointment.memberId,
+            memberId: memberIdForAge,
             ageText: "",
             vaccines: [],
           });
         }
-        toast.error( e?.response?.data?.error || "Không lấy được danh sách vắc xin phù hợp độ tuổi" );
+        toast.error(
+          e?.response?.data?.error ||
+            "Không lấy được danh sách vắc xin phù hợp độ tuổi"
+        );
       }
     })();
-    return () => { cancelled = true;};
-  }, [newAppointment.memberId]);
+
+    return () => { cancelled = true; };
+  }, [memberIdForAge]);
 
 
   // Đồng bộ form khi customer thay đổi
@@ -178,7 +191,7 @@ export default function EditCustomerModal({
     return () => { mounted = false; };
   }, [show]);
 
-  // 👉 LẤY DS BỆNH (TOÀN BỘ)
+  // LẤY DS BỆNH (TOÀN BỘ)
   const diseaseOptions = useMemo(() => {
     return (diseasesDb || []).map((d) => ({
       value: String(d.id),
@@ -186,15 +199,16 @@ export default function EditCustomerModal({
     }));
   }, [diseasesDb]);
 
-  // 👉 BỆNH ĐÃ LỌC THEO ĐỘ TUỔI (DÙNG TRONG FORM TẠO LỊCH)
+  // BỆNH ĐÃ LỌC THEO ĐỘ TUỔI (DÙNG TRONG FORM TẠO LỊCH)
   const ageDiseaseOptions = useMemo(() => {
-    // Nếu chưa có dữ liệu theo tuổi -> dùng full diseaseOptions cũ
-    if (!ageFiltered.memberId || !ageFiltered.vaccines.length) {
+    // Chưa chọn người tiêm → dùng full danh sách
+    if (!ageFiltered.memberId) {
       return diseaseOptions;
     }
 
+    // ĐÃ chọn người tiêm:
     const map = new Map();
-    ageFiltered.vaccines.forEach((v) => {
+    (ageFiltered.vaccines || []).forEach((v) => {
       if (v.disease && v.disease.id && !map.has(v.disease.id)) {
         map.set(v.disease.id, {
           value: String(v.disease.id),
@@ -203,10 +217,10 @@ export default function EditCustomerModal({
       }
     });
 
-    const arr = Array.from(map.values());
-    // Nếu vì lý do gì đó không suy được bệnh thì fallback về cũ
-    return arr.length ? arr : diseaseOptions;
+    // Nếu API trả rỗng → không có bệnh nào phù hợp → return []
+    return Array.from(map.values());
   }, [ageFiltered, diseaseOptions]);
+
 
   const mapCodeToLabel = (c) => String(c).toLowerCase() === "male" ? "Nam" : String(c).toLowerCase() === "female" ? "Nữ" : "Khác";
 
@@ -736,7 +750,7 @@ export default function EditCustomerModal({
   // ---------------- Render ----------------
   return (
     <div className="tw-fixed tw-inset-0 tw-flex tw-items-start tw-justify-center tw-pt-24 tw-bg-black/40">
-      <div className="tw-bg-white tw-w-[700px] tw-h-[450px] tw-rounded-xl tw-shadow-xl tw-flex tw-flex-col tw-mt-[50px]">
+      <div className="tw-bg-white tw-w-[700px] tw-h-[460px] tw-rounded-xl tw-shadow-xl tw-flex tw-flex-col tw-mt-[50px]">
         <div className="tw-flex tw-justify-between tw-items-center tw-p-4 tw-border-b">
           <div>
             <h3 className="tw-text-xl tw-font-semibold">Hồ sơ: {customer.name}</h3>
@@ -1158,17 +1172,25 @@ export default function EditCustomerModal({
                         const showNextSuggestion = nextDoseDateFormatted && usedDoses != null && usedDoses > 0;
                         //  TÍNH DS VACCINE CHO ITEM NÀY
                         const vaccinesForItem =
-                          ageFiltered.memberId === newAppointment.memberId &&
-                          ageFiltered.vaccines.length
-                            ? ( it.diseaseId
-                                  ? ageFiltered.vaccines.filter(
-                                      (v) => String(v.disease?.id) === String(it.diseaseId)
-                                    )
-                                  : ageFiltered.vaccines
-                              )
-                            : it.diseaseId
-                            ? vaccinesByDiseaseId(it.diseaseId)
-                            : vaccinesDb;
+                          ageFiltered.memberId === newAppointment.memberId
+                          ? (
+                          // ĐÃ có data theo tuổi (kể cả rỗng)
+                            ageFiltered.vaccines.length
+                              ? (
+                                  it.diseaseId
+                                    ? ageFiltered.vaccines.filter(
+                                        (v) => String(v.disease?.id) === String(it.diseaseId)
+                                      )
+                                    : ageFiltered.vaccines
+                                )
+                              : [] // API nói "0 vaccine phù hợp" → tôn trọng, không fallback
+                          )
+                        : (
+                            // CHƯA có data theo tuổi (chưa chọn member, hoặc effect chưa chạy)
+                            it.diseaseId
+                              ? vaccinesByDiseaseId(it.diseaseId)
+                              : vaccinesDb
+                          );
 
                         return (
                           <div key={idx} className="tw-rounded-xl tw-border tw-bg-[#ffefe5] tw-shadow-sm tw-ring-1 tw-ring-gray-100 tw-p-4 tw-text-left" >
@@ -1271,7 +1293,7 @@ export default function EditCustomerModal({
                                             vaccineName: "",
                                             price: "",
                                             doseQty: 1,
-                                            maxDoseByRecord: 1,
+                                            maxDoseByRecord: 0,
                                             protocolInfo: info || null,
                                             nextDoseDate: info?.next_dose_date || null,
                                             doseWarn: false,
@@ -1379,18 +1401,30 @@ export default function EditCustomerModal({
                                             {usedDoses != null && remainingByRecord != null ? ", " : "."}
                                           </>
                                         )}
-
                                         {usedDoses != null &&
                                           totalProtocolDoses != null &&
                                           remainingByRecord != null && (
                                             <>
                                               {" "}
-                                              Khách đã tiêm{" "}
-                                              <span className="tw-font-semibold"> {usedDoses}/{totalProtocolDoses} mũi </span>
-                                              , còn lại{" "}
-                                              <span className="tw-font-semibold"> {remainingByRecord} mũi chưa tiêm. </span>
+                                              {remainingByRecord <= 0 || usedDoses >= totalProtocolDoses ? (
+                                                // ĐÃ ĐỦ PHÁC ĐỒ
+                                                <>
+                                                  Khách hàng đã tiêm{" "}
+                                                  <span className="tw-font-semibold"> {usedDoses}/{totalProtocolDoses} mũi</span>{" "}
+                                                  và đã <span className="tw-font-semibold">hoàn thành phác đồ tiêm.</span>
+                                                </>
+                                              ) : (
+                                                // CHƯA ĐỦ PHÁC ĐỒ
+                                                <>
+                                                  Khách hàng đã tiêm{" "}
+                                                  <span className="tw-font-semibold"> {usedDoses}/{totalProtocolDoses} mũi </span>
+                                                  , còn lại{" "}
+                                                  <span className="tw-font-semibold"> {remainingByRecord} mũi chưa tiêm.</span>
+                                                </>
+                                              )}
                                             </>
                                           )}
+
                                       </p>
                                      {showNextSuggestion && (
                                         <p className="tw-text-[10px] tw-text-amber-700">
@@ -1505,10 +1539,29 @@ export default function EditCustomerModal({
                     {/* Người tiêm */}
                     <div className="tw-flex tw-flex-col">
                       <label className="tw-text-lg tw-font-medium tw-mb-2">Người tiêm</label>
-                      <Dropdown value={newVaccineRecord.memberId} options={memberSelectOptions}
-                        onChange={(val) =>setNewVaccineRecord((s) => ({ ...s, memberId: val }))}
+                      <Dropdown
+                        value={newVaccineRecord.memberId}
+                        options={memberSelectOptions}
+                        onChange={(val) =>
+                          setNewVaccineRecord((s) => ({ ...s, memberId: val }))
+                        }
                         className="tw-text-lg"
                       />
+                      {newVaccineRecord.memberId &&
+                        !!ageFiltered.ageText &&
+                        ageFiltered.memberId === newVaccineRecord.memberId && (
+                          <div className="tw-text-sm tw-text-pink-700 tw-mt-1">
+                            Tuổi hiện tại:{" "}
+                            <span className="tw-font-semibold">{ageFiltered.ageText}</span>. Danh
+                            sách phòng bệnh bên dưới đã được lọc theo độ tuổi.
+                          </div>
+                      )}
+                      {ageFiltered.loading &&
+                        ageFiltered.memberId === newVaccineRecord.memberId && (
+                          <div className="tw-text-xs tw-text-gray-400 tw-mt-1">
+                            Đang tính toán bệnh / vắc xin phù hợp theo tuổi...
+                          </div>
+                      )}
                     </div>
 
                     {/* Ngày tiêm */}
@@ -1524,10 +1577,68 @@ export default function EditCustomerModal({
                     {/* Phòng bệnh */}
                     <div className="tw-flex tw-flex-col">
                       <label className="tw-text-lg tw-font-medium tw-mb-2">Phòng bệnh</label>
-                      <input value={newVaccineRecord.disease || ""}   placeholder="VD: Cúm, Viêm gan B..."
+                      {/* <input value={newVaccineRecord.disease || ""}   placeholder="VD: Cúm, Viêm gan B..."
                           onChange={(e) => setNewVaccineRecord(s => ({ ...s, disease: e.target.value }))}
                           className="tw-border tw-rounded-lg tw-px-3 tw-py-2 tw-h-[35px] tw-text-lg focus:tw-outline-none  focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
+                        /> */}
+                       <Dropdown
+                          disabled={!newVaccineRecord.memberId || loadingDicts}
+                          value={newVaccineRecord.diseaseId}
+                          options={ageDiseaseOptions}
+                          onChange={(val) => {
+                            const diseaseLabel =  ageDiseaseOptions.find((d) => d.value === String(val))?.label ||  "";
+                            const relatedVaccines = vaccinesByDiseaseId(val);
+                            const maxDoseByProtocol = relatedVaccines.length
+                              ? relatedVaccines.reduce(
+                                  (max, v) =>
+                                    Math.max( max, Number(  v.doses_required != null ? v.doses_required : 1 ) ), 1
+                                ) : 5;
+
+                            let suggestedDose = "";
+                            if (newVaccineRecord.memberId) {
+                              const historySame = historyList.filter((h) => {
+                                const mid = h.member_id;
+                                const dId =
+                                  h.disease_id ??
+                                  (h.disease && h.disease.id != null ? h.disease.id : null);
+                                return (
+                                  String(mid || "") === String(newVaccineRecord.memberId) &&
+                                  String(dId || "") === String(val)
+                                );
+                              });
+                              const maxUsedDose = historySame.reduce(
+                                (max, h) => Math.max(max, Number(h.dose || 0)),
+                                0
+                              );
+                              if (maxUsedDose < maxDoseByProtocol && maxUsedDose >= 0) {
+                                suggestedDose = String(maxUsedDose + 1);
+                              }
+                            }
+                            setNewVaccineRecord((s) => ({
+                              ...s,
+                              diseaseId: val,
+                              disease: diseaseLabel,
+                              maxDose: maxDoseByProtocol,
+                              dose: suggestedDose || "",
+                            }));
+                          }}
+                          className="tw-text-lg"
                         />
+
+                        {loadingDicts && (
+                          <div className="tw-text-xs tw-text-gray-400 tw-mt-1">
+                            Đang tải danh mục…
+                          </div>
+                        )}
+
+                        {newVaccineRecord.memberId &&
+                          ageFiltered.memberId === newVaccineRecord.memberId &&
+                          !ageFiltered.loading &&
+                          !ageFiltered.vaccines.length && (
+                            <div className="tw-text-xs tw-text-red-500 tw-mt-1">
+                              Không tìm thấy phòng bệnh / vắc xin phù hợp với độ tuổi của người tiêm.
+                            </div>
+                        )}
                     </div>
 
                     {/* Vắc xin */}
@@ -1542,13 +1653,18 @@ export default function EditCustomerModal({
                     {/* Mũi thứ */}
                     <div className="tw-flex tw-flex-col">
                       <label className="tw-text-lg tw-font-medium tw-mb-2">Mũi thứ</label>
-                      <Dropdown value={String(newVaccineRecord.dose || "")}
-                          onChange={(val) => setNewVaccineRecord((s) => ({ ...s, dose: val }))}
-                          options={Array.from({ length: Math.max(1, newVaccineRecord.maxDose || 5) }, (_, i) => ({
+                     <Dropdown
+                        value={String(newVaccineRecord.dose || "")}
+                        onChange={(val) => setNewVaccineRecord((s) => ({ ...s, dose: val }))}
+                        options={Array.from(
+                          { length: Math.max(1, newVaccineRecord.maxDose || 5) },
+                          (_, i) => ({
                             value: String(i + 1),
                             label: `Mũi ${i + 1}`,
-                          }))} className="tw-text-lg"
-                        />
+                          })
+                        )}
+                        className="tw-text-lg"
+                      />
                     </div>
                    
                     {/* Cơ sở tiêm */}
@@ -1577,6 +1693,7 @@ export default function EditCustomerModal({
                       onClick={async () => {
                         if (!newVaccineRecord.memberId) return toast.error("Chọn người tiêm");
                         if (!newVaccineRecord.date) return toast.error("Chọn ngày tiêm");
+                        if (!newVaccineRecord.diseaseId) return toast.error("Chọn phòng bệnh");
                         if (!newVaccineRecord.vaccine) return toast.error("Nhập tên vắc xin");
                         // Chuẩn hoá member_id: nếu chọn "owner:ID" thì bạn có thể để BE hiểu là owner
                         const isOwner = String(newVaccineRecord.memberId).startsWith("owner:");
@@ -1584,7 +1701,8 @@ export default function EditCustomerModal({
                         const rec = {
                           member_id,                       
                           date: newVaccineRecord.date,
-                          disease: newVaccineRecord.disease || "",  
+                          disease_id: newVaccineRecord.diseaseId ? Number(newVaccineRecord.diseaseId)  : null,
+                          disease: newVaccineRecord.disease || "",
                           vaccine: newVaccineRecord.vaccine,
                           dose: newVaccineRecord.dose ? Number(newVaccineRecord.dose) : null,
                           price: newVaccineRecord.price ? Number(newVaccineRecord.price) : null,
@@ -1616,10 +1734,11 @@ export default function EditCustomerModal({
                           setNewVaccineRecord({
                             date: "",
                             memberId: "",
+                            diseaseId: "",
                             disease: "",
-                            vaccineId: "",
                             vaccine: "",
                             dose: "",
+                            maxDose: 5,
                             price: "",
                             place: "",
                             note: "",

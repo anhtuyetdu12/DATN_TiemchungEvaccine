@@ -1,0 +1,105 @@
+# ===============================
+#          GLOBAL IGNORE
+# ===============================
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+*.env
+!env.example
+
+# Python virtual environment
+venv/
+env/
+ENV/
+.env.backup
+
+# Database files
+*.sqlite3
+*.db
+*.mdf
+*.ldf
+
+# Logs
+*.log
+logs/
+*/logs/
+
+# Media uploads
+media/
+*/media/
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# ===============================
+#          BACKEND (Django)
+# ===============================
+
+__pycache__/
+*/__pycache__/
+*.pyc
+*.pyo
+
+# Django static files
+staticfiles/
+*/staticfiles/
+
+# Local settings (nếu có)
+settings_local.py
+
+# Migrations caches
+*/migrations/__pycache__/
+*/migrations/*.pyc
+
+# ===============================
+#        FRONTEND (React)
+# ===============================
+
+# Node modules
+node_modules/
+*/node_modules/
+
+# Build output
+build/
+*/build/
+
+# Environment
+.env.local
+.env.development
+.env.development.local
+.env.production
+.env.production.local
+.env.test
+.env.test.local
+
+# Cache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp
+.pnp.js
+
+# ===============================
+#        PROJECT ARCHIVES
+# ===============================
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# ===============================
+#       SPECIAL FOLDERS
+# ===============================
+
+# Ignore exported DB files
+data_*.sql
+backup/
+dump/
+

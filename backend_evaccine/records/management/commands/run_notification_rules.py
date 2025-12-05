@@ -22,7 +22,7 @@ def ensure_default_rules():
     """
 
     # Giờ mặc định chạy (có thể chỉnh trong Admin sau)
-    DEFAULT_HOUR = 8
+    DEFAULT_HOUR = 0
     DEFAULT_MINUTE = 0
 
     # Danh sách rule mặc định

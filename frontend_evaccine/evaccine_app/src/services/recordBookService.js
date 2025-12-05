@@ -28,9 +28,9 @@ const adaptMember = (m) => ({
 
 const adaptRecord = (r) => ({
   id: r.id,
-  disease: r.disease,             
+  disease: r.disease,
   disease_id: r.disease?.id ?? r.disease_id ?? null,
-  vaccine: r.vaccine,             
+  vaccine: r.vaccine,
   vaccine_name: r.vaccine?.name || r.vaccine_name || "",
   vaccine_lot: r.vaccine_lot || "",
   dose_number: r.dose_number ?? null,
@@ -38,8 +38,10 @@ const adaptRecord = (r) => ({
   next_dose_date: r.next_dose_date || null,
   note: r.note || "",
   status_label: r.status_label || null,
-  locked: !!r.locked,
+  from_booking: !!r.from_booking,            
+  locked: !!(r.locked || r.from_booking),        
 });
+
 
 // --- Services ---
 export const getDiseases = async () => {
@@ -52,11 +54,31 @@ export const getFamilyMembers = async () => {
   return pickList(data).map(adaptMember);
 };
 
+// export const getVaccinationRecords = async (memberId) => {
+//   const { data } = await api.get("/records/vaccinations/", {
+//     params: memberId ? { member_id: memberId } : {},
+//   });
+//   return pickList(data).map(adaptRecord);
+// };
 export const getVaccinationRecords = async (memberId) => {
-  const { data } = await api.get("/records/vaccinations/", {
-    params: memberId ? { member_id: memberId } : {},
-  });
-  return pickList(data).map(adaptRecord);
+  let url = "/records/vaccinations/";
+  const all = [];
+  let firstCall = true;
+  const params = memberId ? { member_id: memberId } : {};
+
+  while (url) {
+    const { data } = await api.get(
+      url,
+      firstCall ? { params } : undefined
+    );
+
+    all.push(...pickList(data));
+
+    url = Array.isArray(data) ? null : data?.next || null;
+    firstCall = false;
+  }
+
+  return all.map(adaptRecord);
 };
 
 export const getVaccinesByAge = async (memberId, diseaseId, doseNumber) => {

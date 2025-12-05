@@ -84,7 +84,7 @@ export default function StaffNavBar({ user, setUser }) {
           <div className="tw-flex tw-justify-between tw-items-center tw-mx-auto tw-px-[40px]">
             {/* Logo */}
             <div className="tw-flex tw-items-center">
-              <Link  to="/" className="tw-text-[#1a237e] tw-font-bold tw-text-[24px] tw-no-underline tw-flex tw-items-center" >
+              <Link  to="/staff/home" className="tw-text-[#1a237e] tw-font-bold tw-text-[24px] tw-no-underline tw-flex tw-items-center" >
                 <i className="fa fa-medkit tw-text-[#1a237e] tw-mr-2"></i> E-Vaccine
               </Link>
             </div>

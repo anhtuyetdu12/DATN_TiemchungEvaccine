@@ -429,7 +429,7 @@ def send_auto_notifications(
                         "vaccines": [vaccine_name] if vaccine_name else [],
                         "diseases": [disease_name] if disease_name else [],
                         "price": price_val,
-                        "vaccine_details": [  # 👈 FE dùng để render chi tiết
+                        "vaccine_details": [  
                             {
                                 "vaccine_name": vaccine_name,
                                 "disease_name": disease_name,
