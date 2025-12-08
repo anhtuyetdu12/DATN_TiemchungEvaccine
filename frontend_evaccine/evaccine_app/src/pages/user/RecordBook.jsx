@@ -124,8 +124,7 @@ const buildVaccinationMap = (records) => {
       rec?.disease?.id ??
       rec?.disease_id ??
       rec?.vaccine?.disease?.id ??
-      rec?.vaccine_name ??
-      "";
+      null; 
 
     if (!diseaseId) return;
 
@@ -452,7 +451,7 @@ export default function RecordBook() {
                 null;
 
                 merged.push({
-                id: did,
+                id: Number(did),
                 name: recForDisease?.disease?.name || "Phòng bệnh khác",
                 // nếu chưa cấu hình phác đồ thì mới fallback đếm record
                 doseCount: dosesRequired
@@ -547,7 +546,7 @@ export default function RecordBook() {
         try {
             await updateDiseaseHistory({
             memberId,
-            diseaseId,
+            diseaseId: Number(diseaseId), 
             doses: newDoses.map((d) => ({
                 date: d.date ? toYMD(d.date) : "",
                 appointmentDate: d.appointmentDate ? toYMD(d.appointmentDate) : "",

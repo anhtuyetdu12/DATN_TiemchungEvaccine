@@ -381,13 +381,7 @@ export default function BookingForm() {
       location: null,
       notes: notesEl?.value || "",
     };
-
-    if (items.length === 1 && (items[0].qty || 1) === 1) {
-      payload.vaccine_id = items[0].id;
-    } else {
-      payload.items = itemsPayload;
-    }
-
+    payload.items = itemsPayload; 
     try {
       await createBooking(payload);
       clearBooking();
@@ -509,12 +503,26 @@ export default function BookingForm() {
 
                <SelectCustomerModal
                    open={openModal} onClose={() => setOpenModal(false)}
-                    customers={customers} onSelect={(c) => {   
-                      setSelectedCustomer(c);   setOpenModal(false);   
-                      const u = new URL(window.location.href);   
-                      u.searchParams.set("member", String(c.id));   
-                      window.history.replaceState({}, "", u); 
-                    }}
+                    customers={customers} onSelect={(c) => {
+                    // 1. đổi người tiêm
+                    setSelectedCustomer(c);
+                    setOpenModal(false);
+                    // 2. reset trạng thái vaccine theo người tiêm mới
+                    setItems(prev =>
+                      prev.map(it => ({
+                        ...it,
+                        maxDoses: undefined,    
+                        note: "",               
+                        nextDoseDate: null,      
+                        ageEligible: undefined,  
+                        localWarning: undefined,
+                      }))
+                    );
+                    // 3. cập nhật URL (?member=...)
+                    const u = new URL(window.location.href);
+                    u.searchParams.set("member", String(c.id));
+                    window.history.replaceState({}, "", u);
+                  }}
                 />
 
               {/* Vaccines */}

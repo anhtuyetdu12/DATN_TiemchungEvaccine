@@ -54,12 +54,6 @@ export const getFamilyMembers = async () => {
   return pickList(data).map(adaptMember);
 };
 
-// export const getVaccinationRecords = async (memberId) => {
-//   const { data } = await api.get("/records/vaccinations/", {
-//     params: memberId ? { member_id: memberId } : {},
-//   });
-//   return pickList(data).map(adaptRecord);
-// };
 export const getVaccinationRecords = async (memberId) => {
   let url = "/records/vaccinations/";
   const all = [];

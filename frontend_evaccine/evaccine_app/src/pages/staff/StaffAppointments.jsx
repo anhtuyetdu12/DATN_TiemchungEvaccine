@@ -31,11 +31,14 @@ export default function StaffAppointments() {
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [completingItem, setCompletingItem] = useState(null);
   const [submittingComplete, setSubmittingComplete] = useState(false);
+  const [selectedItemIds, setSelectedItemIds] = useState([]); // danh sách item.id đã tiêm trong buổi này
 
   
   const openCompleteModal = (item) => {
     setCompletingItem(item);
     setReactionNote("");
+    const items = item?.items_detail || [];
+    setSelectedItemIds(items.map((it) => it.id)); // mặc định: tất cả mũi đều được chọn
     setShowCompleteModal(true);
   };
 
@@ -257,8 +260,9 @@ export default function StaffAppointments() {
     try {
       await api.post(`/records/bookings/${completingItem.id}/complete/`, {
         reaction_note: reactionNote || undefined,
+        completed_item_ids: selectedItemIds || [],   // <-- thêm dòng này
       });
-      toast.success(`Đã tiêm xong lịch #${completingItem.id}`);
+      toast.success(`Đã cập nhật buổi tiêm cho lịch #${completingItem.id}`);
       await fetchAppointments();
     } catch (e) {
       toast.error(e?.response?.data?.detail || "Hoàn thành thất bại");
@@ -267,8 +271,10 @@ export default function StaffAppointments() {
       setShowCompleteModal(false);
       setCompletingItem(null);
       setReactionNote("");
+      setSelectedItemIds([]);   
     }
   };
+
 
 
   // Định dạng ngày về dd/mm/yyyy
@@ -483,15 +489,18 @@ export default function StaffAppointments() {
         onCancel={() => setConfirmAction(null)}
         onConfirm={doAction}
       />
-
       <CompleteBookingModal
-        show={showCompleteModal}
-        booking={completingItem}
-        note={reactionNote}
-        setNote={setReactionNote}
-        onCancel={() => { setShowCompleteModal(false); setCompletingItem(null); setReactionNote(""); }}
+        show={showCompleteModal} booking={completingItem} note={reactionNote}
+        setNote={setReactionNote} selectedItemIds={selectedItemIds} setSelectedItemIds={setSelectedItemIds}        
+        onCancel={() => {
+          setShowCompleteModal(false);
+          setCompletingItem(null);
+          setReactionNote("");
+          setSelectedItemIds([]);
+        }}
         onConfirm={submitComplete}
       />
+
     </div>
   );
 }

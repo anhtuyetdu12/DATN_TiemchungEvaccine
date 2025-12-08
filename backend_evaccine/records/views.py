@@ -73,81 +73,6 @@ class FamilyMemberViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
 
-# def create_planned_records_for_booking(booking):
-#     member = booking.member
-#     if not member:
-#         return
-#     for item in booking.items.select_related("vaccine__disease"):
-#         v = item.vaccine
-#         if not v:
-#             continue
-#         disease = v.disease
-#         # 1) Lấy các mũi DỰ KIẾN (chưa tiêm) cùng nhóm bệnh/vaccine
-#         base_q = VaccinationRecord.objects.filter(
-#             family_member=member,
-#             vaccination_date__isnull=True,
-#         )
-#         if disease:
-#             base_q = base_q.filter(
-#                 Q(disease=disease) | Q(vaccine__disease=disease)
-#             )
-#         else:
-#             base_q = base_q.filter(vaccine=v)
-#         # 2) TÍNH SỐ MŨI ĐÃ TIÊM (ưu tiên phác đồ theo bệnh)
-#         total = (
-#             getattr(disease, "doses_required", None)
-#             or getattr(v, "doses_required", None)
-#             or 1
-#         )
-#         used_q = VaccinationRecord.objects.filter(
-#             family_member=member,
-#             vaccination_date__isnull=False,
-#         )
-#         if disease:
-#             used_q = used_q.filter(
-#                 Q(disease=disease) | Q(vaccine__disease=disease)
-#             )
-#         else:
-#             used_q = used_q.filter(vaccine=v)
-#         used = used_q.count()
-#         if used >= total:
-#             # đã đủ phác đồ -> không sinh mũi dự kiến nữa
-#             continue
-#         next_dose_number = used + 1
-#         # 3) TÌM RECORD DỰ KIẾN CÙNG NGÀY HẸN NÀY (nếu có thì update, không tạo mới)
-#         existing = base_q.filter(
-#             next_dose_date=booking.appointment_date
-#         ).order_by("id").first()
-#         if existing:
-#             update_fields = []
-#             if v and not existing.vaccine_id:
-#                 existing.vaccine = v
-#                 update_fields.append("vaccine")
-#             if disease and not existing.disease_id:
-#                 existing.disease = disease
-#                 update_fields.append("disease")
-#             if not existing.source_booking_id:
-#                 existing.source_booking = booking
-#                 update_fields.append("source_booking")
-#             if not existing.dose_number:
-#                 existing.dose_number = next_dose_number
-#                 update_fields.append("dose_number")
-
-#             if update_fields:
-#                 existing.save(update_fields=update_fields)
-#             continue
-#         # 4) KHÔNG CÓ RECORD CŨ -> TẠO MỚI
-#         VaccinationRecord.objects.create(
-#             family_member=member,
-#             disease=disease,
-#             vaccine=v,
-#             dose_number=next_dose_number,
-#             vaccination_date=None,
-#             next_dose_date=booking.appointment_date,
-#             note=f"Mũi dự kiến từ lịch hẹn #{booking.id}",
-#             source_booking=booking,
-#         )
-
 def create_planned_records_for_booking(booking):
     member = booking.member
     if not member:
@@ -1169,22 +1094,20 @@ class StaffAddHistoryAPIView(APIView):
             member = FamilyMember.objects.filter(user=user).order_by("-is_self", "-created_at").first()
         if not member:
             return Response({"detail": "Chưa có hồ sơ thành viên"}, status=400)
-          # TÍNH SỐ MŨI ĐÃ TIÊM TRƯỚC ĐÓ CHO LOẠI VẮC XIN NÀY
-        # existing_count = VaccinationRecord.objects.filter(
-        #     family_member=member,
-        #     # nếu bạn về sau có disease cho record này thì có thể group theo disease
-        #     vaccine_name=data["vaccine"],
-        #     vaccination_date__isnull=False,
-        # ).count()
+        # lấy vắc xin và bệnh
         vaccine_name_raw = (data["vaccine"] or "").strip()
-        vaccine_name_norm = vaccine_name_raw.lower()
         v_obj = (
             Vaccine.objects
             .filter(name__iexact=vaccine_name_raw)
             .select_related("disease")
             .first()
         )
-        disease = v_obj.disease if v_obj and v_obj.disease_id else None
+        # disease = v_obj.disease if v_obj and v_obj.disease_id else None
+        disease = data.get("disease_id") 
+        # Nếu FE không chọn phòng bệnh thì mới fallback sang vaccine.disease
+        if not disease and v_obj and v_obj.disease_id:
+            disease = v_obj.disease
+
 
         # 1) KIỂM TRA ĐÃ CÓ MŨI GIỐNG HỆT CHƯA
         existing_qs = VaccinationRecord.objects.filter(
@@ -1203,6 +1126,8 @@ class StaffAddHistoryAPIView(APIView):
             # ĐÃ CÓ MŨI RỒI -> chỉ update thêm thông tin nếu cần, KHÔNG tạo record mới
             if v_obj and not existing.vaccine_id:
                 existing.vaccine = v_obj
+            if disease and not existing.disease_id:
+                existing.disease = disease
             if data.get("batch"):
                 existing.vaccine_lot = data["batch"]
             if data.get("note"):
@@ -1714,7 +1639,6 @@ class MyUpdateHistoryByDiseaseAPIView(APIView):
                 family_member=member,
                 disease=disease,
                 source_booking__isnull=True,
-                vaccine__isnull=True,
             ).delete()
 
             created = []

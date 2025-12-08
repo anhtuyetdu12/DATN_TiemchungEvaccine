@@ -5,7 +5,6 @@ import AccordionFilter from "../../components/AccordionFilter";
 import { Link, useNavigate  } from "react-router-dom";
 import Pagination from "../../components/Pagination";
 import { addToBooking, getBookingSlugs } from "../../utils/bookingStorage";
-// import ChatWidget from "../../components/ChatWidget";
 import { getAllDiseases,  getAllVaccines,  getAllVaccinePackages,  getAllVaccineCategories,  getPackageBySlug, } from "../../services/vaccineService";
 
 export default function VaccinesList() {
@@ -22,20 +21,13 @@ export default function VaccinesList() {
   const [activeTab, setActiveTab] = useState("vacxin");
   const [searchText, setSearchText] = useState("");
   const [searchInput, setSearchInput] = useState("");
-
-  // --- STATE CHO API ---
   const [vaccines, setVaccines] = useState([]);
   const [loading, setLoading] = useState(true);
-  // const [vaccineGroups, setVaccineGroups] = useState([]);
   const [vaccinePackages, setVaccinePackages] = useState([]);
   const [vaccineCategories, setVaccineCategories] = useState([]);
-
-   // --- Checkbox + Dropdown + Quantity ---
   const [openIndex, setOpenIndex] = useState(null);
   const [selectedItems, setSelectedItems] = useState({}); 
   const [checkedAll, setCheckedAll] = useState(false);
-
-  // --- Hiển thị giới hạn ---
   const [showAll, setShowAll] = useState(false);
   const [displayedVaccines, setDisplayedVaccines] = useState([]);
   const [selectedPackage, setSelectedPackage] = useState(null);
@@ -43,7 +35,6 @@ export default function VaccinesList() {
 
   // --- Checkbox chọn tất cả ---
   const toggleCheckAll = () => {
-  // đảo trạng thái
   const newState = !checkedAll;
   setCheckedAll(newState);
 
@@ -57,22 +48,17 @@ export default function VaccinesList() {
     setSelectedPackage(updated);
   }
 };
-
-
   
   // --- LẤY DỮ LIỆU TỪ BACKEND ---
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-
-        // 👇 gọi 3 service cùng lúc
         const [vaccinesList, packagesList, categoriesList] = await Promise.all([
           getAllVaccines(),
           getAllVaccinePackages(),
           getAllVaccineCategories(),
         ]);
-
         // 1. chuẩn hóa vaccines để FE xài
         const fetchedVaccines = (vaccinesList || []).map((v) => ({
           ...v,
@@ -81,7 +67,6 @@ export default function VaccinesList() {
           quantity: 1,
           disease_name: v.disease?.name || "",
         }));
-
         // 2. chuẩn hóa packages để FE xài
         const fetchedPackages = (packagesList || [])
           .filter((p) => !!p.slug) // bỏ mấy cái chưa có slug
@@ -92,7 +77,6 @@ export default function VaccinesList() {
             group_name: p.group_name || "Khác",
             image: p.image || "/images/no-image.jpg",
           }));
-
         // 3. chuẩn hóa categories
         const fetchedCategories = (categoriesList || []).map((c) => ({
           ...c,
@@ -147,7 +131,7 @@ export default function VaccinesList() {
 
 
   //------ bộ lọc -----
-   // 🔹 RANGES tuổi (FE định nghĩa, so khớp min_age/max_age từ BE)
+   // RANGES tuổi (FE định nghĩa, so khớp min_age/max_age từ BE)
   const AGE_RANGES = useMemo(() => ([
     { id: "all", label: "Tất cả" },
     { id: "0-6m", label: "Từ 0 đến < 6 tháng tuổi",  toMonths: { min: 0, max: 5 } },
@@ -160,14 +144,14 @@ export default function VaccinesList() {
     { id: "65y+",   label: "65 tuổi trở lên",         toYears:  { min: 65, max: 110 } },
   ]), []);
 
-  // 🔹 State bộ lọc
+  // State bộ lọc
   const [filters, setFilters] = useState({
     ages: ["all"],
     diseases: ["all"],
     origins: ["all"],
   });
 
-  // 🔹 Options động cho Disease & Origin
+  // Options động cho Disease & Origin
   const [diseaseOptions, setDiseaseOptions] = useState([{ id: "all", label: "Tất cả" }]);
   const [originOptions, setOriginOptions] = useState([{ id: "all", label: "Tất cả" }]);
 
@@ -188,6 +172,42 @@ export default function VaccinesList() {
     })();
   }, []);
 
+  const handleBookingPackage = () => {
+    if (!selectedPackage?.disease_groups) return;
+    const groups = selectedPackage.disease_groups;
+    const merged = new Map(); // gộp trùng slug, cộng dồn số lượng
+    for (const g of groups) {
+      if (!g.checked) continue; // chỉ lấy những dòng đang chọn
+      const v = g.selectedVaccine ||  g.vaccines?.[0];
+      if (!v?.slug) continue;
+      const qty = Number(g.quantity || 1);
+      merged.set(v.slug, (merged.get(v.slug) || 0) + qty);
+    }
+    if (merged.size === 0) return;
+    // Đẩy vào booking (giữ các vaccine đã chọn từ trước)
+    for (const [slug, qty] of merged.entries()) {
+      addToBooking(slug, qty);
+    }
+    const cur = getBookingSlugs();
+    navigate(`/bookingform?v=${cur.join(",")}`);
+  };
+
+
+  //  TÍNH TỔNG TIỀN GÓI THEO LỰA CHỌN HIỆN TẠI
+  const subtotal = useMemo(() => {
+    if (!selectedPackage?.disease_groups) return 0;
+    let total = 0;
+    selectedPackage.disease_groups.forEach((group) => {
+      if (!group.checked) return;
+      const v = group.selectedVaccine || group.vaccines?.[0];
+      if (!v) return;
+      const qty = Number(group.quantity || 1);
+      const unitPrice = Number(v.price || 0); // chỉ dùng giá gốc
+      total += unitPrice * qty;
+    });
+
+    return total;
+  }, [selectedPackage]);
 
 
 
@@ -200,7 +220,7 @@ export default function VaccinesList() {
     setOriginOptions([{ id: "all", label: "Tất cả" }, ...opts]);
   }, [vaccines]);
 
-  // 🔹 Hàm apply filters
+  //  Hàm apply filters
   const applyFilters = useMemo(() => {
     const ageSelected = filters.ages;       // array of ids
     const diseaseSelected = filters.diseases;
@@ -269,7 +289,7 @@ export default function VaccinesList() {
     return (list) => list.filter( (v) => matchAge(v) && matchDisease(v) && matchOrigin(v) && matchSearch(v));
   }, [filters, AGE_RANGES, searchText]);
 
-  // 🔹 re-calc displayedVaccines khi filters đổi
+  //  re-calc displayedVaccines khi filters đổi
   useEffect(() => {
     setPage(1);
     setDisplayedVaccines(applyFilters(vaccines));
@@ -805,16 +825,15 @@ export default function VaccinesList() {
                   </div>
 
                     {/* --- Cột 4: Đơn giá --- */}
-                    <div className="tw-flex tw-flex-col tw-items-end">
-                      <span className="tw-text-[#fd8206] tw-font-semibold tw-text-[14px]">
-                        {selectedVaccine?.price ? `${Number(selectedVaccine.price).toLocaleString("vi-VN")} VNĐ` : "—"}
-                      </span>
-                      {selectedVaccine?.original_price && (
-                        <span className="tw-text-gray-400 tw-line-through">
-                          {Number(selectedVaccine.original_price).toLocaleString("vi-VN")} VNĐ
-                        </span>
-                      )}
-                    </div>
+                  <div className="tw-flex tw-flex-col tw-items-end">
+                    <span className="tw-text-[#fd8206] tw-font-semibold tw-text-[14px]">
+                      {selectedVaccine?.price
+                        ? `${Number(selectedVaccine.price).toLocaleString("vi-VN")} VNĐ`
+                        : "—"}
+                    </span>
+                  </div>
+
+
                   </div>
                 );
               })}
@@ -824,36 +843,12 @@ export default function VaccinesList() {
               <div className="tw-px-6 tw-py-4 tw-border-t tw-grid tw-grid-cols-[3fr_1fr] tw-gap-6 tw-items-start">
                 <div>
                   <div className="tw-flex tw-gap-3 tw-mb-[10px]">
-                   <button
-                      onClick={() => {
-                          const groups = selectedPackage?.disease_groups || [];
-                          // Gom {slug, qty} cho TẤT CẢ vaccine trong gói
-                          const allItems = [];
-                          for (const g of groups) {
-                            const vs = g?.vaccines || [];
-                            for (const v of vs) {
-                              if (!v?.slug) continue;
-                              const qty = Math.max(1, Number(v?.doses_required) || 1); // hoặc 1 nếu muốn mặc định 1
-                              allItems.push({ slug: v.slug, qty });
-                            }
-                          }
-                          if (allItems.length === 0) return;
-                          // Gộp trùng slug (cộng dồn số lượng)
-                          const merged = new Map();
-                          for (const { slug, qty } of allItems) {
-                            merged.set(slug, (merged.get(slug) || 0) + qty);
-                          }
-                          // Đẩy hết vào giỏ booking (giữ nguyên các món đã có trước đó)
-                          for (const [slug, qty] of merged.entries()) {
-                            addToBooking(slug, qty);
-                          }
-                          // Điều hướng sang booking
-                          const cur = getBookingSlugs();
-                          navigate(`/bookingform?v=${cur.join(",")}`);
-                        }} className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
-                                tw-font-medium tw-py-2 tw-px-6 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white" >
+                   <button onClick={handleBookingPackage}
+                      className="tw-inline-flex tw-items-center tw-bg-[#abe0ff] tw-text-[#3267fa] 
+                                tw-font-medium tw-py-2 tw-px-6 tw-rounded-full  hover:tw-bg-[#3267fa] hover:tw-text-white">
                       Đặt hẹn
                     </button>
+
                     <button onClick={() => selectedPackage?.slug && navigate(`/packages/${selectedPackage.slug}`)}
                         className="tw-border tw-border-blue-500 tw-text-blue-500 tw-font-medium tw-rounded-full tw-px-6 tw-py-3 hover:tw-bg-blue-100" >
                       Xem chi tiết gói
@@ -883,14 +878,11 @@ export default function VaccinesList() {
                 </div>
 
                 <div className="tw-text-right tw-space-y-1">
-                  <p className="tw-inline-flex tw-items-center tw-gap-1 tw-cursor-pointer 
-                        tw-rounded-full tw-h-6 tw-px-5 tw-text-sm tw-font-medium tw-mb-1
-                        tw-text-white tw-bg-gradient-to-b tw-from-[#ffbb14] tw-to-[#f26f23] tw-py-[10px]">
-                    Giảm tới 852.660đ
+                  <p className="tw-text-2xl tw-font-bold tw-text-orange-600">
+                    {subtotal > 0 ? subtotal.toLocaleString("vi-VN") : "0"} VNĐ
                   </p>
-                  <p className="tw-text-2xl tw-font-bold tw-text-gray-800">10.250.000đ</p>
-                  <p className="tw-text-gray-400 tw-line-through">11.102.660đ</p>
                 </div>
+
               </div>
   
               </div>

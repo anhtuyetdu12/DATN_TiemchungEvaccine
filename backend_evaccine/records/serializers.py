@@ -621,6 +621,16 @@ class HistoryCreateInSerializer(serializers.Serializer):
     dose = serializers.CharField(required=False, allow_blank=True)
     batch = serializers.CharField(required=False, allow_blank=True)
     note = serializers.CharField(required=False, allow_blank=True)
+    disease_id = serializers.IntegerField(required=False, allow_null=True)
+    
+    def validate_disease_id(self, value):
+        if value is None:
+            return None
+        from vaccines.models import Disease
+        d = Disease.objects.filter(id=value).first()
+        if not d:
+            raise serializers.ValidationError("Phòng bệnh không tồn tại.")
+        return d  # trả về instance luôn
     
 class StaffBookingCreateInSerializer(serializers.Serializer):
     member_id = serializers.PrimaryKeyRelatedField(

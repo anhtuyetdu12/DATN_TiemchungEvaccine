@@ -45,7 +45,7 @@ export async function getAllVaccines(params = {}) {
   return all;
 }
 
-/**  LẤY TOÀN BỘ DISEASES (có dose_count) */
+/**  LẤY TOÀN BỘ DISEASES  */
 export async function getAllDiseases() {
   const { data } = await api.get("/vaccines/diseases/");
   const list = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];

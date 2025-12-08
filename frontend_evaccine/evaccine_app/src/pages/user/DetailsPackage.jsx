@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../../services/axios";
+import { addToBooking, getBookingSlugs } from "../../utils/bookingStorage";
+import { toast } from "react-toastify";
 
 export default function DetailsPackage() {
   const { slug } = useParams(); const navigate = useNavigate();
@@ -29,10 +31,27 @@ export default function DetailsPackage() {
   if (!pkg) return <div className="tw-py-20 tw-text-center">Không tìm thấy gói.</div>;
 
   const handleBack = () => {
-    // nếu có lịch sử thì quay lại, không thì về danh sách
     if (window.history.length > 1) navigate(-1);
     else navigate("/vaccines");
   };
+
+  const handleBookVaccine = (vaccine) => {
+  if (!vaccine?.slug) {
+    toast.error("Không xác định được vắc xin trong gói để đặt hẹn.");
+    return;
+  }
+
+  // Thêm vaccine vào giỏ booking (1 liều)
+  addToBooking(vaccine.slug, 1);
+  // Lấy toàn bộ slug hiện có trong giỏ và điều hướng sang form đặt hẹn
+  const slugs = getBookingSlugs();
+    if (!slugs.length) {
+      toast.error("Giỏ đặt hẹn đang trống.");
+      return;
+    }
+    navigate(`/bookingform?v=${slugs.join(",")}`);
+  };
+
 
   return (
     <section className="tw-bg-white tw-pt-[120px] tw-pb-[60px] tw-px-10 tw-text-center">
@@ -103,7 +122,7 @@ export default function DetailsPackage() {
                   className="tw-bg-[#ffedcc] tw-text-[#ff6600] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#ff6600] hover:tw-text-white" >
                   Xem chi tiết
                 </Link>
-                <button  onClick={() => navigate("/bookingform", { state: { vaccineId: v.id } })}
+                <button   onClick={() => handleBookVaccine(v)}
                   className="tw-bg-[#abe0ff] tw-text-[#3267fa] tw-font-medium tw-py-2 tw-px-8 tw-rounded-full hover:tw-bg-[#3267fa] hover:tw-text-white" >
                   Đặt hẹn
                 </button>

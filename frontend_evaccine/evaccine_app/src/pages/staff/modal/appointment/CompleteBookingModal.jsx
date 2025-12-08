@@ -1,10 +1,12 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 
 export default function CompleteBookingModal({
   show,
-  booking,             // { id, member, appointment_date, ... }
+  booking,             // { id, member, appointment_date, items_detail: [...] }
   note,
   setNote,
+  selectedItemIds,
+  setSelectedItemIds,
   onConfirm,
   onCancel,
 }) {
@@ -12,46 +14,131 @@ export default function CompleteBookingModal({
 
   useEffect(() => {
     if (show && textareaRef.current) {
-      textareaRef.current.focus(); // UX: auto focus
+      textareaRef.current.focus();
     }
   }, [show]);
 
-  if (!show) return null;
+  const items = useMemo(
+    () => (Array.isArray(booking?.items_detail) ? booking.items_detail : []),
+    [booking?.items_detail]
+  );
+
+  if (!show || !booking) return null;
+
+  const toggleItem = (id) => {
+    if (!setSelectedItemIds) return;
+    setSelectedItemIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const allChecked = items.length > 0 && items.every((it) => selectedItemIds?.includes(it.id));
+
+  const toggleAll = () => {
+    if (!setSelectedItemIds) return;
+    if (allChecked) {
+      setSelectedItemIds([]);
+    } else {
+      setSelectedItemIds(items.map((it) => it.id));
+    }
+  };
 
   return (
     <div className="tw-fixed tw-inset-0 tw-bg-black/50 tw-flex tw-justify-center tw-items-center tw-z-50">
-      <div className="tw-bg-white tw-p-6 tw-rounded-xl tw-w-[520px] tw-shadow-xl tw-relative">
-        <h2 className="tw-text-3xl tw-font-semibold tw-mb-4 tw-text-blue-600">
-          Hoàn thành lịch hẹn
+      <div className="tw-bg-white tw-p-6 tw-rounded-2xl tw-w-full md:tw-w-[720px] tw-shadow-xl tw-relative tw-max-h-[80vh] tw-flex tw-flex-col">
+        <h2 className="tw-text-2xl md:tw-text-3xl tw-font-semibold tw-mb-4 tw-text-blue-600 tw-text-center">
+          Hoàn thành buổi tiêm
         </h2>
-
-        <div className="tw-space-y-3 tw-text-gray-800">
-          <div>  Xác nhận <b>hoàn thành</b> lịch hẹn #{booking?.id}?  </div>
-          <div className="tw-text-lg tw-text-gray-600">
-            Người tiêm: <b className="tw-text-pink-600">{booking?.member?.full_name || "Không rõ"}</b>
-            {" · "}Ngày hẹn:{" "}
+        {/* Thông tin chung */}
+        <div className="tw-text-gray-800 tw-text-lg tw-mb-4 tw-text-center">
+          <div> Lịch hẹn #<b>{booking.id}</b> </div>
+          <div className="tw-mt-1">
+            Người tiêm:{" "}
+            <b className="tw-text-pink-600"> {booking?.member?.full_name || "Không rõ"} </b>{" "}
+            - Ngày hẹn:{" "}
             <i className="tw-text-pink-600">
-              {booking?.appointment_date ? new Date(booking.appointment_date).toLocaleDateString("vi-VN")  : "—"}
+              {booking?.appointment_date ? new Date(booking.appointment_date).toLocaleDateString("vi-VN") : "—"}
             </i>
           </div>
+        </div>
 
-          <label className="tw-block tw-text-lg tw-font-medium tw-text-left tw-pt-2">
+        {/* Danh sách mũi trong buổi hẹn */}
+        <div className="tw-flex-1 tw-border tw-rounded-xl tw-overflow-hidden tw-mb-4">
+          <div className="tw-bg-blue-50 tw-px-4 tw-py-2 tw-text-sm md:tw-text-base tw-font-medium tw-flex tw-items-center tw-justify-between">
+            <span className="tw-text-sky-600">Chọn những mũi đã TIÊM TRONG BUỔI NÀY</span>
+            {items.length > 0 && (
+              <button type="button" onClick={toggleAll}
+                className="tw-text-sky-600 tw-text-base tw-font-semibold hover:tw-underline">
+                {allChecked ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+              </button>
+            )}
+          </div>
+
+          {items.length === 0 ? (
+            <div className="tw-p-4 tw-text-center tw-text-gray-500">
+              Không có mũi vắc xin nào trong lịch hẹn này.
+            </div>
+          ) : (
+            <div className="tw-max-h-[40vh] tw-overflow-y-auto tw-scrollbar-thin tw-scrollbar-thumb-gray-300 tw-scrollbar-track-gray-50">
+              <table className="tw-w-full tw-text-base">
+                <thead className="tw-sticky tw-top-0 tw-bg-white tw-border-b">
+                  <tr className="tw-text-gray-700">
+                    <th className="tw-w-[40px] tw-px-3 tw-py-2 tw-text-center">
+                      <input type="checkbox" checked={allChecked} onChange={toggleAll} />
+                    </th>
+                    <th className="tw-text-left tw-font-medium tw-px-3 tw-py-2"> Vắc xin </th>
+                    <th className="tw-text-left tw-font-medium tw-px-3 tw-py-2"> Phòng bệnh </th>
+                    <th className="tw-text-center tw-font-medium tw-px-3 tw-py-2"> Số lượng </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((it) => {
+                    const name = it?.vaccine?.name || "Vắc xin";
+                    const diseaseName = it?.vaccine?.disease?.name || it?.disease?.name || it?.disease_name || "—";
+                    const qty = it?.quantity ?? 1;
+                    const checked = selectedItemIds?.includes(it.id);
+
+                    return (
+                      <tr key={it.id} className={`tw-border-b tw-border-gray-100 
+                          ${ checked ? "tw-bg-blue-50" : "tw-bg-white" }`} >
+                        <td className="tw-px-3 tw-py-2 tw-text-center">
+                          <input type="checkbox"  checked={checked}
+                            onChange={() => toggleItem(it.id)}
+                          />
+                        </td>
+                        <td className="tw-px-3 tw-py-2 tw-text-gray-800 tw-text-left"> {name} </td>
+                        <td className="tw-px-3 tw-py-2 tw-text-left"> {diseaseName} </td>
+                        <td className="tw-px-3 tw-py-2 tw-text-center">{qty} </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Ghi chú phản ứng sau tiêm */}
+        <div className="tw-mb-3">
+          <label className="tw-block tw-text-sm md:tw-text-lg tw-font-medium tw-text-left tw-mb-1">
             Ghi chú phản ứng sau tiêm (tuỳ chọn):
           </label>
-          <textarea   ref={textareaRef}   rows={5}   value={note}    onChange={(e) => setNote(e.target.value)}
-            className="tw-w-full tw-border tw-rounded-lg tw-text-lg tw-px-3 tw-py-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
+          <textarea ref={textareaRef} rows={3} value={note} onChange={(e) => setNote(e.target.value)}
+            className="tw-w-full tw-border tw-rounded-lg tw-text-lg tw-px-3 tw-py-2 focus:tw-outline-none 
+            focus:tw-ring-2 focus:tw-ring-blue-300 focus:tw-border-blue-800"
             placeholder="VD: Sốt nhẹ 38.2°C, đau chỗ tiêm 1 ngày…"
           />
         </div>
 
-        <div className="tw-flex tw-justify-end tw-space-x-3 tw-mt-6">
-          <button  onClick={onCancel}
-            className="tw-bg-red-600 tw-text-white tw-px-4 tw-py-2 tw-rounded hover:tw-bg-red-500" >
+        {/* Nút hành động */}
+        <div className="tw-flex tw-justify-end tw-gap-3 tw-mt-2">
+          <button onClick={onCancel}
+            className="tw-bg-red-600 tw-text-white tw-px-4 tw-py-2 tw-rounded-full hover:tw-bg-red-500 tw-text-xl " >
             Hủy
           </button>
-          <button   onClick={onConfirm}
-            className="tw-bg-green-600 tw-text-white tw-px-4 tw-py-2 tw-rounded hover:tw-bg-green-500" >
-            Xác nhận 
+          <button onClick={onConfirm}
+            className="tw-bg-green-600 tw-text-white tw-px-5 tw-py-2 tw-rounded-full hover:tw-bg-green-500 tw-text-xl ">
+            Xác nhận mũi đã tiêm
           </button>
         </div>
       </div>
