@@ -30,7 +30,7 @@ class VaccineStockLotAdmin(admin.ModelAdmin):
 
             qs = qs.filter(is_active=True).filter(
                 Q(quantity_available__lte=0) |
-                Q(quantity_available__lte=threshold_expr) |
+                # Q(quantity_available__lte=threshold_expr) |
                 Q(expiry_date__lt=today) |
                 Q(expiry_date__range=(today, soon))
             )
@@ -56,19 +56,30 @@ class VaccineStockLotAdmin(admin.ModelAdmin):
     quantity_available_badge.short_description = "Khả dụng"
 
     def status_badge(self, obj):
-        today = timezone.now().date()
-        if obj.expiry_date < today:
+        today = timezone.localdate()
+        # 1) hết hạn / sắp hết hạn
+        if obj.expiry_date and obj.expiry_date < today:
             return format_html('<span style="color:#b91c1c;font-weight:600;">Hết hạn</span>')
-        days_left = (obj.expiry_date - today).days
-        if days_left <= 30:
-            return format_html(
-                '<span style="color:#ca8a04;font-weight:600;">Sắp hết hạn (còn {} ngày)</span>',
-                days_left
-            )
-        if obj.quantity_available == 0:
+        if obj.expiry_date:
+            days_left = (obj.expiry_date - today).days
+            if days_left <= 30:
+                return format_html(
+                    '<span style="color:#ca8a04;font-weight:600;">Sắp hết hạn (còn {} ngày)</span>',
+                    days_left
+                )
+        # 2) hết hàng
+        q = obj.quantity_available or 0
+        if q <= 0:
             return format_html('<span style="color:#b91c1c;font-weight:600;">Hết hàng</span>')
+        # 3) sắp hết (low stock)
+        threshold = getattr(obj.vaccine, "low_stock_threshold", None) or 20
+        if q <= threshold:
+            return format_html(
+                '<span style="color:#ca8a04;font-weight:600;">Sắp hết ({})</span>',
+                q
+            )
         return format_html('<span style="color:#15803d;font-weight:600;">Bình thường</span>')
-    status_badge.short_description = "Trạng thái"
+
 
 @admin.register(BookingAllocation)
 class BookingAllocationAdmin(admin.ModelAdmin):

@@ -226,7 +226,7 @@ class VaccineAdmin(admin.ModelAdmin):
             messages.warning(
                 request,
                 format_html(
-                    '⚠️ Cảnh báo kho vắc xin: <b>{}</b> vắc xin đang có vấn đề. '
+                    'Cảnh báo kho vắc xin: <b>{}</b> vắc xin đang có vấn đề. '
                     '<a href="{}">Xem tất cả lô có vấn đề</a>',
                     problem_count,
                     url,
