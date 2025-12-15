@@ -9,16 +9,48 @@ import ViewExpiryVCModal from "./modal/vaccines/ViewExpiryVCModal";
 import ConfirmModal from "../../components/ConfirmModal";
 import { getAllVaccines, exportVaccinesExcel } from "../../services/vaccineService";
 
+const WARNING_STYLE = {
+  "Hàng & Hạn đã hết": {
+    bg: "tw-bg-red-100",
+    text: "tw-text-red-700",
+    icon: "fa-triangle-exclamation",
+  },
+  "Hàng & Hạn sắp hết": {
+    bg: "tw-bg-amber-100",
+    text: "tw-text-amber-800",
+    icon: "fa-triangle-exclamation",
+  },
+  "Hết hạn": {
+    bg: "tw-bg-rose-100",
+    text: "tw-text-rose-700",
+    icon: "fa-circle-xmark",
+  },
+  "Hết hàng": {
+    bg: "tw-bg-red-100",
+    text: "tw-text-red-700",
+    icon: "fa-box-open",
+  },
+  "Hạn sử dụng sắp hết": {
+    bg: "tw-bg-orange-100",
+    text: "tw-text-orange-700",
+    icon: "fa-clock",
+  },
+  "Số lượng sắp hết": {
+    bg: "tw-bg-yellow-100",
+    text: "tw-text-yellow-800",
+    icon: "fa-boxes-stacked",
+  },
+};
+
+
 export default function StaffVaccines() {
   const [activeTab, setActiveTab] = useState("manage");
   const [vaccines, setVaccines] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const [searchInput, setSearchInput] = useState("");      
   const [appliedSearch, setAppliedSearch] = useState(""); 
   const [showModal, setShowModal] = useState(false);
   const [currentVaccine, setCurrentVaccine] = useState(null);
-
   const [confirmAction, setConfirmAction] = useState(null);
 
   // khi đổi từ khóa tìm kiếm → quay về trang 1
@@ -64,7 +96,6 @@ export default function StaffVaccines() {
       try {
         // 1) luôn lấy vaccine trước
         const list = await getAllVaccines();
-
         // Chuẩn hóa sơ bộ trước khi có stock
         let normalized = (list || []).map((v) => ({
           id: v.id,
@@ -103,7 +134,6 @@ export default function StaffVaccines() {
         } catch (err) {
           console.warn("Stock summary lỗi (bỏ qua):", err);
         }
-
         if (mounted) setVaccines(normalized);
       } catch (e) {
         console.error(e);
@@ -118,65 +148,84 @@ export default function StaffVaccines() {
 
 
   // ===========cảnh báo hết hạn sử dụng===============
-    const [warningVaccines, setWarningVaccines] = useState([]);
-    const [showDetailModal, setShowDetailModal] = useState(false);
-    const [filterType, setFilterType] = useState(""); // lọc theo warningType
-    const [searchTextInput, setSearchTextInput] = useState("");
-    const [appliedExpirySearch, setAppliedExpirySearch] = useState("");
+  const [warningVaccines, setWarningVaccines] = useState([]);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [filterType, setFilterType] = useState(""); // lọc theo warningType
+  const [searchTextInput, setSearchTextInput] = useState("");
+  const [appliedExpirySearch, setAppliedExpirySearch] = useState("");
 
-    const warningOptions = [
-      { value: "", label: "Tất cả cảnh báo" },
-      { value: "Hàng & Hạn đã hết", label: "Hàng & Hạn đã hết" },
-      { value: "Hạn sử dụng sắp hết", label: "Hạn sử dụng sắp hết" },
-      { value: "Số lượng sắp hết", label: "Số lượng sắp hết" },
-    ];
+  const warningOptions = [
+    { value: "", label: "Tất cả cảnh báo" },
+    { value: "Hàng & Hạn đã hết", label: "Hàng & Hạn đã hết" },
+    { value: "Hết hạn", label: "Hết hạn" },
+    { value: "Hết hàng", label: "Hết hàng" },
+    { value: "Hạn sử dụng sắp hết", label: "Hạn sử dụng sắp hết" },
+    { value: "Số lượng sắp hết", label: "Số lượng sắp hết" },
+  ];
 
+  // lọc theo filterType + searchText
+  const kw = appliedExpirySearch.trim().toLowerCase();
+  const filteredWarnings = warningVaccines.filter((v) => {
+    const typeMatch = !filterType || v.warningType === filterType;
+    const haystack = [ v.name,  v.manufacturer, v.batch, v.diseaseName, v.country ]
+      .filter(Boolean)
+      .map(String)
+      .map(s => s.toLowerCase())
+      .join(" ");
+    const searchMatch = !kw || haystack.includes(kw);
+    return typeMatch && searchMatch;
+  });
 
-    // lọc theo filterType + searchText
-    const kw = appliedExpirySearch.trim().toLowerCase();
-    const filteredWarnings = warningVaccines.filter((v) => {
-      const typeMatch = !filterType || v.warningType === filterType;
-      const haystack = [ v.name,  v.manufacturer, v.batch, v.diseaseName, v.country ]
-        .filter(Boolean)
-        .map(String)
-        .map(s => s.toLowerCase())
-        .join(" ");
-      const searchMatch = !kw || haystack.includes(kw);
-      return typeMatch && searchMatch;
+  const expiryPaged = filteredWarnings.slice((pageExpiry - 1) * perPage, pageExpiry * perPage);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredWarnings.length / perPage));
+    if (pageExpiry > maxPage) setPageExpiry(maxPage);
+  }, [filteredWarnings.length, pageExpiry]);
+
+  useEffect(() => { setPageExpiry(1); }, [appliedExpirySearch, filterType]);
+
+  useEffect(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const soon = new Date(today);
+    soon.setDate(soon.getDate() + 30);
+    const warnings = [];
+    vaccines.forEach((v) => {
+      const threshold = Number(v.low_stock_threshold ?? 20);
+      (Array.isArray(v.lots) ? v.lots : []).forEach((lot) => {
+        // 1) tôn trọng is_active
+        if (lot.is_active === false) return;
+        const qty = Number(lot.quantity_available ?? 0);
+        // 2) parse date an toàn timezone
+        const exp = lot.expiry_date ? new Date(`${lot.expiry_date}T00:00:00`) : null;
+        const isOutOfStock = qty <= 0;
+        const isLowStock = qty > 0 && qty <= threshold;   // qty=0 để riêng
+        const isExpired = exp && exp < today;
+        const isExpSoon = exp && exp >= today && exp <= soon;
+
+        if (!(isOutOfStock || isLowStock || isExpired || isExpSoon)) return;
+
+        let warningType = "";
+        if (isExpired && isOutOfStock) warningType = "Hàng & Hạn đã hết";
+        else if (isExpSoon && isLowStock) warningType = "Hàng & Hạn sắp hết";
+        else if (isExpired) warningType = "Hết hạn";
+        else if (isOutOfStock) warningType = "Hết hàng";
+        else if (isExpSoon) warningType = "Hạn sử dụng sắp hết";
+        else if (isLowStock) warningType = "Số lượng sắp hết";
+
+        warnings.push({
+          ...v,
+          batch: lot.lot_number,
+          expiry: lot.expiry_date,
+          quantity: qty,
+          warningType,
+        });
+      });
     });
 
-    const expiryPaged = filteredWarnings.slice((pageExpiry - 1) * perPage, pageExpiry * perPage);
-
-    useEffect(() => {
-      const maxPage = Math.max(1, Math.ceil(filteredWarnings.length / perPage));
-      if (pageExpiry > maxPage) setPageExpiry(maxPage);
-    }, [filteredWarnings.length, pageExpiry]);
-
-    useEffect(() => { setPageExpiry(1); }, [appliedExpirySearch, filterType]);
-
-
-    useEffect(() => {
-      const now = new Date(); 
-      const soon = new Date();
-      soon.setDate(soon.getDate() + 30); // ngưỡng cảnh báo 30 ngày
-
-      const warnList = vaccines.map((v) => {
-        const exp = v.expiry && v.expiry !== "-" ? new Date(v.expiry) : null;
-        const isExpiringSoon = exp ? (exp <= soon && exp >= now) : false;
-        const isLowStock = v.quantity === 0 || v.quantity <= 20;
-
-        if (isExpiringSoon && isLowStock) {
-          return { ...v, warningType: "Hàng & Hạn đã hết" };
-        } else if (isExpiringSoon) {
-          return { ...v, warningType: "Hạn sử dụng sắp hết" };
-        } else if (isLowStock) {
-          return { ...v, warningType: "Số lượng sắp hết" };
-        }
-        return null;
-      }).filter(v => v !== null);
-
-      setWarningVaccines(warnList);
-    }, [vaccines]);
+    setWarningVaccines(warnings);
+  }, [vaccines]);
 
   // Xuất excel
   const downloadBlob = (blob, filename) => {
@@ -456,20 +505,20 @@ export default function StaffVaccines() {
                           </td>
                           <td className="tw-px-4 tw-py-2">{fmtMoney(v.price)}</td>
                           <td className="tw-px-4 tw-py-2">
-                            <span className={`tw-px-3 tw-py-2 tw-rounded-full ${
-                                v.warningType === "Hàng & Hạn đã hết"
-                                  ? "tw-bg-red-100 tw-text-red-600"
-                                  : v.warningType === "Hạn sử dụng sắp hết"
-                                  ? "tw-bg-orange-100 tw-text-orange-700"
-                                  : v.warningType === "Số lượng sắp hết"
-                                  ? "tw-bg-blue-100 tw-text-blue-700"
-                                  : "tw-bg-green-100 tw-text-green-600"
-                              }`} >
-                              {v.warningType === "Hàng & Hạn đã hết" && "⚠️ "}
-                              {v.warningType === "Hạn sử dụng sắp hết" && "⏰ "} 
-                              {v.warningType === "Số lượng sắp hết" && "📦 "} 
-                              {v.warningType}
-                            </span>
+                            {(() => {
+                              const style = WARNING_STYLE[v.warningType] || {
+                                bg: "tw-bg-gray-100",
+                                text: "tw-text-gray-600",
+                                icon: "fa-circle-info",
+                              };
+                              return (
+                                <span className={`tw-inline-flex tw-items-center tw-gap-2 tw-px-3 tw-py-2 tw-rounded-full tw-font-semibold 
+                                  ${style.bg} ${style.text}`}>
+                                  <i className={`fa-solid ${style.icon}`}></i>
+                                  {v.warningType}
+                                </span>
+                              );
+                            })()}
                           </td>
                           <td className="tw-px-4 tw-py-2">
                             {v.quantity === 0 ? (

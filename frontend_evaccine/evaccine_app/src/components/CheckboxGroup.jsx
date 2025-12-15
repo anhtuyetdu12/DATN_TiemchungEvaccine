@@ -10,8 +10,7 @@ export default function CheckboxGroup({ options, title }) {
         {options.map((option, index) => (
           <div key={index} className="tw-flex tw-items-center tw-gap-4">
             <button
-              type="button"
-              role="checkbox"
+              type="button" role="checkbox"
               aria-checked={selected === index}
               onClick={() => setSelected(index)}
               className={`tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center 
@@ -22,8 +21,7 @@ export default function CheckboxGroup({ options, title }) {
                               : "tw-border-gray-400"
                           }
                           hover:tw-border-blue-500 hover:tw-ring-2 hover:tw-ring-cyan-400 hover:tw-ring-opacity-40
-                          focus:tw-border-blue-600 focus:tw-ring-2 focus:tw-ring-cyan-400 focus:tw-ring-opacity-40`}
-            >
+                          focus:tw-border-blue-600 focus:tw-ring-2 focus:tw-ring-cyan-400 focus:tw-ring-opacity-40`} >
               {selected === index && (
                 <i className="fa-solid fa-check tw-text-white tw-text-xs"></i>
               )}

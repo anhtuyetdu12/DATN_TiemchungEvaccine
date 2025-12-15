@@ -17,103 +17,71 @@ const formatVND = (n) => {
   return `${Number(n).toLocaleString("vi-VN")} VNĐ`;
 };
 const STATUS_VN = {
+  // dùng cho booking (status code từ BE)
   pending: "Chờ xác nhận",
   confirmed: "Đã xác nhận",
   cancelled: "Đã hủy",
   completed: "Đã tiêm xong",
-  overdue: "Trễ hẹn",      
+  overdue: "Trễ hẹn",
 };
 
-const STATUS_CLASS = {
+// Màu cho TRẠNG THÁI BOOKING (tổng buổi tiêm)
+const BOOKING_STATUS_CLASS = {
   "Chờ xác nhận": "tw-bg-yellow-100 tw-text-yellow-700",
-  "Đã xác nhận": "tw-bg-green-100 tw-text-green-700",
-  "Đã hủy": "tw-bg-red-100 tw-text-red-700",
+  "Đã xác nhận":  "tw-bg-sky-100 tw-text-sky-700",
   "Đã tiêm xong": "tw-bg-blue-100 tw-text-blue-700",
-  "Trễ hẹn": "tw-bg-orange-100 tw-text-orange-700",
+  "Đã hủy":       "tw-bg-red-100 tw-text-red-700",
+  "Trễ hẹn":      "tw-bg-orange-100 tw-text-orange-700",
 };
-// const toYMD = (d) => {
-//   if (!d) return "";
-//   const t = new Date(d);
-//   if (Number.isNaN(t.getTime())) return "";
-//   const yyyy = t.getFullYear();
-//   const mm = String(t.getMonth() + 1).padStart(2, "0");
-//   const dd = String(t.getDate()).padStart(2, "0");
-//   return `${yyyy}-${mm}-${dd}`;
-// };
 
-const ITEM_STATUS_CLASS = { ...STATUS_CLASS };
+// Màu cho TRẠNG THÁI TỪNG MŨI (sổ tiêm)
+const ITEM_STATUS_CLASS = {
+  // trạng thái sổ tiêm
+  "Đã tiêm":   "tw-bg-green-100 tw-text-green-700",
+  "Chờ tiêm":  "tw-bg-sky-100 tw-text-sky-700",
+  "Trễ hẹn":   "tw-bg-orange-100 tw-text-orange-700",
+  "Chưa tiêm": "tw-bg-red-100 tw-text-red-700",
+  // fallback: nếu vì lý do gì status_label của item là label booking
+  "Chờ xác nhận": "tw-bg-yellow-100 tw-text-yellow-700",
+  "Đã xác nhận":  "tw-bg-sky-100 tw-text-sky-700",
+  "Đã tiêm xong": "tw-bg-blue-100 tw-text-blue-700",
+  "Đã hủy":       "tw-bg-red-100 tw-text-red-700",
+};
+
 
 // --- trạng thái từng mũi: dùng chung nhãn với staff ---
 const getItemStatus = (booking, item) => {
-  const raw =
-    item.status_label ||
-    item.status ||
-    booking.status_label ||
-    booking.status ||
-    "";
-  const label = STATUS_VN[raw] || raw || "—";
-  let dateLabel = "";
-  if (item.vaccination_date || item.injected_at) {
-    const shot = item.vaccination_date || item.injected_at;
-    dateLabel = ` ${formatDate(shot)}`;
-  } else {
-    // fallback lấy theo ngày hẹn của mũi, nếu không có thì lấy ngày hẹn booking
-    const appt =
-      item.next_dose_date ||
-      item.appointment_date ||
-      booking.appointment_date ||
-      null;
+  // 0) ƯU TIÊN STATUS TỪ BE (item-level)
+  const raw = item?.status_label || item?.status || "";
+  if (raw) {
+    const normalized = STATUS_VN[raw] || raw;
+    const shot = item?.vaccination_date || item?.injected_at;
+    // const appt = item?.next_dose_date || booking?.appointment_date;
+    // dateLabel ưu tiên theo dữ liệu thật
+    const dateLabel = shot
+      ? formatDate(shot)
+      : (item?.next_dose_date ? formatDate(item.next_dose_date)
+        : (booking?.appointment_date ? formatDate(booking.appointment_date) : "—"));
 
-    if (appt) {
-      dateLabel = `${formatDate(appt)}`;
+    // Nếu BE đã nói "Đã tiêm" thì phải hiển thị "Đã tiêm"
+    if (normalized === "Đã tiêm") return { label: "Đã tiêm", dateLabel };
+
+    // Nếu BE trả "Chờ tiêm/Trễ hẹn/..." thì dùng luôn
+    if (["Chờ tiêm", "Trễ hẹn", "Chưa tiêm"].includes(normalized)) {
+      return { label: normalized, dateLabel };
     }
   }
-
-  return { label, dateLabel };
+  // 1) fallback nếu BE không trả status_label
+  const shot = item?.vaccination_date || item?.injected_at;
+  if (shot) return { label: "Đã tiêm", dateLabel: formatDate(shot) };
+  const appt = item?.next_dose_date || booking?.appointment_date;
+  if (appt) {
+    const todayYMD = new Date().toISOString().slice(0, 10);
+    const apptYMD = new Date(appt).toISOString().slice(0, 10);
+    return { label: apptYMD < todayYMD ? "Trễ hẹn" : "Chờ tiêm", dateLabel: formatDate(appt) };
+  }
+  return { label: "Chưa tiêm", dateLabel: "—" };
 };
-
-
-// tính trạng thái booking dựa trên các mũi
-// const deriveBookingLabelFromItems = (booking) => {
-//   if (!booking) return null;
-
-//   // Nếu DB đã nói rõ là completed / cancelled thì tôn trọng DB,
-//   // không cố suy thêm.
-//   if (booking.status === "completed" || booking.status === "cancelled") {
-//     return null;
-//   }
-
-//   const items = booking.items_detail || [];
-//   if (!items.length) return null;
-
-//   const today = new Date();
-//   today.setHours(0, 0, 0, 0);
-
-//   let total = items.length;
-//   let done = 0;
-//   let overdue = 0;
-
-//   items.forEach((it) => {
-//     const shot = it.vaccination_date || it.injected_at;
-//     const raw = it.status_label || it.status || "";
-
-//     if (shot || raw === "completed" || raw === "done" || raw === "Đã tiêm") {
-//       done++;
-//       return;
-//     }
-
-//     const appt = it.next_dose_date || it.appointment_date || null;
-//     if (appt) {
-//       const d = new Date(appt);
-//       d.setHours(0, 0, 0, 0);
-//       if (d < today) overdue++;
-//     }
-//   });
-
-//   if (done === total && total > 0) return "Đã tiêm xong";
-//   if (overdue > 0) return "Trễ hẹn";
-//   return null;
-// };
 
 
 // Trạng thái tổng của booking: lấy đúng theo DB
@@ -125,9 +93,9 @@ const StatusPill = ({ booking }) => {
       </span>
     );
   }
-  const raw = booking.status_label || booking.status || "";
-  const label = STATUS_VN[raw] || raw || "—";
-  const cls   = STATUS_CLASS[label] || "tw-bg-gray-100 tw-text-gray-700";
+  const raw   = booking.status_label || booking.status || "";
+  const label = STATUS_VN[raw] || raw || "—"; 
+  const cls   = BOOKING_STATUS_CLASS[label] || "tw-bg-gray-100 tw-text-gray-700";
   return (
     <span className={`${cls} tw-px-4 tw-py-1 tw-text-xl tw-mt-3 tw-rounded-full`}>
       {label}
@@ -283,7 +251,7 @@ export default function AppointmentDetailModal({ detail, onClose }) {
                         const price = Number(it?.unit_price || 0);
                         const line  = qty * price;
 
-                        const { label: itemStatus, dateLabel } = getItemStatus(detail, it); // <== sửa ở đây
+                        const { label: itemStatus, dateLabel } = getItemStatus(detail, it);
                         const pillCls = ITEM_STATUS_CLASS[itemStatus] || "tw-bg-gray-100 tw-text-gray-700";
 
                         return (

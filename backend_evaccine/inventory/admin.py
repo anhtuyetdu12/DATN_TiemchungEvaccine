@@ -3,8 +3,8 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
 from datetime import timedelta
-from django.db.models import Q
-
+from django.db.models import Q, F
+from django.db.models.functions import Coalesce
 from .models import VaccineStockLot, BookingAllocation
 
 
@@ -19,30 +19,21 @@ class VaccineStockLotAdmin(admin.ModelAdmin):
     search_fields = ("lot_number", "vaccine__name")
 
     def get_queryset(self, request):
-        qs = super().get_queryset(request)
+        qs = super().get_queryset(request).select_related("vaccine")
 
-        # chỉ khi có ?issues=1 mới lọc các lô cảnh báo
         if request.GET.get("issues") == "1":
-            today = timezone.now().date()
+            today = timezone.localdate()
             soon = today + timedelta(days=30)
 
-            qs = qs.select_related("vaccine").filter(is_active=True)
+            # threshold = vaccine.low_stock_threshold nếu null thì 20
+            threshold_expr = Coalesce(F("vaccine__low_stock_threshold"), 20)
 
-            problem_ids = []
-            for lot in qs:
-                qty = lot.quantity_available or 0
-                # ngưỡng sắp hết theo vaccine, mặc định 20
-                threshold = getattr(lot.vaccine, "low_stock_threshold", 20) or 20
-
-                is_out_of_stock = qty <= 0
-                is_low_stock = qty <= threshold
-                is_expired = lot.expiry_date < today
-                is_expiring_soon = today <= lot.expiry_date <= soon
-
-                if is_out_of_stock or is_low_stock or is_expired or is_expiring_soon:
-                    problem_ids.append(lot.id)
-
-            qs = qs.filter(id__in=problem_ids)
+            qs = qs.filter(is_active=True).filter(
+                Q(quantity_available__lte=0) |
+                Q(quantity_available__lte=threshold_expr) |
+                Q(expiry_date__lt=today) |
+                Q(expiry_date__range=(today, soon))
+            )
 
         return qs
 

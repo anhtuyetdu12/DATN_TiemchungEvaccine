@@ -1,14 +1,8 @@
-import React, { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo } from "react";
 
 export default function CompleteBookingModal({
-  show,
-  booking,             // { id, member, appointment_date, items_detail: [...] }
-  note,
-  setNote,
-  selectedItemIds,
-  setSelectedItemIds,
-  onConfirm,
-  onCancel,
+  show, booking, note, setNote, selectedItemIds,
+  setSelectedItemIds, onConfirm, onCancel,
 }) {
   const textareaRef = useRef(null);
 
@@ -23,24 +17,45 @@ export default function CompleteBookingModal({
     [booking?.items_detail]
   );
 
+  // Lấy disease_id cho 1 mũi
+  const getDiseaseId = (it) => it?.vaccine?.disease?.id || it?.disease?.id || it?.disease_id || null;
+
   if (!show || !booking) return null;
 
   const toggleItem = (id) => {
     if (!setSelectedItemIds) return;
-    setSelectedItemIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  const allChecked = items.length > 0 && items.every((it) => selectedItemIds?.includes(it.id));
-
-  const toggleAll = () => {
-    if (!setSelectedItemIds) return;
-    if (allChecked) {
-      setSelectedItemIds([]);
-    } else {
-      setSelectedItemIds(items.map((it) => it.id));
+    const target = items.find((x) => x.id === id);
+    if (!target) return;
+    //  báo can_complete = false → không cho chọn
+    if (target.can_complete === false) {
+      if (target.cannot_complete_reason) {
+        alert(target.cannot_complete_reason);
+      } else {
+        alert("Mũi này không thể hoàn thành do không còn vắc xin hợp lệ trong kho.");
+      }
+      return;
     }
+    setSelectedItemIds((prev) => {
+      const already = prev.includes(id);
+      if (already) {
+        return prev.filter((x) => x !== id);
+      }
+      const currentItems = items.filter((it) => prev.includes(it.id));
+      const currentCount = currentItems.length;
+      // tối đa 2 mũi
+      if (currentCount >= 2) {
+        alert("Mỗi buổi chỉ được xác nhận tối đa 2 mũi.");
+        return prev;
+      }
+      // 2 mũi phải thuộc 2 bệnh khác nhau
+      const newDiseaseId = getDiseaseId(target);
+      const currentDiseaseIds = new Set( currentItems.map(getDiseaseId).filter(Boolean) );
+      if (currentDiseaseIds.has(newDiseaseId)) {
+        alert("Không được xác nhận 2 mũi cùng một phòng bệnh trong cùng ngày.");
+        return prev;
+      }
+      return [...prev, id];
+    });
   };
 
   return (
@@ -67,11 +82,9 @@ export default function CompleteBookingModal({
           <div className="tw-bg-blue-50 tw-px-4 tw-py-2 tw-text-sm md:tw-text-base tw-font-medium tw-flex tw-items-center tw-justify-between">
             <span className="tw-text-sky-600">Chọn những mũi đã TIÊM TRONG BUỔI NÀY</span>
             {items.length > 0 && (
-              <button type="button" onClick={toggleAll}
-                className="tw-text-sky-600 tw-text-base tw-font-semibold hover:tw-underline">
-                {allChecked ? "Bỏ chọn tất cả" : "Chọn tất cả"}
-              </button>
+              <span className="tw-text-xs tw-text-gray-500">(Mỗi buổi tối đa 2 mũi, 2 phòng bệnh khác nhau) </span>
             )}
+
           </div>
 
           {items.length === 0 ? (
@@ -84,7 +97,7 @@ export default function CompleteBookingModal({
                 <thead className="tw-sticky tw-top-0 tw-bg-white tw-border-b">
                   <tr className="tw-text-gray-700">
                     <th className="tw-w-[40px] tw-px-3 tw-py-2 tw-text-center">
-                      <input type="checkbox" checked={allChecked} onChange={toggleAll} />
+                      <input type="checkbox" checked={false} disabled  />
                     </th>
                     <th className="tw-text-left tw-font-medium tw-px-3 tw-py-2"> Vắc xin </th>
                     <th className="tw-text-left tw-font-medium tw-px-3 tw-py-2"> Phòng bệnh </th>
@@ -98,21 +111,39 @@ export default function CompleteBookingModal({
                     const qty = it?.quantity ?? 1;
                     const checked = selectedItemIds?.includes(it.id);
 
-                    return (
-                      <tr key={it.id} className={`tw-border-b tw-border-gray-100 
-                          ${ checked ? "tw-bg-blue-50" : "tw-bg-white" }`} >
+                    const isCompleted = !!it.vaccination_date; 
+                    const canComplete = !isCompleted && it.can_complete !== false;
+                    const reason = it.cannot_complete_reason || "";
+
+                    const rowBase = checked ? "tw-bg-blue-50" : "tw-bg-white";
+                    const rowIfBad = !isCompleted && !canComplete ? "tw-bg-red-50" : "";
+                    const textIfBad = !isCompleted && !canComplete ? "tw-text-red-600" : "tw-text-gray-800";
+                     return (
+                      <tr key={it.id} className={`tw-border-b tw-border-gray-100 ${rowBase} ${rowIfBad}`}>
                         <td className="tw-px-3 tw-py-2 tw-text-center">
-                          <input type="checkbox"  checked={checked}
-                            onChange={() => toggleItem(it.id)}
+                          <input type="checkbox" checked={checked} disabled={!canComplete}  
+                            onChange={() => canComplete && toggleItem(it.id)}
                           />
                         </td>
-                        <td className="tw-px-3 tw-py-2 tw-text-gray-800 tw-text-left"> {name} </td>
-                        <td className="tw-px-3 tw-py-2 tw-text-left"> {diseaseName} </td>
-                        <td className="tw-px-3 tw-py-2 tw-text-center">{qty} </td>
+                        <td className={`tw-px-3 tw-py-2 ${textIfBad} tw-text-left`}>
+                          <div>{name}</div>
+                          {reason && (
+                            <div className={`tw-text-xs tw-mt-1 ${ isCompleted ? "tw-text-green-600" : "tw-text-red-500" }`} >
+                              {reason}
+                            </div>
+                          )}
+                        </td>
+                        <td className={`tw-px-3 tw-py-2 tw-text-left ${!isCompleted && !canComplete ? "tw-text-red-600" : ""}`}>
+                          {diseaseName}
+                        </td>
+                        <td className={`tw-px-3 tw-py-2 tw-text-center ${!isCompleted && !canComplete ? "tw-text-red-600" : ""}`}>
+                          {qty}
+                        </td>
                       </tr>
                     );
                   })}
                 </tbody>
+
               </table>
             </div>
           )}

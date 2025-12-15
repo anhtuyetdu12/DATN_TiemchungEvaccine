@@ -90,22 +90,27 @@ class VaccineAdmin(admin.ModelAdmin):
     # --- Hiển thị tình trạng kho (hết hàng / sắp hết / còn) ---
     def stock_status(self, obj):
         total = self._total_stock(obj)
-        # Không có lô nào
         if total is None:
             return "—"
+        threshold = getattr(obj, "low_stock_threshold", None) or 20
         if total <= 0:
-            return format_html( '<span style="color:#b91c1c;font-weight:600;">Hết hàng</span>' )
-        # dùng low_stock_threshold nếu có, mặc định 20
-        threshold = getattr(obj, "low_stock_threshold", None)
-        if threshold is None:
-            threshold = 20
+            base_url = reverse("admin:inventory_vaccinestocklot_changelist")
+            url = f"{base_url}?{urlencode({'vaccine__id__exact': obj.id, 'issues': 1, 'is_active__exact': 1})}"
+            return format_html(
+                '<span style="color:#b91c1c;font-weight:600;">Hết hàng</span><br><a href="{}">Xem lô</a>',
+                url
+            )
         if total <= threshold:
-            return format_html('<span style="color:#ca8a04;font-weight:600;">Sắp hết ({})</span>', total)
-        return format_html('<span style="color:#15803d;">Còn {}</span>', total )
-    stock_status.short_description = "Tồn kho"
+            base_url = reverse("admin:inventory_vaccinestocklot_changelist")
+            url = f"{base_url}?{urlencode({'vaccine__id__exact': obj.id, 'issues': 1, 'is_active__exact': 1})}"
+            return format_html(
+                '<span style="color:#ca8a04;font-weight:600;">Sắp hết ({})</span><br><a href="{}">Xem lô</a>',
+                total, url
+            )
+        return format_html('<span style="color:#15803d;">Còn {}</span>', total)
+
 
     # --- Hiển thị trạng thái hạn sử dụng ---
-    # --- Hiển thị trạng thái hạn sử dụng + link xem chi tiết ---
     def expiry_status(self, obj):
         today = timezone.localdate()
 
@@ -181,54 +186,53 @@ class VaccineAdmin(admin.ModelAdmin):
     # --- Thông báo tổng quan trên danh sách ---
     def changelist_view(self, request, extra_context=None):
         response = super().changelist_view(request, extra_context=extra_context)
-        if hasattr(response, "context_data"):
-            cl = response.context_data.get("cl")
-            if cl:
-                qs = cl.queryset.prefetch_related("stock_lots")
-                today = timezone.localdate()
-                out_of_stock_count = 0
-                expired_count = 0
-                for vaccine in qs:
-                    total = self._total_stock(vaccine)
-                    if total is not None and total <= 0:
-                        out_of_stock_count += 1
+        if not hasattr(response, "context_data"):
+            return response
+        cl = response.context_data.get("cl")
+        if not cl:
+            return response
+        qs = cl.queryset.prefetch_related("stock_lots")
+        today = timezone.localdate()
+        soon = today + timezone.timedelta(days=30)
+        problematic_ids = set()
+        
+        for vaccine in qs:
+            threshold = getattr(vaccine, "low_stock_threshold", None) or 20
+            lots = [lot for lot in vaccine.stock_lots.all() if getattr(lot, "is_active", True)]
+            # nếu vaccine không có lô active thì bỏ qua (tuỳ bạn)
+            if not lots:
+                continue
+            # 1) tồn kho (theo tổng) => hết hàng / sắp hết
+            total = sum((lot.quantity_available or 0) for lot in lots)
+            has_out_of_stock = total <= 0
+            has_low_stock = 0 < total <= threshold
+            # 2) hạn dùng (theo từng lô) => hết hạn / sắp hết hạn
+            has_expired = any(lot.expiry_date and lot.expiry_date < today for lot in lots)
+            has_expiring_soon = any(
+                lot.expiry_date and today <= lot.expiry_date <= soon for lot in lots
+            )
+            if has_out_of_stock or has_low_stock or has_expired or has_expiring_soon:
+                problematic_ids.add(vaccine.id)
 
-                    nearest = self._nearest_expiry(vaccine)
-                    if nearest and nearest < today:
-                        expired_count += 1
+        problem_count = len(problematic_ids)
 
-                if out_of_stock_count or expired_count:
-                    msg_parts = []
-                    if out_of_stock_count:
-                        msg_parts.append(
-                            f"{out_of_stock_count} vắc xin đang hết hàng"
-                        )
-                    if expired_count:
-                        msg_parts.append(
-                            f"{expired_count} vắc xin đã hết hạn sử dụng"
-                        )
-                    message = " , ".join(msg_parts)
-
-                    # link tới trang danh sách tất cả lô hết hạn
-                    base_url = reverse("admin:inventory_vaccinestocklot_changelist")
-                    from urllib.parse import urlencode
-                    query_string = urlencode({
-                        "expiry_date__lt": today.isoformat(),
-                        "is_active__exact": 1,
-                    })
-                    url = f"{base_url}?{query_string}"
-
-                    messages.warning(
-                        request,
-                        format_html(
-                            'Cảnh báo kho vắc xin: {}. <a href="{}">Xem chi tiết các lô hết hạn</a>',
-                            message,
-                            url,
-                        )
-                    )
-
+        if problem_count > 0:
+            base_url = reverse("admin:inventory_vaccinestocklot_changelist")
+            query_string = urlencode({
+                "issues": 1,
+                "is_active__exact": 1,
+            })
+            url = f"{base_url}?{query_string}"
+            messages.warning(
+                request,
+                format_html(
+                    '⚠️ Cảnh báo kho vắc xin: <b>{}</b> vắc xin đang có vấn đề. '
+                    '<a href="{}">Xem tất cả lô có vấn đề</a>',
+                    problem_count,
+                    url,
+                )
+            )
         return response
-
 
 class VaccinePackageDiseaseInline(admin.TabularInline):
     model = VaccinePackageDisease

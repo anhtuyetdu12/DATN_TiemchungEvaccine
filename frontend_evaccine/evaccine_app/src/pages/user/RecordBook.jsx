@@ -38,82 +38,32 @@ const buildDiseasesByAge = (ageVaccines) => {
 };
 
 
-// const buildVaccinationMap = (records) => {
-//   const structuredData = {};
-//   records.forEach((rec) => {
-//     const diseaseId =
-//       rec?.disease?.id ??
-//       rec?.disease_id ??
-//       rec?.vaccine?.disease?.id ??
-//       rec?.vaccine_name ??
-//       "";
-//     if (!diseaseId) return;
-
-//     const diseaseKey = String(diseaseId).trim().toLowerCase();
-//     if (!structuredData[diseaseKey]) structuredData[diseaseKey] = {};
-//     const userDiseaseMap = structuredData[diseaseKey];
-
-//     let doseIndex = 0;
-//     if (rec.dose_number && rec.dose_number > 0) {
-//       doseIndex = rec.dose_number - 1;
-//     } else {
-//     //   const existing = structuredData[diseaseKey] || {};
-//     //   const keys = Object.keys(existing).map((x) => Number(x));
-//         const keys = Object.keys(userDiseaseMap).map((x) => Number(x));
-//       doseIndex = keys.length ? Math.max(...keys) + 1 : 0;
-//     }
-
-//     const current = structuredData[diseaseKey][doseIndex];
-//     const isLocked = rec.locked === true || rec.can_delete === false || !!rec.source_booking || !!rec.source_booking_id;            
-
-//     const newDose = {
-//     date: rec.vaccination_date,
-//     vaccine: rec.vaccine?.name || rec.vaccine_name || "",
-//     location: rec.vaccine_lot,
-//     appointmentDate: rec.next_dose_date,
-//     note: rec.note,
-//     status_label: rec.status_label,
-//     locked: isLocked,
-//     diseaseName: rec.disease?.name || rec.vaccine?.disease?.name || "",
-//     };
-
-//     if (!current) {
-//       structuredData[diseaseKey][doseIndex] = newDose;
-//       return;
-//     }
-
-//     const currentHasShot = !!current.date;
-//     const newHasShot = !!newDose.date;
-
-//     if (currentHasShot && !newHasShot) return;
-
-//     if (newHasShot && !currentHasShot) {
-//       structuredData[diseaseKey][doseIndex] = newDose;
-//       return;
-//     }
-
-//     if (newHasShot && currentHasShot) {
-//       if (
-//         newDose.date &&
-//         (!current.date || new Date(newDose.date) > new Date(current.date))
-//       ) {
-//         structuredData[diseaseKey][doseIndex] = newDose;
-//       }
-//       return;
-//     }
-
-//     const isReschedule = rec.note && rec.note.includes("Đặt lại lịch");
-//     const hasNewerAppt =
-//       newDose.appointmentDate &&
-//       (!current.appointmentDate ||
-//         new Date(newDose.appointmentDate) > new Date(current.appointmentDate));
-
-//     if (isReschedule || hasNewerAppt) {
-//       structuredData[diseaseKey][doseIndex] = newDose;
-//     }
-//   });
-//   return structuredData;
-// };
+const pickDoseIndex = (map, rec) => {
+  // ưu tiên dùng dose_number nếu có
+  if (rec?.dose_number && rec.dose_number > 0) return rec.dose_number - 1;
+  const newHasShot = !!rec?.vaccination_date;
+  const newHasAppt = !!rec?.next_dose_date;
+  const idxs = Object.keys(map).map(Number);
+  const maxIdx = idxs.length ? Math.max(...idxs) : -1;
+  const limit = Math.max(maxIdx, 0);
+  // nếu là mũi đã tiêm -> ưu tiên nhét vào slot trống / slot chỉ có appointment
+  if (newHasShot) {
+    for (let i = 0; i <= limit; i++) {
+      const cur = map[i];
+      if (!cur) return i;       // ô trống
+      if (!cur.date) return i;  // ô chỉ có appointment
+    }
+    return maxIdx + 1;
+  }
+  // nếu chỉ là appointment -> chọn ô trống đầu tiên
+  if (newHasAppt) {
+    for (let i = 0; i <= limit; i++) {
+      if (!map[i]) return i;
+    }
+    return maxIdx + 1;
+  }
+  return maxIdx + 1;
+};
 
 
 const buildVaccinationMap = (records) => {
@@ -134,30 +84,13 @@ const buildVaccinationMap = (records) => {
     const userDiseaseMap = structuredData[diseaseKey];
 
     // Xác định index mũi
-    let doseIndex = 0;
-    if (rec.dose_number && rec.dose_number > 0) {
-      doseIndex = rec.dose_number - 1;
-    } else {
-      const keys = Object.keys(userDiseaseMap).map((x) => Number(x));
-      doseIndex = keys.length ? Math.max(...keys) + 1 : 0;
-    }
-
+    const doseIndex = pickDoseIndex(userDiseaseMap, rec);
     const current = userDiseaseMap[doseIndex];
 
     // 1. Có phải record từ booking không?
-    const hasSourceBooking =
-      rec.from_booking === true ||
-      rec.from_booking === 1 ||
-      rec.source_booking === true ||
-      rec.source_booking === 1 ||
-      rec.source_booking_id != null;
-
+    const hasSourceBooking = !!rec.source_booking_id || !!rec.source_booking;
     // 2. Quy tắc lock base: BE nói locked / không cho xoá / từ booking
-    const baseLocked =
-      rec.locked === true ||
-      rec.can_delete === false ||
-      hasSourceBooking;
-
+    const baseLocked =  rec.locked === true ||  rec.can_delete === false ||  hasSourceBooking;
     // 3. Tạo newDose từ record hiện tại
     const newDose = {
       date: rec.vaccination_date,
@@ -175,10 +108,8 @@ const buildVaccinationMap = (records) => {
       userDiseaseMap[doseIndex] = newDose;
       return;
     }
-
     const currentHasShot = !!current.date;
     const newHasShot = !!newDose.date;
-
     // Nếu current đã có mũi, new chỉ là record hẹn (không date)
     if (currentHasShot && !newHasShot) {
       // trường hợp new là booking/can_delete=false → nâng current.locked lên true
@@ -252,32 +183,31 @@ export default function RecordBook() {
 
     // Gọi API lấy danh sách thành viên
     useEffect(() => {
-    const fetchMembers = async () => {
-        try {
-            const data = await getFamilyMembers();
-            const formatted = data.map((m) => ({
-                id: m.id,
-                fullname: m.full_name,
-                relation: m.relation,
-                gender: m.gender === "male" ? "Nam" : m.gender === "female" ? "Nữ" : "Khác",
-                dob: m.date_of_birth,
-                chronic_note: m.chronic_note || "",
-            }));
-            setUsers(formatted);
-            const params = new URLSearchParams(window.location.search);
-            const queryId = params.get("member");
-            if (!queryId) {
-            const defaultUser = formatted.find((u) => u.relation === "Bản thân") || formatted[0];
-            if (defaultUser) setActiveUser(defaultUser.id);
+        const fetchMembers = async () => {
+            try {
+                const data = await getFamilyMembers();
+                const formatted = data.map((m) => ({
+                    id: m.id,
+                    fullname: m.full_name,
+                    relation: m.relation,
+                    gender: m.gender === "male" ? "Nam" : m.gender === "female" ? "Nữ" : "Khác",
+                    dob: m.date_of_birth,
+                    chronic_note: m.chronic_note || "",
+                }));
+                setUsers(formatted);
+                const params = new URLSearchParams(window.location.search);
+                const queryId = params.get("member");
+                if (!queryId) {
+                const defaultUser = formatted.find((u) => u.relation === "Bản thân") || formatted[0];
+                if (defaultUser) setActiveUser(defaultUser.id);
+                }
+            } catch (err) {
+                toast.error("Không thể tải danh sách thành viên.");
             }
-        } catch (err) {
-            toast.error("Không thể tải danh sách thành viên.");
-        }
-    };
-
-    fetchMembers();
+        };
+        fetchMembers();
     }, []);
-  //  Khi thêm thành viên mới (gọi từ AddUserForm)
+    //  Khi thêm thành viên mới (gọi từ AddUserForm)
     const handleSaveUser = async (newMember) => {
         if (!newMember?.id) {
             toast.error("Không nhận được dữ liệu thành viên hợp lệ từ server");
@@ -327,13 +257,13 @@ export default function RecordBook() {
         let months = now.getMonth() - birth.getMonth();
         let days = now.getDate() - birth.getDate();
         if (days < 0) {
-        months -= 1;
-        const prevMonth = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
-        days += prevMonth;
+            months -= 1;
+            const prevMonth = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+            days += prevMonth;
         }
         if (months < 0) {
-        years -= 1;
-        months += 12;
+            years -= 1;
+            months += 12;
         }
         return `${years} tuổi ${months} tháng ${days} ngày`;
     };
@@ -378,20 +308,6 @@ export default function RecordBook() {
     })();
     }, [activeUser, currentUser?.dob]);
 
-    // từ danh sách vắc xin theo tuổi → group thành danh sách bệnh theo tuổi
-    // useEffect(() => {
-    //     const grouped = buildDiseasesByAge(ageVaccines);
-    //     //sxep len đầu bệnh mới
-    //     grouped.sort((a, b) => {
-    //         if (a.created_at && b.created_at) {
-    //         return new Date(b.created_at) - new Date(a.created_at); // mới nhất trước
-    //         }
-    //         return (b.id || 0) - (a.id || 0);
-    //     });
-    //     setDiseasesByAge(grouped);
-    //     setDiseasePage(1); 
-    // }, [ageVaccines]);
-
     // update  mũi 
     const [showUpdate, setShowUpdate] = useState(false);
     const [selectedDisease, setSelectedDisease] = useState(null);
@@ -399,21 +315,6 @@ export default function RecordBook() {
 
     // bảng tiêm
     const [vaccinationData, setVaccinationData] = useState({}); 
-    // const reloadVaccinations = useCallback(async (memberId) => {
-    //     if (!memberId) return;
-    //     try {
-    //     const records = await getVaccinationRecords(memberId);
-    //     const structured = buildVaccinationMap(records);
-    //     setVaccinationData((prev) => ({
-    //         ...prev,
-    //         [memberId]: structured,
-    //     }));
-    //     } catch (err) {
-    //     console.error(err);
-    //     toast.error("Không thể tải dữ liệu tiêm chủng");
-    //     }
-    // }, []);
-
     useEffect(() => {
         if (!activeUser) return;
         async function load() {
@@ -423,10 +324,10 @@ export default function RecordBook() {
             // 1. Group từ by-age
             const grouped = buildDiseasesByAge(ageVaccines);
             grouped.sort((a, b) => {
-            if (a.created_at && b.created_at) {
-                return new Date(b.created_at) - new Date(a.created_at);
-            }
-            return (b.id || 0) - (a.id || 0);
+                if (a.created_at && b.created_at) {
+                    return new Date(b.created_at) - new Date(a.created_at);
+                }
+                return (b.id || 0) - (a.id || 0);
             });
 
             // 2. Lấy tất cả diseaseId mà khách có mũi
@@ -436,31 +337,23 @@ export default function RecordBook() {
             diseaseIdsFromRecords.forEach((did) => {
             if (!merged.some((d) => String(d.id) === String(did))) {
                 const recForDisease = records.find((r) => {
-                const rid =
-                    r?.disease?.id ??
-                    r?.disease_id ??
-                    r?.vaccine?.disease?.id ??
-                    null;
-                return rid != null && String(rid) === String(did);
+                    const rid =
+                        r?.disease?.id ??
+                        r?.disease_id ??
+                        r?.vaccine?.disease?.id ??
+                        null;
+                    return rid != null && String(rid) === String(did);
                 });
-
                 // Ưu tiên phác đồ từ Disease/Vaccine
-                const dosesRequired =
-                recForDisease?.disease?.doses_required ??
-                recForDisease?.vaccine?.doses_required ??
-                null;
-
+                const dosesRequired = recForDisease?.disease?.doses_required ??  recForDisease?.vaccine?.doses_required ?? null;
                 merged.push({
                 id: Number(did),
                 name: recForDisease?.disease?.name || "Phòng bệnh khác",
                 // nếu chưa cấu hình phác đồ thì mới fallback đếm record
-                doseCount: dosesRequired
-                    ? Number(dosesRequired) || 1
-                    : Math.max(1, Object.keys(structured[did] || {}).length),
+                doseCount: dosesRequired? Number(dosesRequired) || 1 : Math.max(1, Object.keys(structured[did] || {}).length),
                 });
             }
             });
-
             setDiseasesByAge(merged);
             setDiseasePage(1);
             setVaccinationData(prev => ({
@@ -475,8 +368,19 @@ export default function RecordBook() {
         load();
     }, [activeUser, ageVaccines]);
 
+    const toYMD = (d) => {
+        if (!d) return "";
+        const t = new Date(d);
+        const yyyy = t.getFullYear();
+        const mm = String(t.getMonth() + 1).padStart(2, "0");
+        const dd = String(t.getDate()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}`;
+    };
+    const fmtVN = (d) => d ? new Date(d).toLocaleDateString("vi-VN") : "";
+
     // Trạng thái mũi
     const getDoseStatus = (dose) => {
+        if (dose?.status_label) return dose.status_label;
         const shot = dose?.date ? toYMD(dose.date) : "";
         const appt = dose?.appointmentDate ? toYMD(dose.appointmentDate) : "";
         const todayYMD = toYMD(new Date());
@@ -484,8 +388,8 @@ export default function RecordBook() {
         if (shot) return "Đã tiêm";
         // 2. Có ngày hẹn thì CLIENT tự tính luôn
         if (appt) {
-            if (appt < todayYMD) return "Trễ hẹn";   // quá ngày hẹn
-            return "Chờ tiêm";                       // hôm nay hoặc tương lai
+            if (appt < todayYMD) return "Trễ hẹn";  
+            return "Chờ tiêm";                  
         }
         // 3. Không có ngày hẹn → fallback theo status_label (cho dữ liệu cũ)
         if (dose?.status_label === "Trễ hẹn") return "Trễ hẹn";
@@ -522,74 +426,61 @@ export default function RecordBook() {
     const deleteSingleDose = async (diseaseId, doseIndex) => {
         const memberId = activeUser;
         if (!memberId) return;
-
         const userMap = vaccinationData[memberId] || {};
         const diseaseKey = String(diseaseId).trim().toLowerCase();
         const diseaseMap = userMap[diseaseKey] || {};
-
         // Lấy đúng mũi tương ứng key = doseIndex
         const targetDose = diseaseMap[doseIndex];
         if (targetDose?.locked) {
             toast.warn("Mũi này được ghi nhận từ cơ sở y tế / từ đơn đặt lịch, không thể xoá.");
             return;
         }
-
         // Lấy list mũi còn lại theo đúng key, loại bỏ key = doseIndex
         const keysSorted = Object.keys(diseaseMap)
             .map((k) => Number(k))
             .sort((a, b) => a - b);
-
         const newDoses = keysSorted
             .filter((k) => k !== doseIndex)
             .map((k) => diseaseMap[k]);
-
         try {
             await updateDiseaseHistory({
-            memberId,
-            diseaseId: Number(diseaseId), 
-            doses: newDoses.map((d) => ({
-                date: d.date ? toYMD(d.date) : "",
-                appointmentDate: d.appointmentDate ? toYMD(d.appointmentDate) : "",
-                vaccine: d.vaccine || "",
-                location: d.location || "",
-                note: d.note || "",
-                status_label: d.status_label || "",
-            })),
+                memberId,
+                diseaseId: Number(diseaseId), 
+                doses: newDoses.map((d) => ({
+                    date: d.date ? toYMD(d.date) : "",
+                    appointmentDate: d.appointmentDate ? toYMD(d.appointmentDate) : "",
+                    vaccine: d.vaccine || "",
+                    location: d.location || "",
+                    note: d.note || "",
+                    status_label: d.status_label || "",
+                })),
             });
-
             toast.success("Xoá mũi tiêm thành công!");
-
             // Cập nhật local state: nén lại 0..n-1
             setVaccinationData((prev) => {
-            const prevUserMap = { ...(prev[memberId] || {}) };
-            const nextUserMap = { ...prevUserMap };
-
-            if (newDoses.length === 0) {
-                delete nextUserMap[diseaseKey];
-            } else {
-                const compact = {};
-                newDoses.forEach((d, idx) => {
-                compact[idx] = d;
-                });
-                nextUserMap[diseaseKey] = compact;
-            }
-
-            return {
-                ...prev,
-                [memberId]: nextUserMap,
-            };
+                const prevUserMap = { ...(prev[memberId] || {}) };
+                const nextUserMap = { ...prevUserMap };
+                if (newDoses.length === 0) {
+                    delete nextUserMap[diseaseKey];
+                } else {
+                    const compact = {};
+                    newDoses.forEach((d, idx) => {
+                    compact[idx] = d;
+                    });
+                    nextUserMap[diseaseKey] = compact;
+                }
+                return {
+                    ...prev,
+                    [memberId]: nextUserMap,
+                };
             });
         } catch (err) {
             console.error("Lỗi xoá mũi tiêm:", err);
-            const msg =
-            err?.response?.data?.detail ||
-            err?.response?.data?.doses ||
+            const msg = err?.response?.data?.detail || err?.response?.data?.doses ||
             "Xoá mũi tiêm thất bại. Vui lòng thử lại.";
             toast.error(msg);
         }
     };
-
-
     const handleConfirmDeleteDose = async () => {
         const { diseaseId, doseIndex } = confirmDelete;
         // Đóng modal trước để UI phản hồi nhanh
@@ -598,7 +489,6 @@ export default function RecordBook() {
         // Gọi hàm xoá thật sự (có gọi API + update state)
         await deleteSingleDose(diseaseId, doseIndex);
     };
-
     const handleCancelDeleteDose = () => {
         setConfirmDelete({
             open: false,
@@ -607,16 +497,6 @@ export default function RecordBook() {
         });
     };
 
-
-    const toYMD = (d) => {
-        if (!d) return "";
-        const t = new Date(d);
-        const yyyy = t.getFullYear();
-        const mm = String(t.getMonth() + 1).padStart(2, "0");
-        const dd = String(t.getDate()).padStart(2, "0");
-        return `${yyyy}-${mm}-${dd}`;
-    };
-    const fmtVN = (d) => d ? new Date(d).toLocaleDateString("vi-VN") : "";
     // Danh sách hiển thị 6 hoặc toàn bộ (gợi ý theo tuổi)
     const displayedVaccines = showMoreAgeVax ? ageVaccines : ageVaccines.slice(0, 6);
 
@@ -997,6 +877,8 @@ export default function RecordBook() {
                             date: map[k]?.date ? String(map[k].date).slice(0,10) : "",
                             vaccine: map[k]?.vaccine || "",
                             location: map[k]?.location || "",
+                            note: map[k]?.note || "",         
+                            status_label: map[k]?.status_label || "",
                             locked: !!map[k]?.locked,   
                             open: false,
                         }));

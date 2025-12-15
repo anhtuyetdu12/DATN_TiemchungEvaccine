@@ -13,3 +13,12 @@ export async function getRemainingDoses(memberId, vaccineId) {
   });
   return data; // { remaining, total, used }
 }
+
+//hoàn thành 1 số mũi trong booking
+export async function completeBookingItems(bookingId, { itemIds, reactionNote }) {
+  const { data } = await api.post(`/records/bookings/${bookingId}/complete/`, {
+    item_ids: itemIds,
+    reaction_note: reactionNote || "",
+  });
+  return data;
+}

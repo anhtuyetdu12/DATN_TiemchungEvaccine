@@ -56,6 +56,7 @@ class VaccinationRecord(models.Model):
     vaccination_date = models.DateField(null=True, blank=True, verbose_name="Ngày tiêm")
     next_dose_date = models.DateField(blank=True, null=True, verbose_name="Ngày hẹn mũi tiếp theo")
     note = models.TextField(blank=True, null=True, verbose_name="Ghi chú")
+    location = models.CharField( max_length=255,blank=True, default="" )
     source_booking = models.ForeignKey( "Booking", null=True, blank=True, on_delete=models.SET_NULL, related_name="records" )
     class Meta:
         constraints = [
@@ -91,8 +92,6 @@ class VaccinationRecord(models.Model):
 class Booking(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Người đặt")
     member = models.ForeignKey('records.FamilyMember', on_delete=models.CASCADE, verbose_name="Người tiêm")
-
-    # FK vẫn trỏ sang vaccines
     vaccine = models.ForeignKey('vaccines.Vaccine', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Vắc xin")
     package = models.ForeignKey('vaccines.VaccinePackage', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Gói tiêm")
 
@@ -108,7 +107,7 @@ class Booking(models.Model):
     created_at = models.DateTimeField("Ngày tạo", auto_now_add=True, null=True)
 
     class Meta:
-        db_table = 'vaccines_booking'         # << GIỮ NGUYÊN TÊN BẢNG!
+        db_table = 'vaccines_booking'    
         verbose_name = "Lịch hẹn tiêm"
         verbose_name_plural = "Danh sách lịch hẹn tiêm"
         indexes = [models.Index(fields=["status", "appointment_date"])]

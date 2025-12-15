@@ -401,7 +401,6 @@ export default function BookingForm() {
 
 
   //xóa
-  // mở modal
   const askRemove = (item) => {
     setPendingDelete(item);
     setConfirmOpen(true);
@@ -417,24 +416,14 @@ export default function BookingForm() {
   const doRemove = () => {
     const item = pendingDelete;
     if (!item) return;
-
-    // 1) Cập nhật UI
     setItems(prev => prev.filter(it => it.id !== item.id));
-
-    // 2) localStorage
     const curr = readBooking().filter(it => it.slug !== item.slug);
     writeBooking(curr);
-
-    // 3) URL
     const u = new URL(window.location.href);
     if (curr.length) u.searchParams.set("v", curr.map(it => it.slug).join(","));
     else u.searchParams.delete("v");
     window.history.replaceState({}, "", u);
-
-    // 4) Báo NavBar cập nhật badge
     window.dispatchEvent(new Event(SELECTED_EVENT));
-
-    // 5) Toast & đóng modal
     toast.success("Đã xoá vắc xin khỏi danh sách.");
     setConfirmOpen(false);
     setPendingDelete(null);
@@ -448,7 +437,8 @@ export default function BookingForm() {
           <div className="tw-flex tw-items-center tw-gap-3">
             <button  onClick={() => window.history.length > 1 ? window.history.back() : (window.location.href = "/vaccines")}
               aria-label="Quay lại"
-              className="tw-inline-flex tw-items-center tw-gap-2 tw-text-blue-600 hover:tw-text-blue-800 tw-bg-white tw-border tw-border-blue-200 hover:tw-border-blue-400 tw-rounded-full tw-px-4 tw-py-2 tw-shadow-sm" >
+              className="tw-inline-flex tw-items-center tw-gap-2 tw-text-blue-600 hover:tw-text-blue-800 tw-bg-white tw-border 
+              tw-border-blue-200 hover:tw-border-blue-400 tw-rounded-full tw-px-4 tw-py-2 tw-shadow-sm" >
               <i className="fa-solid fa-arrow-left" />
               <span className="tw-font-medium">Quay lại</span>
             </button>
@@ -462,7 +452,8 @@ export default function BookingForm() {
               { label: "Đặt lịch", done: false },
             ].map((s, idx) => (
               <li key={idx} className="tw-flex tw-items-center tw-gap-2">
-                <span className={`tw-w-7 tw-h-7 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-text-sm ${s.done ? "tw-bg-green-500 tw-text-white" : "tw-bg-gray-200 tw-text-gray-600"}`}>
+                <span className={`tw-w-7 tw-h-7 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-text-sm 
+                  ${s.done ? "tw-bg-green-500 tw-text-white" : "tw-bg-gray-200 tw-text-gray-600"}`}>
                   {s.done ? <i className="fa-solid fa-check" /> : idx + 1}
                 </span>
                 <span className={`tw-text-sm ${s.done ? "tw-text-gray-800 tw-font-medium" : "tw-text-gray-500"}`}>{s.label}</span>

@@ -175,18 +175,28 @@ export default function VaccinesList() {
   const handleBookingPackage = () => {
     if (!selectedPackage?.disease_groups) return;
     const groups = selectedPackage.disease_groups;
-    const merged = new Map(); // gộp trùng slug, cộng dồn số lượng
+    // const merged = new Map(); // gộp trùng slug, cộng dồn số lượng
+    // for (const g of groups) {
+    //   if (!g.checked) continue; // chỉ lấy những dòng đang chọn
+    //   const v = g.selectedVaccine ||  g.vaccines?.[0];
+    //   if (!v?.slug) continue;
+    //   const qty = Number(g.quantity || 1);
+    //   merged.set(v.slug, (merged.get(v.slug) || 0) + qty);
+    // }
+    // if (merged.size === 0) return;
+    // // Đẩy vào booking (giữ các vaccine đã chọn từ trước)
+    // for (const [slug, qty] of merged.entries()) {
+    //   addToBooking(slug, qty);
+    // }
+    const added = new Set();
     for (const g of groups) {
-      if (!g.checked) continue; // chỉ lấy những dòng đang chọn
-      const v = g.selectedVaccine ||  g.vaccines?.[0];
+      if (!g.checked) continue;
+      const v = g.selectedVaccine || g.vaccines?.[0];
       if (!v?.slug) continue;
-      const qty = Number(g.quantity || 1);
-      merged.set(v.slug, (merged.get(v.slug) || 0) + qty);
-    }
-    if (merged.size === 0) return;
-    // Đẩy vào booking (giữ các vaccine đã chọn từ trước)
-    for (const [slug, qty] of merged.entries()) {
-      addToBooking(slug, qty);
+      // Mỗi loại vaccine chỉ add 1 lần
+      if (added.has(v.slug)) continue;
+      added.add(v.slug);
+      addToBooking(v.slug, 1);
     }
     const cur = getBookingSlugs();
     navigate(`/bookingform?v=${cur.join(",")}`);

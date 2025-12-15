@@ -2,6 +2,8 @@ from rest_framework import serializers
 from .models import FamilyMember, VaccinationRecord, Booking, BookingItem, CustomerNotification
 from vaccines.serializers import DiseaseSerializer, VaccineSerializer, VaccinePackageSerializer
 from vaccines.models import Disease, Vaccine, VaccinePackage
+from inventory.models import VaccineStockLot
+from django.db.models import Sum
 from datetime import date, datetime
 from django.db.models import Q, Max
 from django.contrib.auth import get_user_model
@@ -43,7 +45,7 @@ class VaccinationRecordSerializer(serializers.ModelSerializer):
             "disease", "disease_id", "vaccine", "vaccine_id",
             "dose_number", "vaccine_name", "vaccine_lot",
             "vaccination_date", "next_dose_date", "note","status_label",  
-            "locked", "can_delete"
+            "locked", "can_delete", "location",
         ]
     def get_can_delete(self, obj):
         return obj.source_booking_id is None
@@ -98,10 +100,113 @@ class BookingItemWriteSerializer(serializers.Serializer):
 
 class BookingItemReadSerializer(serializers.ModelSerializer):
     vaccine = VaccineSerializer(read_only=True)
+    status_label = serializers.SerializerMethodField()
+    vaccination_date = serializers.SerializerMethodField()
+    next_dose_date = serializers.SerializerMethodField()
+    can_complete = serializers.SerializerMethodField()
+    cannot_complete_reason = serializers.SerializerMethodField()
+
     class Meta:
         model = BookingItem
-        fields = ["id", "vaccine", "quantity", "unit_price"]
+        fields = [  "id", "vaccine", "quantity", "unit_price",
+            "status_label", "vaccination_date", "next_dose_date",
+            "can_complete", "cannot_complete_reason", ]
 
+    def _get_related_record(self, obj):
+        booking = obj.booking
+        qs = VaccinationRecord.objects.filter(
+            family_member=booking.member,
+            vaccine=obj.vaccine,
+        ).filter(
+            Q(source_booking=booking) | Q(next_dose_date=booking.appointment_date)
+        ).order_by("-vaccination_date", "-next_dose_date", "-id")
+        return qs.first()
+
+    def get_vaccination_date(self, obj):
+        rec = self._get_related_record(obj)
+        return rec.vaccination_date if rec else None
+
+    def get_next_dose_date(self, obj):
+        rec = self._get_related_record(obj)
+        return rec.next_dose_date if rec else None
+
+    def get_status_label(self, obj):
+        rec = self._get_related_record(obj)
+        if rec:
+            return VaccinationRecordSerializer(rec, context=self.context).data["status_label"]
+        booking = obj.booking
+        mapping = {
+            "pending": "Chờ xác nhận",
+            "confirmed": "Đã xác nhận",
+            "completed": "Đã tiêm xong",
+            "cancelled": "Đã hủy",
+        }
+        return mapping.get(booking.status, booking.status)
+
+    # ============  kiểm tra xem có thể hoàn thành mũi này không ============
+    def get_can_complete(self, obj):
+        # 1) Nếu đã có record tiêm rồi -> không cho hoàn thành nữa
+        rec = self._get_related_record(obj)
+        if rec and rec.vaccination_date:
+            return False
+        # 2) Còn lại mới kiểm tra allocation
+        today = timezone.localdate()
+        allocs = obj.allocations.filter(status="reserved").select_related("lot")
+        if not allocs.exists():
+            return False
+        for alloc in allocs:
+            lot = alloc.lot
+            if not lot or not lot.expiry_date:
+                return False
+            if lot.expiry_date < today:
+                return False
+        return True
+
+    def get_cannot_complete_reason(self, obj):
+        # 1) Nếu đã tiêm xong, trả lý do “đã tiêm” (KHÔNG phải lỗi)
+        rec = self._get_related_record(obj)
+        if rec and rec.vaccination_date:
+            d = rec.vaccination_date.strftime("%d/%m/%Y")
+            return f"Mũi này đã được tiêm ngày {d}."
+        # 2) Còn lại mới xử lý logic kho như cũ
+        today = timezone.localdate()
+        allocs = obj.allocations.filter(status="reserved").select_related("lot")
+        if not allocs.exists():
+            v = obj.vaccine
+            if not v:
+                return "Mũi này chưa được giữ vắc xin trong kho (chưa xác nhận kho hoặc đã bị hủy)."
+            all_qs = VaccineStockLot.objects.filter(
+                vaccine=v,
+                is_active=True,
+            )
+            total_all = all_qs.aggregate(total=Sum("quantity_available"))["total"] or 0
+            usable_qs = all_qs.filter(expiry_date__gte=today)
+            usable_total = usable_qs.aggregate(total=Sum("quantity_available"))["total"] or 0
+            if total_all == 0:
+                return f"Vắc xin {v.name} hiện đã hết số lượng trong kho."
+            if usable_total == 0:
+                return (
+                    f"Tất cả các lô của vắc xin {v.name} "
+                    f"đã hết hạn sử dụng trước ngày tiêm."
+                )
+            return "Mũi này chưa được giữ vắc xin trong kho (chưa xác nhận kho hoặc đã bị hủy)."
+        expired_lots = []
+        invalid_lots = []
+        for alloc in allocs:
+            lot = alloc.lot
+            if not lot or not lot.expiry_date:
+                invalid_lots.append(lot.lot_number if lot else "?")
+                continue
+            if lot.expiry_date < today:
+                expired_lots.append(lot.lot_number)
+        if expired_lots:
+            return (  "Các lô sau đã hết hạn trước ngày tiêm: "  + ", ".join(expired_lots) + ". Vui lòng nhập lô mới hoặc đặt lại lịch.")
+
+        if invalid_lots:
+            return ( "Có lô vắc xin không hợp lệ: " + ", ".join(invalid_lots) + ". Vui lòng kiểm tra lại kho." )
+        return ""
+    
+    
 class UserSlimSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -460,6 +565,12 @@ class BookingSerializer(serializers.ModelSerializer):
                     target.next_dose_date = booking.appointment_date
                     target.note = f"Đặt lại lịch #{booking.id}"
                     update_fields = ["next_dose_date", "note"]
+                    if target.source_booking_id != booking.id:
+                        target.source_booking = booking
+                        update_fields.append("source_booking")
+                    if not target.dose_number:
+                        target.dose_number = self._get_next_dose_number(booking.member, v) 
+                        update_fields.append("dose_number")
                     if not target.disease_id and v.disease_id:
                         target.disease = v.disease
                         update_fields.append("disease")
@@ -469,12 +580,6 @@ class BookingSerializer(serializers.ModelSerializer):
                     target.save(update_fields=update_fields)
                     overdue_qs.exclude(id=target.id).update(next_dose_date=None, note="")
                 else:
-                    # current = VaccinationRecord.objects.filter(
-                    #     family_member=booking.member,
-                    #     vaccine=v,
-                    # ).filter(
-                    #     Q(vaccination_date__isnull=False) | Q(next_dose_date__isnull=False)
-                    # ).count()
                     dose_number = self._get_next_dose_number(booking.member, v)
 
                     VaccinationRecord.objects.create(
@@ -524,6 +629,12 @@ class BookingSerializer(serializers.ModelSerializer):
                 target.next_dose_date = booking.appointment_date
                 target.note = f"Đặt lại lịch #{booking.id}"
                 update_fields = ["next_dose_date", "note"]
+                if target.source_booking_id != booking.id:
+                    target.source_booking = booking
+                    update_fields.append("source_booking")
+                if not target.dose_number:
+                    target.dose_number = self._get_next_dose_number(booking.member, v) 
+                    update_fields.append("dose_number")
                 if not target.disease_id and vaccine.disease_id:
                     target.disease = vaccine.disease
                     update_fields.append("disease")
@@ -617,11 +728,17 @@ class HistoryCreateInSerializer(serializers.Serializer):
     member_id = serializers.IntegerField(required=False, allow_null=True)
     date = serializers.DateField()
     vaccine = serializers.CharField()
-    place = serializers.CharField(required=False, allow_blank=True)
+    location = serializers.CharField(required=False, allow_blank=True, default="") 
     dose = serializers.CharField(required=False, allow_blank=True)
     batch = serializers.CharField(required=False, allow_blank=True)
     note = serializers.CharField(required=False, allow_blank=True)
     disease_id = serializers.IntegerField(required=False, allow_null=True)
+    
+    def validate(self, attrs):
+        # alias: FE gửi place => map sang location
+        if not attrs.get("location") and attrs.get("place"):
+            attrs["location"] = attrs["place"]
+        return attrs
     
     def validate_disease_id(self, value):
         if value is None:

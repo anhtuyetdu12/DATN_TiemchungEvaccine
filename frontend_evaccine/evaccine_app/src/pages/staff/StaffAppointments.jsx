@@ -5,6 +5,7 @@ import CompleteBookingModal from "./modal/appointment/CompleteBookingModal";
 import Pagination from "../../components/Pagination";
 import { toast } from "react-toastify";
 import api from "../../services/axios";
+import { completeBookingItems } from "../../services/bookingService";
 
 export default function StaffAppointments() {
   // --- state dữ liệu & điều khiển ---
@@ -34,12 +35,18 @@ export default function StaffAppointments() {
   const [selectedItemIds, setSelectedItemIds] = useState([]); // danh sách item.id đã tiêm trong buổi này
 
   
-  const openCompleteModal = (item) => {
-    setCompletingItem(item);
-    setReactionNote("");
-    const items = item?.items_detail || [];
-    setSelectedItemIds(items.map((it) => it.id)); // mặc định: tất cả mũi đều được chọn
-    setShowCompleteModal(true);
+  const openCompleteModal = async (row) => {
+    try {
+      // luôn lấy dữ liệu mới nhất kèm items_detail, can_complete...
+      const res = await api.get(`/records/bookings/${row.id}/`);
+      setCompletingItem(res.data);
+      setReactionNote("");
+      setSelectedItemIds([]);
+      setShowCompleteModal(true);
+    } catch (e) {
+      console.error(e);
+      toast.error("Không tải được chi tiết lịch hẹn.");
+    }
   };
 
   const statusOptions = [
@@ -87,8 +94,16 @@ export default function StaffAppointments() {
     const { action, item } = confirmAction;
     try {
       if (action === "confirm") {
-        await api.post(`/records/bookings/${item.id}/confirm/`);
+        const res = await api.post(`/records/bookings/${item.id}/confirm/`);
+        const data = res.data;
         toast.success(`Đã xác nhận lịch #${item.id}`);
+        // nếu có mũi fail (partial confirm)
+        if (Array.isArray(data.failed_items) && data.failed_items.length > 0) {
+          const lines = data.failed_items
+            .map( (f) => `- ${f.vaccine_name}: ${f.reason || "Không rõ lý do"}` )
+            .join("\n");
+          toast.warning( `Một số mũi không thể xác nhận:\n${lines}`, { autoClose: 8000 } );
+        }
       } else if (action === "cancel") {
         await api.post(`/records/bookings/${item.id}/cancel/`);
         toast.warn(`Đã hủy lịch #${item.id}`);
@@ -256,11 +271,15 @@ export default function StaffAppointments() {
   //xác nhận phản ứng sau tiêm
   const submitComplete = async () => {
     if (!completingItem || submittingComplete) return;
+    if (!selectedItemIds.length) {
+      toast.warn("Vui lòng chọn ít nhất 1 mũi đã tiêm.");
+      return;
+    }
     setSubmittingComplete(true);
     try {
-      await api.post(`/records/bookings/${completingItem.id}/complete/`, {
-        reaction_note: reactionNote || undefined,
-        completed_item_ids: selectedItemIds || [],   // <-- thêm dòng này
+      await completeBookingItems(completingItem.id, {
+        itemIds: selectedItemIds,
+        reactionNote,
       });
       toast.success(`Đã cập nhật buổi tiêm cho lịch #${completingItem.id}`);
       await fetchAppointments();
@@ -271,9 +290,10 @@ export default function StaffAppointments() {
       setShowCompleteModal(false);
       setCompletingItem(null);
       setReactionNote("");
-      setSelectedItemIds([]);   
+      setSelectedItemIds([]);
     }
   };
+
 
 
 

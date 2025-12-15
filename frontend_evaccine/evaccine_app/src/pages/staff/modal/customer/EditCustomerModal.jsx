@@ -11,16 +11,13 @@ import { staffUpdateCustomerProfile, createAppointment, setAppointmentStatus, st
   addHistory, staffCreateMember, staffDeleteMember,} from "../../../../services/customerService";
 import { openPrintWindow, buildAppointmentConfirmationHtml, buildPostInjectionHtml, formatDateVi } from "../../../../utils/printHelpers";
 import { toast } from "react-toastify";
+import api from "../../../../services/axios";
 
 export default function EditCustomerModal({
-  show,
-  customer,
-  onClose,
-  center,
+  show, customer, onClose, center,
   onConfirmAppointment = () => {},
   onCancelAppointment = () => {},
-  setCustomers,
-  setSelectedCustomer,
+  setCustomers, setSelectedCustomer,
 }) {
   // ---------------- Hooks: luôn khai báo trước mọi early return ----------------
   const [deleteModal, setDeleteModal] = useState({ open: false, member: null });
@@ -520,11 +517,8 @@ export default function EditCustomerModal({
         updatedMembers = [...membersList, member];
         toast.success("Đã thêm thành viên");
       }
-
       setCustomers((prev) =>
-        prev.map((c) =>
-          c.id === customer.id ? { ...c, members: updatedMembers } : c
-        )
+        prev.map((c) => c.id === customer.id ? { ...c, members: updatedMembers } : c)
       );
       setSelectedCustomer((prev) => ({
         ...prev,
@@ -551,7 +545,6 @@ export default function EditCustomerModal({
         toast.error("Chọn người tiêm");
         return;
       }
-
       const apptDate = new Date(newAppointment.date);
       apptDate.setHours(0, 0, 0, 0);
       const today = new Date();
@@ -560,14 +553,12 @@ export default function EditCustomerModal({
         toast.error("Ngày hẹn phải lớn hơn hoặc bằng hôm nay.");
         return;
       }
-
       // Gom số mũi theo vaccine
       const want = {};
       for (const it of newAppointment.items || []) {
         if (!it.vaccineId) continue;
         const key = String(it.vaccineId);
         const qty = Number(it.doseQty || 1);
-
         if (qty <= 0) {
           toast.error("Số mũi phải lớn hơn 0.");
           return;
@@ -691,26 +682,52 @@ export default function EditCustomerModal({
   };
 
   // update trạng thái lịch (confirm/cancel)
-  const updateAppointmentStatus = async (customerId, apptId, status) => {
+  const updateAppointmentStatus = async (customerId, apptId, action) => {
     try {
-      await setAppointmentStatus(customerId, apptId, status); // PATCH staff
+      let res;
+      if (action === "confirm") {
+        res = await api.post(`/records/bookings/${apptId}/confirm/`);
+        const failed = res?.data?.failed_items || [];
+        if (failed.length) {
+          toast.warning( `Xác nhận không đầy đủ: có ${failed.length} mũi chưa giữ được vắc xin trong kho.`);
+        }
+      } else if (action === "cancel") {
+        // Nếu BE KHÔNG có /cancel/ thì dùng setAppointmentStatus fallback
+        try {
+          res = await api.post(`/records/bookings/${apptId}/cancel/`);
+        } catch (err) {
+          // fallback theo service (nếu service này đang đúng với BE của bạn)
+          await setAppointmentStatus(customerId, apptId, "cancelled");
+          res = { data: { status: "cancelled" } };
+        }
+      } else {
+        throw new Error("Invalid action");
+      }
+
+      const newStatus = res?.data?.status || (action === "confirm" ? "confirmed" : "cancelled");
+      // Update state
       setCustomers((prev) =>
         prev.map((c) =>
-          c.id !== customerId ? c
-          : { ...c, appointments: (c.appointments || []).map((a) => a.id === apptId ? { ...a, status } : a ), }
+          c.id !== customerId
+            ? c : {  ...c,
+                appointments: (c.appointments || []).map((a) =>
+                  String(a.id) === String(apptId) ? { ...a, status: newStatus } : a
+                ),
+              }
         )
       );
       setSelectedCustomer((prev) =>
-        !prev ? prev : { ...prev, appointments: (prev.appointments || []).map((a) =>  a.id === apptId ? { ...a, status } : a ), }
+        !prev ? prev
+          : { ...prev,
+              appointments: (prev.appointments || []).map((a) =>
+                String(a.id) === String(apptId) ? { ...a, status: newStatus } : a
+              ),
+            }
       );
       toast.success(
-        status === "confirmed"
-          ? "Đã xác nhận lịch hẹn"
-          : status === "cancelled"
-          ? "Đã hủy lịch hẹn"
-          : status === "completed"
-          ? "Đã hoàn tất lịch hẹn"
-          : "Đã cập nhật trạng thái"
+        newStatus === "confirmed" ? "Đã xác nhận lịch hẹn"
+        : newStatus === "cancelled" ? "Đã hủy lịch hẹn"
+        : "Đã cập nhật trạng thái"
       );
     } catch (e) {
       toast.error(e?.response?.data?.detail || "Cập nhật trạng thái thất bại");
@@ -726,26 +743,15 @@ export default function EditCustomerModal({
   const doAppointmentAction = async () => {
     if (!confirmAction || !customer) return;
     const { action, appt } = confirmAction;
-    const status = action === "confirm" ? "confirmed" : "cancelled";
-
     try {
-      await updateAppointmentStatus(customer.id, appt.id, status);
-
-      // gọi callback từ parent nếu có
-      if (action === "confirm") {
-        try {
-          onConfirmAppointment(customer.id, appt.id);
-        } catch {}
-      } else if (action === "cancel") {
-        try {
-          onCancelAppointment(customer.id, appt.id);
-        } catch {}
-      }
+      await updateAppointmentStatus(customer.id, appt.id, action);
+      if (action === "confirm") onConfirmAppointment(customer.id, appt.id);
+      if (action === "cancel") onCancelAppointment(customer.id, appt.id);
     } finally {
-      // đóng modal trong mọi trường hợp
       setConfirmAction(null);
     }
   };
+
 
   // ---------------- Render ----------------
   return (
@@ -1698,6 +1704,8 @@ export default function EditCustomerModal({
                         // Chuẩn hoá member_id: nếu chọn "owner:ID" thì bạn có thể để BE hiểu là owner
                         const isOwner = String(newVaccineRecord.memberId).startsWith("owner:");
                         const member_id = isOwner ? null : Number(newVaccineRecord.memberId);
+                        const placeInput = newVaccineRecord.place?.trim();
+                        const placeToShow = placeInput || center?.name || "Trung tâm tiêm chủng Evaccine";
                         const rec = {
                           member_id,                       
                           date: newVaccineRecord.date,
@@ -1708,7 +1716,7 @@ export default function EditCustomerModal({
                           price: newVaccineRecord.price ? Number(newVaccineRecord.price) : null,
                           batch: newVaccineRecord.batch || "",
                           note: newVaccineRecord.note || "",
-                          place: newVaccineRecord.place || center?.name || "Trung tâm tiêm chủng Evaccine",
+                          location: placeInput || center?.name || "Trung tâm tiêm chủng Evaccine",
                         };
                         try {
                           const created = await addHistory(customer.id, rec);
@@ -1724,6 +1732,7 @@ export default function EditCustomerModal({
                             ...created,
                             member_name: created?.member_name ?? pickedName,
                             member_id: created?.member_id ?? member_id ?? null,
+                            place: created?.place ?? created?.location ?? placeToShow,
                           };
                           setCustomers((prev) =>
                             prev.map((c) =>

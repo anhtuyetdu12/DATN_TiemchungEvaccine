@@ -12,14 +12,15 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from vaccines.models import Vaccine
 from django.db import transaction
 from django.utils import timezone
 from django.db.models import Q, Sum, Max
+from rest_framework import status as drf_status
 from datetime import timedelta
 from django.utils.dateparse import parse_date
 from inventory.models import VaccineStockLot, BookingAllocation
 from users.models import CustomUser 
+from vaccines.models import Vaccine, Disease
 from .models import FamilyMember, VaccinationRecord, Booking,  CustomerNotification
 from .serializers import ( 
     FamilyMemberSerializer, VaccinationRecordSerializer,  MyUpdateHistoryByDiseaseInSerializer,                    
@@ -413,9 +414,11 @@ class BookingViewSet(viewsets.ModelViewSet):
     def confirm(self, request, pk=None):
         booking = self.get_object()
         if booking.status in ("cancelled", "completed"):
-            return Response({"detail": "Không thể xác nhận lịch đã hủy/đã hoàn thành."}, status=400)
+            return Response( {"detail": "Không thể xác nhận lịch đã hủy/đã hoàn thành."}, status=400, )
         if booking.status == "confirmed":
             return Response({"status": "confirmed"}, status=200)
+        ok_item_ids = []
+        failed_items = []
         try:
             with transaction.atomic():
                 for item in booking.items.select_related("vaccine").all():
@@ -426,37 +429,50 @@ class BookingViewSet(viewsets.ModelViewSet):
                         continue
                     today = timezone.now().date()
                     appt_date = booking.appointment_date or today
-                    # TẤT CẢ CÁC LÔ ĐANG ACTIVE (kể cả hết hạn) để biết còn hàng hay không
                     all_qs = VaccineStockLot.objects.filter(
                         vaccine=item.vaccine,
                         is_active=True,
                         quantity_available__gt=0,
                     )
-                    total_all = all_qs.aggregate(total=Sum("quantity_available"))["total"] or 0
-                    # CÁC LÔ CÒN HẠN tính theo NGÀY HẸN TIÊM
+                    total_all = (
+                        all_qs.aggregate(total=Sum("quantity_available"))["total"] or 0
+                    )
                     usable_qs = all_qs.filter(expiry_date__gte=appt_date)
-                    usable_total = usable_qs.aggregate(total=Sum("quantity_available"))["total"] or 0
-                    # 1) Không còn hàng (dù hạn hay hết hạn)
+                    usable_total = (
+                        usable_qs.aggregate(total=Sum("quantity_available"))["total"]
+                        or 0
+                    )
+                    reason = None
+                    code = None
                     if total_all == 0:
-                        raise ValueError( f"Vắc xin {item.vaccine.name} hiện đã hết số lượng trong kho." )
-                    # 2) Còn hàng nhưng tất cả đều hết hạn
-                    if usable_total == 0:
-                        raise ValueError(
-                            f"Tất cả các lô của vắc xin {item.vaccine.name} "
-                            f"đã hết hạn sử dụng trước ngày hẹn tiêm. "
-                            f"Vui lòng nhập lô mới hoặc đổi vắc xin khác."
+                        reason = (
+                            f"Vắc xin {item.vaccine.name} hiện đã hết số lượng trong kho."
                         )
-                    # 3) Còn vắc xin còn hạn nhưng KHÔNG ĐỦ cho số lượng đặt
-                    if usable_total < need:
-                        raise ValueError(
+                        code = "out_of_stock"
+                    elif usable_total == 0:
+                        reason = (
+                            f"Tất cả các lô của vắc xin {item.vaccine.name} "
+                            f"đã hết hạn sử dụng trước ngày hẹn tiêm."
+                        )
+                        code = "all_lots_expired"
+                    elif usable_total < need:
+                        reason = (
                             f"Tồn kho không đủ cho {item.vaccine.name}. "
                             f"Hiện còn {usable_total} liều (còn hạn), cần {need} liều."
                         )
-                    # 4) ĐỦ HÀNG → trừ tồn kho theo FIFO CHỈ TRÊN CÁC LÔ CÒN HẠN
-                    lots = (
-                        usable_qs.select_for_update()
-                        .order_by("expiry_date")
-                    )
+                        code = "not_enough_stock"
+                    # Nếu có lỗi → ghi vào failed_items, KHÔNG reserve, tiếp tục mũi khác
+                    if reason:
+                        failed_items.append(
+                            {   "item_id": item.id,
+                                "vaccine_name": item.vaccine.name,
+                                "reason": reason,
+                                "code": code,
+                            }
+                        )
+                        continue
+                    # ĐỦ HÀNG → trừ tồn kho theo FIFO trên các lô còn hạn
+                    lots = usable_qs.select_for_update().order_by("expiry_date")
                     for lot in lots:
                         if need <= 0:
                             break
@@ -472,14 +488,40 @@ class BookingViewSet(viewsets.ModelViewSet):
                             )
                             need -= take
                     if need > 0:
-                        # Về lý thuyết không vào đây, nhưng để an toàn
-                        raise ValueError( f"Tồn kho không đủ cho {item.vaccine.name} sau khi trừ lô. Thiếu {need} liều.")
+                        # về lý thuyết không vào, nhưng nếu có thì coi như failed
+                        failed_items.append(
+                            {   "item_id": item.id,
+                                "vaccine_name": item.vaccine.name,
+                                "reason": (
+                                    f"Tồn kho không đủ cho {item.vaccine.name} "
+                                    f"sau khi trừ lô. Thiếu {need} liều."
+                                ),
+                                "code": "not_enough_stock_after_alloc",
+                            }
+                        )
+                    else:
+                        ok_item_ids.append(item.id)
+                # sau khi duyệt hết các item:
+                if not ok_item_ids:
+                    # không có mũi nào reserve được → không cho confirm
+                    msg = (
+                        failed_items[0]["reason"]
+                        if failed_items
+                        else "Không thể xác nhận lịch hẹn vì không có mũi nào đủ điều kiện."
+                    )
+                    raise ValueError(msg)
                 booking.status = "confirmed"
                 booking.save(update_fields=["status"])
         except ValueError as e:
             return Response({"detail": str(e)}, status=400)
-        return Response({"status": "confirmed"})
-    
+        return Response(
+            {   "status": "confirmed",
+                "ok_item_ids": ok_item_ids,
+                "failed_items": failed_items,
+            },
+            status=200,
+        )
+
     @action(detail=True, methods=["POST"], url_path="cancel")
     def cancel(self, request, pk=None):
         booking = self.get_object()
@@ -510,38 +552,101 @@ class BookingViewSet(viewsets.ModelViewSet):
     def complete(self, request, pk=None):
         booking = self.get_object()
         if booking.status == "cancelled":
-            return Response({"detail":"Lịch đã hủy không thể hoàn thành."}, status=400)
-        if booking.status == "completed":
-            return Response({"detail":"Lịch đã hoàn thành."}, status=200)
+            return Response({"detail": "Lịch đã hủy không thể hoàn thành."}, status=400)
         reaction_note = (request.data.get("reaction_note") or "").strip()
+        item_ids = request.data.get("item_ids") or []
+        # chuẩn hóa item_ids -> list[int]
+        if isinstance(item_ids, (str, int)):
+            item_ids = [item_ids]
+        try:
+            item_ids = [int(x) for x in item_ids]
+        except Exception:
+            return Response({"detail": "Danh sách mũi không hợp lệ."}, status=400)
+
+        if not item_ids:
+            return Response({"detail": "Vui lòng chọn ít nhất 1 mũi đã tiêm."}, status=400)
 
         with transaction.atomic():
-            #  Đổi allocation -> consumed
-            for item in booking.items.all():
-                item.allocations.filter(status="reserved").update(status="consumed")
+            # Lọc ra các item tương ứng
+            items_qs = booking.items.select_related("vaccine__disease").filter(id__in=item_ids)
+            if not items_qs.exists():
+                return Response({"detail": "Không tìm thấy mũi tiêm tương ứng."}, status=404)
+
+            # --- Rule: tối đa 2 mũi / ngày ---
+            if items_qs.count() > 2:
+                return Response( {"detail": "Mỗi buổi chỉ được xác nhận tối đa 2 mũi."}, status=400,)
+            # --- Rule: 2 mũi phải thuộc 2 bệnh khác nhau ---
+            disease_ids = {
+                (it.vaccine.disease_id if it.vaccine and it.vaccine.disease_id else None)
+                for it in items_qs
+            }
+            if items_qs.count() > 1 and len(disease_ids) < items_qs.count():
+                return Response( {"detail": "Không được xác nhận 2 mũi cùng một phòng bệnh trong cùng ngày."}, status=400, )
             today = timezone.now().date()
-            # Đánh dấu các record dự kiến tương ứng là đã tiêm hôm nay
+
+            # ========== NEW: kiểm tra lại allocation & hạn dùng tại NGÀY TIÊM ==========
+            for item in items_qs.select_related("vaccine").all():
+                allocs = (
+                    item.allocations
+                    .select_for_update()
+                    .filter(status="reserved")
+                    .select_related("lot")
+                )
+                if not allocs.exists():
+                    return Response(
+                        { "detail": ( f"Mũi {item.id} ({item.vaccine.name if item.vaccine else ''}) "
+                                "chưa được giữ vắc xin trong kho hoặc đã bị huỷ giữ hàng." )
+                        }, status=400,
+                    )
+                expired_lots = []
+                invalid_lots = []
+                for alloc in allocs:
+                    lot = alloc.lot
+                    if not lot or not lot.expiry_date:
+                        invalid_lots.append(lot.lot_number if lot else "?")
+                        continue
+                    if lot.expiry_date < today:
+                        expired_lots.append(lot.lot_number)
+                if expired_lots:
+                    return Response(
+                        { "detail": ( f"Mũi {item.id} ({item.vaccine.name if item.vaccine else ''}): "
+                                "các lô sau đã hết hạn trước ngày tiêm: "
+                                + ", ".join(expired_lots) + ". Vui lòng nhập lô mới hoặc đặt lại lịch." ) 
+                         },
+                        status=400,
+                    )
+                if invalid_lots:
+                    return Response(
+                        { "detail": ( f"Mũi {item.id} ({item.vaccine.name if item.vaccine else ''}): "
+                                "có lô không hợp lệ: " + ", ".join(invalid_lots) + ". Vui lòng kiểm tra lại kho." ) 
+                        },
+                        status=400,
+                    )
+            # ================== Nếu qua được đây → allocation & hạn dùng OK ==================
+            # 1) Đổi allocation reserved -> consumed CHO CÁC ITEM ĐƯỢC CHỌN
+            for item in items_qs:
+                item.allocations.filter(status="reserved").update(status="consumed")
+            # 2) Cập nhật VaccinationRecord dự kiến của các vaccine được chọn
+            vaccine_ids = list(items_qs.values_list("vaccine_id", flat=True).distinct())
             rec_qs = VaccinationRecord.objects.select_for_update().filter(
                 family_member=booking.member,
-                vaccine__in=booking.items.values("vaccine_id"),
-                next_dose_date=booking.appointment_date,
+                vaccine_id__in=vaccine_ids,
                 vaccination_date__isnull=True,
-            )
+            ).filter( Q(source_booking=booking) | Q(next_dose_date=booking.appointment_date))
             updated = 0
             for rec in rec_qs:
                 rec.vaccination_date = today
                 rec.next_dose_date = None
+                rec.source_booking = booking 
                 if reaction_note:
                     rec.note = (rec.note + "\n" if rec.note else "") + reaction_note
-                rec.save(update_fields=["vaccination_date", "next_dose_date", "note"])
+                rec.save(update_fields=["vaccination_date", "next_dose_date", "note", "source_booking"])
                 updated += 1
-           
-            # GÁN SỐ LÔ VÀO VaccinationRecord  
-            for item in booking.items.select_related("vaccine").all():
+            # 3) Gán số lô cho các record vừa tiêm hôm nay (chỉ item được chọn)
+            for item in items_qs.select_related("vaccine").all():
                 v = item.vaccine
                 if not v:
                     continue
-                # Các allocation đã dùng cho item này
                 allocs = (
                     item.allocations
                     .filter(status="consumed")
@@ -550,7 +655,6 @@ class BookingViewSet(viewsets.ModelViewSet):
                 )
                 if not allocs.exists():
                     continue
-                # Các record tương ứng mũi đã tiêm hôm nay, chưa có số lô
                 recs = list(
                     VaccinationRecord.objects
                     .filter(
@@ -563,7 +667,6 @@ class BookingViewSet(viewsets.ModelViewSet):
                 )
                 if not recs:
                     continue
-                # quantity hiện tại của bạn đang giới hạn =1/mũi, nhưng làm general: map từng alloc -> từng rec
                 rec_iter = iter(recs)
                 for alloc in allocs:
                     lot = alloc.lot
@@ -575,10 +678,35 @@ class BookingViewSet(viewsets.ModelViewSet):
                         break
                     rec.vaccine_lot = lot.lot_number
                     rec.save(update_fields=["vaccine_lot"])
-            booking.status = "completed"
+            # 4) Tính lại trạng thái booking:
+            total_items = booking.items.count()
+            vaccines_in_booking = booking.items.values_list("vaccine_id", flat=True)
+            done_vaccine_ids = (
+                VaccinationRecord.objects.filter(
+                    family_member=booking.member,
+                    vaccine_id__in=vaccines_in_booking,
+                    source_booking=booking,
+                    vaccination_date__isnull=False,
+                )
+                .values_list("vaccine_id", flat=True)
+                .distinct()
+            )
+            done_count = done_vaccine_ids.count()
+            # còn mũi nào vẫn còn giữ hàng (reserved) không?
+            has_reserved = BookingAllocation.objects.filter(
+                booking_item__booking=booking,
+                status="reserved",
+            ).exists()
+            if done_count >= total_items or not has_reserved:
+                # Hoặc tất cả vaccine đã tiêm,
+                # hoặc không còn mũi nào đang được giữ hàng -> coi như lịch đã khép lại
+                booking.status = "completed"
             booking.save(update_fields=["status"])
-        return Response({"status": "completed", "updated_records": updated}, status=200)
-    
+        return Response(
+            {"status": booking.status, "updated_records": updated},
+            status=drf_status.HTTP_200_OK,
+        )
+        
     @action(detail=False, methods=["GET"], url_path="export/excel")
     def export_excel(self, request):
         # Lấy cùng queryset với trang quản lý (đã áp dụng status, search, date_from, date_to, role...)
@@ -645,6 +773,50 @@ class BookingViewSet(viewsets.ModelViewSet):
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         wb.save(response)
         return response
+
+# ---------Cập nhật mũi tiêm từ khách hàng-----------
+class MyUpdateHistoryByDiseaseAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        ser = MyUpdateHistoryByDiseaseInSerializer(data=request.data, context={"request": request})
+        if not ser.is_valid():
+            print("DEBUG MyUpdateHistoryByDisease errors:", ser.errors)
+            return Response(ser.errors, status=400)  # trả về errors luôn để FE nhìn thấy
+        member = ser.validated_data["member"]
+        disease = ser.validated_data["disease"]
+        doses = ser.validated_data["clean_doses"]
+        with transaction.atomic():
+            VaccinationRecord.objects.filter(
+                family_member=member,
+                disease=disease,
+                source_booking__isnull=True,
+            ).delete()
+
+            created = []
+            for d in doses:
+                rec = VaccinationRecord.objects.create(
+                    family_member=member,
+                    disease=disease,
+                    vaccine=None,
+                    vaccine_name=d["vaccine_name"],
+                    vaccination_date=d["date"],
+                    next_dose_date=None,
+                    location = d.get("location") or d.get("place") or "",
+                    note="",
+                    dose_number=d["dose_number"],
+                )
+                created.append(rec)
+        out = [
+            {
+                "id": r.id,
+                "date": r.vaccination_date,
+                "vaccine": r.vaccine.name if r.vaccine else (r.vaccine_name or ""),
+                "location": r.location or "",
+            }
+            for r in created
+        ]
+        return Response({"results": out}, status=200)
 
 
 # ---------- Trả danh sách “khách hàng”  -----------
@@ -761,6 +933,8 @@ class StaffCustomerListAPIView(APIView):
                     "price": int(getattr(r.vaccine, "price", 0) or 0),
                     "note": r.note or "",
                     "batch": r.vaccine_lot or "",
+                    "location": r.location or "",
+                    "place": r.location or "", 
                     "status_label": status_label,
                     "vaccination_date": r.vaccination_date,
                     "next_dose_date": r.next_dose_date,
@@ -1024,31 +1198,7 @@ class StaffUpdateAppointmentStatusAPIView(APIView):
                             break
                         rec.vaccine_lot = lot.lot_number
                         rec.save(update_fields=["vaccine_lot"])
-                # 4) Sinh mũi kế tiếp theo phác đồ (nếu còn)
-                # for item in booking.items.all():
-                #     v = item.vaccine
-                #     if not v:
-                #         continue
-                #     total = getattr(v, "doses_required", 1) or 1
-                #     interval = getattr(v, "interval_days", None)
-                #     taken = VaccinationRecord.objects.filter(
-                #         family_member=booking.member,
-                #         vaccine=v,
-                #         vaccination_date__isnull=False,
-                #     ).count()
-                #     if taken >= total or not interval:
-                #         continue
-                #     next_date = today + timedelta(days=interval)
-                #     VaccinationRecord.objects.create(
-                #         family_member=booking.member,
-                #         disease=v.disease,
-                #         vaccine=v,
-                #         dose_number=taken + 1,
-                #         vaccination_date=None,
-                #         next_dose_date=next_date,
-                #         note=f"Tự sinh mũi kế tiếp từ booking #{booking.id}",
-                #     )
-                    
+
             booking.status = new_status
             booking.save(update_fields=["status"])
             booking = ( Booking.objects.select_related("vaccine", "package")
@@ -1104,6 +1254,8 @@ class StaffAddHistoryAPIView(APIView):
         )
         # disease = v_obj.disease if v_obj and v_obj.disease_id else None
         disease = data.get("disease_id") 
+        if isinstance(disease, int):
+            disease = Disease.objects.filter(id=disease).first()
         # Nếu FE không chọn phòng bệnh thì mới fallback sang vaccine.disease
         if not disease and v_obj and v_obj.disease_id:
             disease = v_obj.disease
@@ -1132,6 +1284,8 @@ class StaffAddHistoryAPIView(APIView):
                 existing.vaccine_lot = data["batch"]
             if data.get("note"):
                 existing.note = data["note"]
+            if data.get("location"):
+                existing.location = data["location"]
             existing.save()
             rec = existing
         else:
@@ -1157,6 +1311,7 @@ class StaffAddHistoryAPIView(APIView):
                 vaccination_date=data["date"],
                 next_dose_date=None,
                 note=data.get("note") or "",
+                location=data.get("location") or "",
                 dose_number=next_dose_number,
             )
         return Response({
@@ -1167,6 +1322,8 @@ class StaffAddHistoryAPIView(APIView):
             "vaccine": rec.vaccine.name if rec.vaccine else (rec.vaccine_name or ""),
             "batch": rec.vaccine_lot or "",
             "note": rec.note or "",
+            "location": rec.location or "",
+            "dose": rec.dose_number,  
         }, status=201)
         
 # -----------staff cập nhật tt ng dùng------------------
@@ -1369,7 +1526,188 @@ class StaffCreateAppointmentAPIView(APIView):
         return Response(BookingSerializer(booking, context={"request": request}).data, status=201)
     
 
-# --------- Đếm trước + trả danh sách chi tiết ----------
+
+
+#  ----------thông báo ----------
+def format_vi_date(val):
+    if not val:
+        return ""
+    if isinstance(val, (datetime, date_cls)):
+        d = val.date() if isinstance(val, datetime) else val
+        return f"{d.day:02d}/{d.month:02d}/{d.year}"
+    s = str(val)
+    try:
+        d = datetime.fromisoformat(s).date()
+        return f"{d.day:02d}/{d.month:02d}/{d.year}"
+    except Exception:
+        pass
+    if len(s) == 10 and s[4] == "-" and s[7] == "-":
+        try:
+            y, m, d = s.split("-")
+            return f"{int(d):02d}/{int(m):02d}/{int(y)}"
+        except Exception:
+            pass
+    return s
+
+def render_msg(tpl: str, ctx: dict | None) -> str:
+    if not tpl:
+        return ""
+    ctx = ctx or {}
+
+    def repl(m):
+        key = m.group(1).strip()
+        val = ctx.get(key, "")
+        if key in ("date", "appointment_date"):
+            return format_vi_date(val)
+        return "" if val is None else str(val)
+
+    return re.sub(r"\{\{([^}]+)\}\}", repl, tpl)
+
+def send_notification_email(to_email: str, subject: str, body: str):
+    if not to_email:
+        return
+
+    main_from = "#1186f3"  # xanh dương
+    main_to   = "#1af5f5"  # xanh ngọc
+
+    safe_subject = escape(subject or "").strip() or "Thông báo lịch tiêm"
+    safe_body = escape(body or "")
+    body_html = safe_body.replace("\n", "<br>")
+
+    year = datetime.now().year
+
+    app_url = getattr(
+        settings,
+        "EVACCINE_APP_URL",
+        "http://localhost:3000/notifications"
+    )
+
+    # Gửi mail nhắc lịch tự động
+    html_body = f"""\
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+        <meta charset="UTF-8" />
+        <title>{safe_subject}</title>
+    </head>
+    <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:24px 0;">
+        <tr>
+            <td align="center">
+            <table width="640" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 20px 45px rgba(15,23,42,0.16);">
+                <!-- Header -->
+                <tr>
+                <td style="padding:20px 24px;background:linear-gradient(120deg,{main_from},{main_to});color:#ffffff;">
+                    <table width="100%" cellspacing="0" cellpadding="0">
+                    <tr>
+                        <td style="font-size:22px;font-weight:800;letter-spacing:0.03em; white-space:nowrap;">
+                            <img src="cid:evaccine-logo"
+                                 alt="E-VACCINE" width="32" height="32"
+                                 style="vertical-align:middle;border-radius:50%;border:2px solid #fff;margin-right:8px;">
+                            E-VACCINE
+                        </td>
+                        <td align="right" style="font-size:13px;opacity:0.85;">
+                            <strong>Hệ thống tiêm chủng thông minh</strong>
+                        </td>
+                    </tr>
+                    </table>
+                </td>
+                </tr>
+                <!-- Hero title -->
+                <tr>
+                <td style="padding:20px 24px 8px 24px;">
+                    <div style="font-size:18px;font-weight:700;color:#0f172a;margin-bottom:4px;">
+                    {safe_subject}
+                    </div>
+                    <div style="font-size:13px;color:#6b7280;">
+                    Đây là email nhắc lịch tự động từ hệ thống E-Vaccine.
+                    </div>
+                </td>
+                </tr>
+                <!-- Appointment card -->
+                <tr>
+                <td style="padding:0 24px 16px 24px;">
+                    <table width="100%" cellspacing="0" cellpadding="0" style="border-radius:14px;background:linear-gradient(135deg,#eff6ff,#ecfeff);border:1px solid #dbeafe;">
+                    <tr>
+                        <td style="padding:14px 16px 4px 16px;">
+                        <div style="font-size:13px;font-weight:600;color:#1d4ed8;margin-bottom:6px;">
+                            Thông tin lịch tiêm
+                        </div>
+                        <div style="font-size:14px;color:#111827;line-height:1.7;">
+                            {body_html}
+                        </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 16px 14px 16px;">
+                        <a href="{app_url}"
+                            style="display:inline-block;padding:9px 18px;border-radius:999px;background:#0ea5e9;color:#ffffff;
+                                    font-size:13px;font-weight:600;text-decoration:none;">
+                                Xem chi tiết lịch hẹn
+                        </a>
+                        <span style="font-size:11px;color:#6b7280;margin-left:8px;">
+                            (Đăng nhập tài khoản E-Vaccine để quản lý lịch tiêm)
+                        </span>
+                        </td>
+                    </tr>
+                    </table>
+                </td>
+                </tr>
+                <!-- Tips -->
+                <tr>
+                <td style="padding:0 24px 20px 24px;">
+                    <table width="100%" cellspacing="0" cellpadding="0" style="border-radius:12px;background:#fefce8;border:1px solid #facc15;">
+                    <tr>
+                        <td style="padding:10px 14px;font-size:12px;color:#854d0e;line-height:1.6;">
+                        <strong>Lưu ý khi đi tiêm:</strong>
+                        <ul style="margin:6px 0 0 16px;padding:0;">
+                            <li>Đem theo CCCD/CMND hoặc giấy tờ tùy thân.</li>
+                            <li>Thông báo cho nhân viên y tế nếu bạn đang mang thai, dùng thuốc, hoặc có bệnh lý nền.</li>
+                            <li>Đến sớm 10-15 phút để được hướng dẫn làm thủ tục.</li>
+                        </ul>
+                        </td>
+                    </tr>
+                    </table>
+                </td>
+                </tr>
+                <!-- Footer -->
+                <tr>
+                <td style="padding:12px 24px 16px 24px;border-top:1px solid #e5e7eb;text-align:center;font-size:11px;color:#9ca3af;">
+                    Email được gửi từ hệ thống E-Vaccine, vui lòng không trả lời trực tiếp email này.<br/>
+                    © {year} Trung tâm tiêm chủng E-Vaccine. Mọi quyền lợi đều được ưu tiên.
+                </td>
+                </tr>
+            </table>
+            </td>
+        </tr>
+        </table>
+    </body>
+    </html>
+    """
+    
+    plain_text = strip_tags(html_body)
+    # Tạo email (giống ForgotPasswordAPIView)
+    email = EmailMultiAlternatives(
+        subject=safe_subject,
+        body=plain_text,
+        from_email=settings.EMAIL_HOST_USER,
+        to=[to_email],
+    )
+    email.attach_alternative(html_body, "text/html")
+    # Gắn logo từ static/images/logo.jpg (bạn đổi tên file cho đúng)
+    logo_path = Path(settings.BASE_DIR) / "static" / "images" / "logo.jpg"
+    if logo_path.exists():
+        with open(logo_path, "rb") as f:
+            img_logo = MIMEImage(f.read())
+            img_logo.add_header("Content-ID", "<evaccine-logo>")
+            img_logo.add_header("Content-Disposition", "inline", filename="logo.jpg")
+            email.attach(img_logo)
+
+    email.send(fail_silently=False)
+    
+    
+
+# --------- lấy danh sách chi tiết thông báo nhắc lịch----------
 class CustomerNotificationPreviewAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -1619,233 +1957,6 @@ class CustomerNotificationPreviewAPIView(APIView):
                     })
         return Response({"count": count, "results": results if want_detail else []})
 
-
-# Cập nhật mũi tiêm từ khách hàng
-class MyUpdateHistoryByDiseaseAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        ser = MyUpdateHistoryByDiseaseInSerializer(data=request.data, context={"request": request})
-        if not ser.is_valid():
-            print("DEBUG MyUpdateHistoryByDisease errors:", ser.errors)
-            return Response(ser.errors, status=400)  # trả về errors luôn để FE nhìn thấy
-
-        member = ser.validated_data["member"]
-        disease = ser.validated_data["disease"]
-        doses = ser.validated_data["clean_doses"]
-
-        with transaction.atomic():
-            VaccinationRecord.objects.filter(
-                family_member=member,
-                disease=disease,
-                source_booking__isnull=True,
-            ).delete()
-
-            created = []
-            for d in doses:
-                rec = VaccinationRecord.objects.create(
-                    family_member=member,
-                    disease=disease,
-                    vaccine=None,
-                    vaccine_name=d["vaccine_name"],
-                    vaccination_date=d["date"],
-                    next_dose_date=None,
-                    note=d.get("place") or "",
-                    dose_number=d["dose_number"],
-                )
-                created.append(rec)
-
-        out = [
-            {
-                "id": r.id,
-                "date": r.vaccination_date,
-                "vaccine": r.vaccine.name if r.vaccine else (r.vaccine_name or ""),
-                "place": r.note or "",
-            }
-            for r in created
-        ]
-        return Response({"results": out}, status=200)
-
-
-
-#  ----------thông báo ----------
-def format_vi_date(val):
-    if not val:
-        return ""
-    if isinstance(val, (datetime, date_cls)):
-        d = val.date() if isinstance(val, datetime) else val
-        return f"{d.day:02d}/{d.month:02d}/{d.year}"
-    s = str(val)
-    try:
-        d = datetime.fromisoformat(s).date()
-        return f"{d.day:02d}/{d.month:02d}/{d.year}"
-    except Exception:
-        pass
-    if len(s) == 10 and s[4] == "-" and s[7] == "-":
-        try:
-            y, m, d = s.split("-")
-            return f"{int(d):02d}/{int(m):02d}/{int(y)}"
-        except Exception:
-            pass
-    return s
-
-def render_msg(tpl: str, ctx: dict | None) -> str:
-    if not tpl:
-        return ""
-    ctx = ctx or {}
-
-    def repl(m):
-        key = m.group(1).strip()
-        val = ctx.get(key, "")
-        if key in ("date", "appointment_date"):
-            return format_vi_date(val)
-        return "" if val is None else str(val)
-
-    return re.sub(r"\{\{([^}]+)\}\}", repl, tpl)
-
-def send_notification_email(to_email: str, subject: str, body: str):
-    if not to_email:
-        return
-
-    main_from = "#1186f3"  # xanh dương
-    main_to   = "#1af5f5"  # xanh ngọc
-
-    safe_subject = escape(subject or "").strip() or "Thông báo lịch tiêm"
-    safe_body = escape(body or "")
-    body_html = safe_body.replace("\n", "<br>")
-
-    year = datetime.now().year
-
-    app_url = getattr(
-        settings,
-        "EVACCINE_APP_URL",
-        "http://localhost:3000/notifications"
-    )
-
-    # Gửi mail nhắc lịch tự động
-    html_body = f"""\
-    <!DOCTYPE html>
-    <html lang="vi">
-    <head>
-        <meta charset="UTF-8" />
-        <title>{safe_subject}</title>
-    </head>
-    <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:24px 0;">
-        <tr>
-            <td align="center">
-            <table width="640" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 20px 45px rgba(15,23,42,0.16);">
-                <!-- Header -->
-                <tr>
-                <td style="padding:20px 24px;background:linear-gradient(120deg,{main_from},{main_to});color:#ffffff;">
-                    <table width="100%" cellspacing="0" cellpadding="0">
-                    <tr>
-                        <td style="font-size:22px;font-weight:800;letter-spacing:0.03em; white-space:nowrap;">
-                            <img src="cid:evaccine-logo"
-                                 alt="E-VACCINE" width="32" height="32"
-                                 style="vertical-align:middle;border-radius:50%;border:2px solid #fff;margin-right:8px;">
-                            E-VACCINE
-                        </td>
-                        <td align="right" style="font-size:13px;opacity:0.85;">
-                            <strong>Hệ thống tiêm chủng thông minh</strong>
-                        </td>
-                    </tr>
-                    </table>
-                </td>
-                </tr>
-                <!-- Hero title -->
-                <tr>
-                <td style="padding:20px 24px 8px 24px;">
-                    <div style="font-size:18px;font-weight:700;color:#0f172a;margin-bottom:4px;">
-                    {safe_subject}
-                    </div>
-                    <div style="font-size:13px;color:#6b7280;">
-                    Đây là email nhắc lịch tự động từ hệ thống E-Vaccine.
-                    </div>
-                </td>
-                </tr>
-                <!-- Appointment card -->
-                <tr>
-                <td style="padding:0 24px 16px 24px;">
-                    <table width="100%" cellspacing="0" cellpadding="0" style="border-radius:14px;background:linear-gradient(135deg,#eff6ff,#ecfeff);border:1px solid #dbeafe;">
-                    <tr>
-                        <td style="padding:14px 16px 4px 16px;">
-                        <div style="font-size:13px;font-weight:600;color:#1d4ed8;margin-bottom:6px;">
-                            Thông tin lịch tiêm
-                        </div>
-                        <div style="font-size:14px;color:#111827;line-height:1.7;">
-                            {body_html}
-                        </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding:8px 16px 14px 16px;">
-                        <a href="{app_url}"
-                            style="display:inline-block;padding:9px 18px;border-radius:999px;background:#0ea5e9;color:#ffffff;
-                                    font-size:13px;font-weight:600;text-decoration:none;">
-                                Xem chi tiết lịch hẹn
-                        </a>
-                        <span style="font-size:11px;color:#6b7280;margin-left:8px;">
-                            (Đăng nhập tài khoản E-Vaccine để quản lý lịch tiêm)
-                        </span>
-                        </td>
-                    </tr>
-                    </table>
-                </td>
-                </tr>
-                <!-- Tips -->
-                <tr>
-                <td style="padding:0 24px 20px 24px;">
-                    <table width="100%" cellspacing="0" cellpadding="0" style="border-radius:12px;background:#fefce8;border:1px solid #facc15;">
-                    <tr>
-                        <td style="padding:10px 14px;font-size:12px;color:#854d0e;line-height:1.6;">
-                        <strong>Lưu ý khi đi tiêm:</strong>
-                        <ul style="margin:6px 0 0 16px;padding:0;">
-                            <li>Đem theo CCCD/CMND hoặc giấy tờ tùy thân.</li>
-                            <li>Thông báo cho nhân viên y tế nếu bạn đang mang thai, dùng thuốc, hoặc có bệnh lý nền.</li>
-                            <li>Đến sớm 10-15 phút để được hướng dẫn làm thủ tục.</li>
-                        </ul>
-                        </td>
-                    </tr>
-                    </table>
-                </td>
-                </tr>
-                <!-- Footer -->
-                <tr>
-                <td style="padding:12px 24px 16px 24px;border-top:1px solid #e5e7eb;text-align:center;font-size:11px;color:#9ca3af;">
-                    Email được gửi từ hệ thống E-Vaccine, vui lòng không trả lời trực tiếp email này.<br/>
-                    © {year} Trung tâm tiêm chủng E-Vaccine. Mọi quyền lợi đều được ưu tiên.
-                </td>
-                </tr>
-            </table>
-            </td>
-        </tr>
-        </table>
-    </body>
-    </html>
-    """
-    
-    plain_text = strip_tags(html_body)
-    # Tạo email (giống ForgotPasswordAPIView)
-    email = EmailMultiAlternatives(
-        subject=safe_subject,
-        body=plain_text,
-        from_email=settings.EMAIL_HOST_USER,
-        to=[to_email],
-    )
-    email.attach_alternative(html_body, "text/html")
-    # Gắn logo từ static/images/logo.jpg (bạn đổi tên file cho đúng)
-    logo_path = Path(settings.BASE_DIR) / "static" / "images" / "logo.jpg"
-    if logo_path.exists():
-        with open(logo_path, "rb") as f:
-            img_logo = MIMEImage(f.read())
-            img_logo.add_header("Content-ID", "<evaccine-logo>")
-            img_logo.add_header("Content-Disposition", "inline", filename="logo.jpg")
-            email.attach(img_logo)
-
-    email.send(fail_silently=False)
-    
-    
     
 # ---------Thông báo cho khách hàng---------   
 class MyNotificationsAPIView(APIView):

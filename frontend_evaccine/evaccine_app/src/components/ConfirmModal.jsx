@@ -16,11 +16,7 @@ export default function ConfirmModal({
         <h2 className="tw-text-3xl tw-font-semibold tw-mb-4 tw-text-blue-600">
           {title}
         </h2>
-
-        {/* Nội dung */}
         <p className="tw-mb-6 tw-text-gray-700">{message}</p>
-
-        {/* Buttons */}
         <div className="tw-flex tw-justify-end tw-space-x-3">
           <button onClick={onCancel}
             className="tw-bg-red-600 tw-text-white tw-px-4 tw-py-2 tw-rounded hover:tw-bg-red-500">
