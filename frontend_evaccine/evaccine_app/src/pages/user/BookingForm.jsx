@@ -394,9 +394,26 @@ export default function BookingForm() {
         }
       });
     } catch (e) {
-      const msg = e?.response?.data?.items || e?.response?.data?.detail || "Không thể đặt lịch.";
-      toast.error(msg);
+      const data = e?.response?.data;
+
+      const toText = (v) => {
+        if (!v) return "";
+        if (typeof v === "string") return v;
+        if (Array.isArray(v)) return v.join(", ");
+        if (typeof v === "object") return Object.values(v).flat().join(", ");
+        return String(v);
+      };
+
+      const msg =
+        toText(data?.detail) ||
+        toText(data?.items) ||
+        toText(data?.appointment_date) ||
+        toText(data?.member_id) ||
+        toText(data?.vaccine_id);
+
+      toast.error(msg || "Không thể đặt lịch.");
     }
+
   };
 
 
