@@ -56,16 +56,13 @@ const getItemStatus = (booking, item) => {
   if (raw) {
     const normalized = STATUS_VN[raw] || raw;
     const shot = item?.vaccination_date || item?.injected_at;
-    // const appt = item?.next_dose_date || booking?.appointment_date;
     // dateLabel ưu tiên theo dữ liệu thật
     const dateLabel = shot
       ? formatDate(shot)
       : (item?.next_dose_date ? formatDate(item.next_dose_date)
         : (booking?.appointment_date ? formatDate(booking.appointment_date) : "—"));
-
     // Nếu BE đã nói "Đã tiêm" thì phải hiển thị "Đã tiêm"
     if (normalized === "Đã tiêm") return { label: "Đã tiêm", dateLabel };
-
     // Nếu BE trả "Chờ tiêm/Trễ hẹn/..." thì dùng luôn
     if (["Chờ tiêm", "Trễ hẹn", "Chưa tiêm"].includes(normalized)) {
       return { label: normalized, dateLabel };
@@ -81,6 +78,15 @@ const getItemStatus = (booking, item) => {
     return { label: apptYMD < todayYMD ? "Trễ hẹn" : "Chờ tiêm", dateLabel: formatDate(appt) };
   }
   return { label: "Chưa tiêm", dateLabel: "—" };
+};
+
+const getItemDates = (booking, item) => {
+  const appointment = item?.next_dose_date || booking?.appointment_date || null;
+  const injected = item?.vaccination_date || item?.injected_at || null;
+  return {
+    appointmentLabel: appointment ? formatDate(appointment) : "—",
+    injectedLabel: injected ? formatDate(injected) : "—",
+  };
 };
 
 
@@ -190,6 +196,11 @@ export default function AppointmentDetailModal({ detail, onClose }) {
               <InfoRow  label="Ngày hẹn"
                 value={formatDate(detail?.appointment_date)}
               />
+              <InfoRow
+                label="Ngày tiêm"
+                value={detail?.completed_at ? formatDate(detail.completed_at) : "—"}
+              />
+
               <InfoRow label="Cơ sở"
                 value={detail?.location || "255 Lê Duẩn, Thanh Khê, Tp. Đà Nẵng"}
               />
@@ -230,13 +241,14 @@ export default function AppointmentDetailModal({ detail, onClose }) {
                   <table className="tw-w-full tw-text-[10px] ">
                     <thead className="tw-sticky tw-top-0 tw-bg-[#a6edf7] tw-border-gray-100">
                       <tr className="tw-text-gray-700 ">
-                        <th className="tw-text-left tw-font-medium tw-px-4 tw-py-3 tw-w-1/7">Vắc xin</th>
-                        <th className="tw-text-left tw-font-medium tw-px-4 tw-py-3 tw-w-1/7">Phòng bệnh</th>
-                        <th className="tw-text-left tw-font-medium tw-px-4 tw-py-3 tw-w-1/7">Số lượng</th>
-                        <th className="tw-text-right tw-font-medium tw-px-4 tw-py-3 tw-w-1/7">Đơn giá</th>
-                        <th className="tw-text-right tw-font-medium tw-px-4 tw-py-3 tw-w-1/7">Thành tiền</th>
-                        <th className="tw-text-center tw-font-medium tw-px-4 tw-py-3 tw-w-1/5">Trạng thái</th>
-                        <th className="tw-text-center tw-font-medium tw-px-4 tw-py-3 tw-w-1/7">Ngày tiêm </th>
+                        <th className="tw-text-left tw-font-medium tw-px-4 tw-py-3 tw-w-1/8">Vắc xin</th>
+                        <th className="tw-text-left tw-font-medium tw-px-4 tw-py-3 tw-w-1/8">Phòng bệnh</th>
+                        <th className="tw-text-left tw-font-medium tw-px-4 tw-py-3 tw-w-1/8">Số lượng</th>
+                        <th className="tw-text-right tw-font-medium tw-px-4 tw-py-3 tw-w-1/8">Đơn giá</th>
+                        <th className="tw-text-right tw-font-medium tw-px-4 tw-py-3 tw-w-1/8">Thành tiền</th>
+                        <th className="tw-text-center tw-font-medium tw-px-4 tw-py-3 tw-w-1/6">Trạng thái</th>
+                        <th className="tw-text-center tw-font-medium tw-px-4 tw-py-3 tw-w-1/8">Ngày hẹn</th>
+                        <th className="tw-text-center tw-font-medium tw-px-4 tw-py-3 tw-w-1/8">Ngày tiêm </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -251,7 +263,8 @@ export default function AppointmentDetailModal({ detail, onClose }) {
                         const price = Number(it?.unit_price || 0);
                         const line  = qty * price;
 
-                        const { label: itemStatus, dateLabel } = getItemStatus(detail, it);
+                        const { label: itemStatus } = getItemStatus(detail, it);
+                        const { appointmentLabel, injectedLabel } = getItemDates(detail, it);
                         const pillCls = ITEM_STATUS_CLASS[itemStatus] || "tw-bg-gray-100 tw-text-gray-700";
 
                         return (
@@ -264,9 +277,8 @@ export default function AppointmentDetailModal({ detail, onClose }) {
                             <td className="tw-px-4 tw-py-3 tw-text-center">
                               <span className={`${pillCls} tw-px-3 tw-py-1 tw-rounded-full`}>{itemStatus}</span>
                             </td>
-                            <td className="tw-px-4 tw-py-3 tw-text-center tw-text-gray-700">
-                              {dateLabel || "—"}
-                            </td>
+                            <td className="tw-px-4 tw-py-3 tw-text-center tw-text-gray-700">{appointmentLabel}</td>
+                            <td className="tw-px-4 tw-py-3 tw-text-center tw-text-gray-700"> {injectedLabel} </td>
                           </tr>
                         );
                       })}

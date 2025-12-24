@@ -11,13 +11,41 @@ from .serializers import StockLotSerializer
 from django.core.mail import send_mail
 from django.conf import settings
 
-
+# API Quản lý tồn kho vắc xin
 class InventoryViewSet(viewsets.ViewSet):
+    """
+    InventoryViewSet
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Cung cấp API quản lý và thống kê tồn kho vắc xin.
+
+    Business Meaning:
+        Dùng cho:
+            - dashboard kho
+            - cảnh báo sắp hết hàng
+            - theo dõi lô sắp hết hạn
+
+    Notes:
+        - Chỉ cho người dùng đã đăng nhập
+        - Không CRUD trực tiếp VaccineStockLot
+    """
     permission_classes = [permissions.IsAuthenticated]
 
-    # GET /api/inventory/low-stock/?threshold=20
     @action(detail=False, methods=["GET"], url_path="low-stock")
     def low_stock(self, request):
+        """
+        API cảnh báo vắc xin sắp hết hàng.
+
+        Business Rule:
+            - Tổng quantity_available của các lô active
+            - So sánh với threshold (query hoặc cấu hình vaccine)
+
+        Notes:
+            - Nếu không truyền threshold → dùng low_stock_threshold của vaccine
+        """
         threshold = request.query_params.get("threshold")
         try: threshold = int(threshold) if threshold is not None else None
         except: threshold = None
@@ -40,9 +68,20 @@ class InventoryViewSet(viewsets.ViewSet):
                 })
         return Response(result)
 
-    # GET /api/inventory/expiring-soon/?days=30
     @action(detail=False, methods=["GET"], url_path="expiring-soon")
     def expiring_soon(self, request):
+        """
+        API lấy danh sách lô vắc xin sắp hết hạn.
+
+        Business Rule:
+            - Lô active
+            - Hạn dùng trong N ngày tới (default: 30)
+
+        Use Case:
+            - Nhắc nhập kho
+            - Ưu tiên sử dụng lô gần hết hạn
+        """
+
         days = int(request.query_params.get("days") or 30)
         today = timezone.now().date()
         soon = today + timedelta(days=days)
@@ -51,10 +90,23 @@ class InventoryViewSet(viewsets.ViewSet):
         ).select_related("vaccine").order_by("expiry_date", "vaccine__name")
         return Response(StockLotSerializer(qs, many=True).data)
 
-    # GET /api/inventory/stock-summary/
     @action(detail=False, methods=["GET"], url_path="stock-summary")
     def stock_summary(self, request):
-        # gom theo vaccine, active
+        """
+        API tổng hợp tồn kho theo vắc xin.
+
+        Business Meaning:
+            - Gom nhiều lô thành 1 record theo vaccine
+            - Phục vụ dashboard & báo cáo
+
+        Returned Data:
+            - tổng số lượng khả dụng
+            - lô gần hết hạn nhất
+            - danh sách lô chi tiết (rút gọn)
+
+        Notes:
+            - Chỉ lấy lô active & còn hàng
+        """
         lots = (VaccineStockLot.objects
                 .filter(is_active=True, quantity_available__gt=0)
                 .select_related("vaccine")
@@ -76,7 +128,6 @@ class InventoryViewSet(viewsets.ViewSet):
             if result[vid]["soonest_expiry"] is None or lot.expiry_date < result[vid]["soonest_expiry"]:
                 result[vid]["soonest_expiry"] = lot.expiry_date
                 result[vid]["first_lot_number"] = lot.lot_number
-            # rút gọn list lô (tuỳ ý)
             result[vid]["lots"].append({
                 "id": lot.id,
                 "lot_number": lot.lot_number,

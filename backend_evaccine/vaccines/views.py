@@ -20,7 +20,26 @@ from records.serializers import BookingSerializer
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 from records.views import create_planned_records_for_booking
 
+
 class DiseaseViewSet(viewsets.ModelViewSet):
+    """
+    DiseaseViewSet
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Quản lý API CRUD cho Disease.
+
+    Business Meaning:
+        Cho phép FE / Admin quản lý danh sách bệnh
+        và phác đồ tiêm tương ứng.
+
+    Notes:
+        - Không phân trang
+        - AllowAny do dữ liệu bệnh mang tính public
+    """
+
     queryset = Disease.objects.all()
     serializer_class = DiseaseSerializer
     permission_classes = [AllowAny]
@@ -33,6 +52,21 @@ class DiseaseViewSet(viewsets.ModelViewSet):
 
 
 class VaccineCategoryViewSet(viewsets.ModelViewSet):
+    """
+    VaccineCategoryViewSet
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Quản lý API danh mục vắc xin.
+
+    Business Meaning:
+        Phân loại vắc xin để phục vụ hiển thị trên FE.
+
+    Notes:
+        - AllowAny
+    """
     queryset = VaccineCategory.objects.all()
     serializer_class = VaccineCategorySerializer
     permission_classes = [AllowAny]
@@ -41,8 +75,30 @@ class VaccineCategoryViewSet(viewsets.ModelViewSet):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
         return ctx
- 
+
+
 class VaccineViewSet(viewsets.ModelViewSet):
+    """
+    VaccineViewSet
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Quản lý API liên quan đến vắc xin.
+
+    Business Meaning:
+        Cung cấp các chức năng:
+            - danh sách vắc xin
+            - gợi ý vắc xin theo tuổi và phác đồ
+            - đặt lịch tiêm
+            - xuất dữ liệu vắc xin
+
+    Notes:
+        - lookup bằng slug
+        - một số action yêu cầu đăng nhập
+        - dữ liệu by_age phụ thuộc VaccinationRecord
+    """
     queryset = Vaccine.objects.all().select_related("disease", "category").order_by("-created_at")
     serializer_class = VaccineSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]  #  an toàn hơn AllowAny
@@ -55,7 +111,7 @@ class VaccineViewSet(viewsets.ModelViewSet):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
         return ctx
-
+    # Lấy danh sách vắc xin theo danh sách ID 
     @action(detail=False, methods=["get"], url_path="by-ids")
     def by_ids(self, request):
         ids = request.query_params.get("ids", "")
@@ -66,8 +122,10 @@ class VaccineViewSet(viewsets.ModelViewSet):
         qs = self.get_queryset().filter(id__in=id_list)
         return Response(self.get_serializer(qs, many=True).data)
 
+    
     @action(detail=False, methods=["get"], url_path="by-diseases")
     def by_diseases(self, request):
+        """ Lấy vắc xin theo danh sách bệnh  """
         disease_ids = request.query_params.get("disease_ids")
         if not disease_ids:
             return Response({"error": "Thiếu disease_ids"}, status=400)
@@ -78,6 +136,28 @@ class VaccineViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="by-age", permission_classes=[IsAuthenticated])
     def by_age(self, request):
+        """
+        Gợi ý vắc xin phù hợp theo tuổi thành viên + thống kê mũi đã tiêm + mũi kế tiếp
+
+        Author: Du Thi Anh Tuyet
+        Email: anhtuyetdu21@gmail.com
+
+        Purpose:
+            Gợi ý danh sách vắc xin phù hợp cho một thành viên
+            dựa trên độ tuổi và lịch sử tiêm chủng.
+
+        Business Rules:
+            - Tính tuổi theo tháng từ date_of_birth
+            - Chỉ lấy vaccine đang active
+            - Lọc theo khoảng tuổi áp dụng của vaccine
+            - Thống kê số mũi đã tiêm theo từng bệnh
+            - Xác định mũi tiêm kế tiếp theo phác đồ bệnh
+
+        Notes:
+            - Dữ liệu doses_used và next_dose_number được tính bằng annotate
+            - Phụ thuộc VaccinationRecord
+            - Không ghi dữ liệu, chỉ đọc
+        """
         member_id = request.query_params.get("member_id")
         disease_id = request.query_params.get("disease_id")
         dose_number = request.query_params.get("dose_number")
@@ -117,7 +197,7 @@ class VaccineViewSet(viewsets.ModelViewSet):
             else:
                 age_text = f"{y} tuổi {m} tháng"
 
-        # --- BASE QUERYSET: chỉ lấy vaccine active, lọc theo bệnh nếu có ---
+        # ---  chỉ lấy vaccine active, lọc theo bệnh nếu có ---
         qs = Vaccine.objects.filter(status="active").select_related("disease", "category")
         if disease_id and str(disease_id).isdigit():
             qs = qs.filter(disease_id=int(disease_id))
@@ -184,9 +264,9 @@ class VaccineViewSet(viewsets.ModelViewSet):
             }
         )
 
-    # ====== đặt 1 vaccine ngay tại đây ======
     @action(detail=True, methods=["post"], url_path="book", permission_classes=[IsAuthenticated])
     def book(self, request, slug=None):
+        """ Đặt lịch tiêm 1 vắc xin  """
         vaccine = self.get_object()
         member_id = request.data.get("member_id")
         appointment_date = request.data.get("appointment_date")
@@ -209,9 +289,10 @@ class VaccineViewSet(viewsets.ModelViewSet):
         create_planned_records_for_booking(booking)
         return Response(BookingSerializer(booking, context={"request": request}).data, status=201)
 
-    # ======  đặt nhiều vaccine cùng lúc (giỏ) ======
+    
     @action(detail=False, methods=["post"], url_path="checkout", permission_classes=[IsAuthenticated])
     def checkout(self, request):
+        """ Đặt lịch nhiều vắc xin cùng lúc (đặt từ giỏ/checkout)  """
         member_id = request.data.get("member_id")
         appointment_date = request.data.get("appointment_date")
         vaccine_ids = request.data.get("vaccine_ids") or []  # [1,2,3]
@@ -241,7 +322,7 @@ class VaccineViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=["get"], url_path="export/excel", permission_classes=[IsAuthenticated])
     def export_excel(self, request):
-        # Lọc cơ bản theo ?search=... nếu FE gửi
+        """  Xuất danh sách vắc xin ra file Excel  """
         search = request.query_params.get("search", "").strip()
 
         qs = self.get_queryset()
@@ -252,12 +333,9 @@ class VaccineViewSet(viewsets.ModelViewSet):
                 | Q(origin__icontains=search)
                 | Q(disease__name__icontains=search)
             )
-
         wb = Workbook()
         ws = wb.active
         ws.title = "Vaccines"
-
-        # Header
         ws.append([
             "Tên vắc xin",
             "Phòng bệnh",
@@ -271,7 +349,6 @@ class VaccineViewSet(viewsets.ModelViewSet):
             "Giá (VNĐ)",
             "Ghi chú",
         ])
-
         for v in qs:
             lots = VaccineStockLot.objects.filter(vaccine=v, is_active=True)
 
@@ -301,7 +378,6 @@ class VaccineViewSet(viewsets.ModelViewSet):
         output = BytesIO()
         wb.save(output)
         output.seek(0)
-
         resp = HttpResponse(
             output.getvalue(),
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -310,10 +386,26 @@ class VaccineViewSet(viewsets.ModelViewSet):
         return resp
 
 
+
 class VaccinePackageGroupViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    VaccinePackageGroupViewSet
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        API đọc danh sách nhóm gói tiêm.
+
+    Business Meaning:
+        FE dùng để hiển thị các nhóm gói tiêm theo section.
+
+    Notes:
+        - ReadOnly
+        - Chỉ lấy group và package đang active
+    """
     queryset = VaccinePackageGroup.objects.filter(status=True).prefetch_related(
-        Prefetch(
-            "packages",
+        Prefetch( "packages",
             queryset=VaccinePackage.objects.filter(status=True).prefetch_related("disease_groups__vaccines")
         )
     ).order_by("-created_at")
@@ -322,6 +414,22 @@ class VaccinePackageGroupViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class VaccinePackageViewSet(viewsets.ModelViewSet):
+    """
+    VaccinePackageViewSet
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Quản lý API gói tiêm chủng.
+
+    Business Meaning:
+        Cho phép tạo, cập nhật và hiển thị chi tiết gói tiêm.
+
+    Notes:
+        - lookup bằng slug
+        - yêu cầu đăng nhập cho thao tác ghi
+    """
     queryset = VaccinePackage.objects.all().order_by("-created_at")
     serializer_class = VaccinePackageSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]

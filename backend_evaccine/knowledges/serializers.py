@@ -2,14 +2,43 @@
 from rest_framework import serializers
 from .models import KnowledgeArticle, KnowledgeCategory
 
-
 class KnowledgeCategorySerializer(serializers.ModelSerializer):
+    """
+    KnowledgeCategorySerializer
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Serialize dữ liệu danh mục bài viết.
+
+    Notes:
+        - Dùng cho cả admin CMS và public API
+    """
+
     class Meta:
         model = KnowledgeCategory
         fields = "__all__"
 
-
 class KnowledgeArticleSerializer(serializers.ModelSerializer):
+    """
+    KnowledgeArticleSerializer
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Serialize dữ liệu bài viết kiến thức.
+
+    Business Meaning:
+        Trả dữ liệu bài viết cho:
+            - CMS quản trị
+            - Trang kiến thức public
+
+    Notes:
+        - author & approved_by là read-only
+        - slug & published_at do hệ thống quản lý
+    """
     author_name = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
 
@@ -24,7 +53,7 @@ class KnowledgeArticleSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-
+    # lấy tên tác giả hiển thị
     def get_author_name(self, obj):
         user = obj.author
         if not user:
@@ -36,10 +65,10 @@ class KnowledgeArticleSerializer(serializers.ModelSerializer):
         if getattr(user, "email", None):
             return user.email
         return str(user)
-
+    # lấy tên danh mục hiển thị
     def get_category_name(self, obj):
         return obj.category.name if obj.category else None
-
+    # gán tác giả khi tạo bài
     def create(self, validated_data):
         request = self.context.get("request")
         if request and request.user and request.user.is_authenticated:

@@ -33,6 +33,23 @@ from django.core.mail import send_mail
 from django.conf import settings
 
 class FamilyMemberViewSet(viewsets.ModelViewSet):
+    """
+    FamilyMemberViewSet - quản lý thành viên gia đình
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Quản lý danh sách thành viên gia đình của người dùng hiện tại.
+
+    Access Rules:
+        - Customer: chỉ xem / sửa member thuộc chính họ
+        - Staff/Admin: KHÔNG dùng API này
+
+    Business Rules:
+        - Mỗi user luôn có 1 member mặc định với relation = "Bản thân"
+        - Member "Bản thân" luôn được đưa lên đầu danh sách
+    """
     serializer_class = FamilyMemberSerializer
     permission_classes = [IsAuthenticated]
 
@@ -40,17 +57,14 @@ class FamilyMemberViewSet(viewsets.ModelViewSet):
         return FamilyMember.objects.filter(user=self.request.user)
     
     def perform_create(self, serializer):
-        # GÁN user cho bản ghi mới => tránh NULL user_id
         serializer.save(user=self.request.user)
 
     def perform_update(self, serializer):
-        # (tuỳ chọn) đảm bảo không đổi chủ sở hữu
         serializer.save(user=self.request.user)
 
     def list(self, request, *args, **kwargs):
         user = request.user
         queryset = self.get_queryset()
-        # Kiểm tra đã có "Bản thân" chưa
         self_member = queryset.filter(relation="Bản thân").first()
         if not self_member:
             # Tạo default member cho user chính
@@ -62,7 +76,7 @@ class FamilyMemberViewSet(viewsets.ModelViewSet):
                 gender="other",
                 date_of_birth=date_cls(2000, 1, 1),
                 phone=getattr(user, "phone", ""),
-                is_self=True  # nếu model có cột này
+                is_self=True  
             )
             # Đặt queryset gồm member mới + các thành viên khác
             other_members = queryset.exclude(id=self_member.id)
@@ -74,8 +88,27 @@ class FamilyMemberViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
     
-
 def create_planned_records_for_booking(booking):
+    """
+    Tạo/Cập nhật các mũi dự kiến từ lịch hẹn
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Đồng bộ lịch hẹn (Booking) sang các mũi dự kiến trong sổ tiêm.
+
+    Business Rules:
+        1) Ưu tiên phác đồ theo Disease, fallback theo Vaccine
+        2) Không tạo mũi dự kiến nếu đã tiêm đủ phác đồ
+        3) Mỗi booking chỉ giữ 1 planned record cho mỗi bệnh/vaccine
+        4) Planned record cũ (không trùng ngày hẹn mới) sẽ bị clear
+        5) Không ghi vaccination_date tại đây (chỉ tạo planned)
+
+    Notes:
+        - Function này KHÔNG xử lý inventory
+        - Chỉ được gọi sau khi tạo booking thành công
+    """
     member = booking.member
     if not member:
         return
@@ -158,8 +191,24 @@ def create_planned_records_for_booking(booking):
             source_booking=booking,
         )
 
-# --- Quản lý sổ tiêm chủng ---
 class VaccinationRecordViewSet(viewsets.ModelViewSet):
+    """
+    VaccinationRecordViewSet - quản lý sổ tiêm chủng
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Quản lý sổ tiêm chủng của khách hàng.
+
+    Access Rules:
+        - Customer: chỉ xem sổ tiêm của chính họ
+        - Staff/Admin: xem được toàn bộ
+
+    Business Rules:
+        - Record được tạo từ Booking (source_booking != null) → KHÔNG được xoá
+        - Record nhập tay (legacy/manual) → cho phép chỉnh sửa/xoá
+    """
     queryset = VaccinationRecord.objects.all()  
     serializer_class = VaccinationRecordSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -181,7 +230,7 @@ class VaccinationRecordViewSet(viewsets.ModelViewSet):
             "disease",
             "source_booking",   
         ).order_by(
-            "-vaccination_date",  # mũi đã tiêm mới nhất trước
+            "-vaccination_date", 
             "-next_dose_date",
             "-id",
         )
@@ -199,8 +248,24 @@ class VaccinationRecordViewSet(viewsets.ModelViewSet):
         serializer.save()
 
 
-# ---------- đặt hẹn mũi tiêm  -----------
 class RemainingDosesView(APIView):
+    """
+    RemainingDosesView - đặt hẹn mũi tiêm 
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Trả về thông tin phác đồ tiêm cho 1 member + vaccine:
+            - Tổng số mũi
+            - Đã tiêm / còn lại
+            - Ngày sớm nhất có thể tiêm mũi tiếp theo
+
+    Business Rules:
+        - Ưu tiên group theo Disease nếu vaccine có disease
+        - next_dose_date được tính theo interval_days
+        - Planned record cũ sai phác đồ sẽ bị ignore/clear
+    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -370,8 +435,25 @@ class RemainingDosesView(APIView):
             "next_dose_number": next_dose_number,
         })
 
-# ---------- booking -----------
 class BookingViewSet(viewsets.ModelViewSet):
+    """
+    BookingViewSet - đặt lịch hẹn tiêm
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Quản lý lịch hẹn tiêm chủng:
+            - Tạo / lọc / xác nhận / huỷ / hoàn thành
+            - Đồng bộ inventory & sổ tiêm
+
+    Access Rules:
+        - Customer: chỉ thao tác booking của chính họ
+        - Staff/Admin: thao tác được booking của customer
+
+    Notes:
+        - Các action ghi dữ liệu đều chạy trong transaction.atomic
+    """
     queryset = Booking.objects.all().select_related("user", "member").prefetch_related("items__vaccine")
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -419,6 +501,19 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["POST"], url_path="confirm")
     def confirm(self, request, pk=None):
+        """
+        Xác nhận đặt chỗ và dự trữ vắc xin.
+
+        Business Rules:
+            - Không confirm booking đã cancelled/completed
+            - Inventory được kiểm tra tại NGÀY HẸN
+            - Allocation theo FIFO (expiry_date ASC)
+            - Cho phép confirm một phần (một số mũi fail)
+        Side Effects:
+            - Tạo BookingAllocation (reserved)
+            - Update booking.status = confirmed
+        """
+
         booking = self.get_object()
         if booking.status in ("cancelled", "completed"):
             return Response( {"detail": "Không thể xác nhận lịch đã hủy/đã hoàn thành."}, status=400, )
@@ -495,7 +590,6 @@ class BookingViewSet(viewsets.ModelViewSet):
                             )
                             need -= take
                     if need > 0:
-                        # về lý thuyết không vào, nhưng nếu có thì coi như failed
                         failed_items.append(
                             {   "item_id": item.id,
                                 "vaccine_name": item.vaccine.name,
@@ -508,7 +602,6 @@ class BookingViewSet(viewsets.ModelViewSet):
                         )
                     else:
                         ok_item_ids.append(item.id)
-                # sau khi duyệt hết các item:
                 if not ok_item_ids:
                     # không có mũi nào reserve được → không cho confirm
                     msg = (
@@ -566,6 +659,20 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["POST"], url_path="complete")
     def complete(self, request, pk=None):
+        """
+        Hoàn thành tiêm phòng cho các hạng mục đặt hẹn đã chọn.
+
+        Business Rules:
+            - Tối đa 2 mũi / buổi
+            - 2 mũi phải thuộc 2 bệnh khác nhau
+            - Allocation phải còn hạn tại NGÀY TIÊM
+            - Chỉ mũi được chọn mới được consume
+
+        Side Effects:
+            - Allocation: reserved → consumed
+            - Planned VaccinationRecord → vaccination_date = today
+            - Update booking.status = completed (nếu đủ điều kiện)
+        """
         booking = self.get_object()
         if booking.status == "cancelled":
             return Response({"detail": "Lịch đã hủy không thể hoàn thành."}, status=400)
@@ -588,10 +695,9 @@ class BookingViewSet(viewsets.ModelViewSet):
             if not items_qs.exists():
                 return Response({"detail": "Không tìm thấy mũi tiêm tương ứng."}, status=404)
 
-            # --- Rule: tối đa 2 mũi / ngày ---
             if items_qs.count() > 2:
                 return Response( {"detail": "Mỗi buổi chỉ được xác nhận tối đa 2 mũi."}, status=400,)
-            # --- Rule: 2 mũi phải thuộc 2 bệnh khác nhau ---
+            # --- 2 mũi phải thuộc 2 bệnh khác nhau ---
             disease_ids = {
                 (it.vaccine.disease_id if it.vaccine and it.vaccine.disease_id else None)
                 for it in items_qs
@@ -601,7 +707,7 @@ class BookingViewSet(viewsets.ModelViewSet):
             today = timezone.now().date()
             vacc_date = today
 
-            # ========== NEW: kiểm tra lại allocation & hạn dùng tại NGÀY TIÊM ==========
+            # ========== kiểm tra lại allocation & hạn dùng tại NGÀY TIÊM ==========
             for item in items_qs.select_related("vaccine").all():
                 allocs = (
                     item.allocations
@@ -639,7 +745,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                         },
                         status=400,
                     )
-            # ================== Nếu qua được đây → allocation & hạn dùng OK ==================
+            # ==================→ allocation & hạn dùng OK ==================
             # 1) Đổi allocation reserved -> consumed CHO CÁC ITEM ĐƯỢC CHỌN
             for item in items_qs:
                 item.allocations.filter(status="reserved").update(status="consumed")
@@ -718,7 +824,8 @@ class BookingViewSet(viewsets.ModelViewSet):
                 # Hoặc tất cả vaccine đã tiêm,
                 # hoặc không còn mũi nào đang được giữ hàng -> coi như lịch đã khép lại
                 booking.status = "completed"
-            booking.save(update_fields=["status"])
+                booking.completed_at = timezone.now()
+            booking.save(update_fields=["status", "completed_at"])
         return Response(
             {"status": booking.status, "updated_records": updated},
             status=drf_status.HTTP_200_OK,
@@ -726,14 +833,10 @@ class BookingViewSet(viewsets.ModelViewSet):
         
     @action(detail=False, methods=["GET"], url_path="export/excel")
     def export_excel(self, request):
-        # Lấy cùng queryset với trang quản lý (đã áp dụng status, search, date_from, date_to, role...)
         qs = self.get_queryset()
-        # Không phân trang ở đây: xuất full kết quả theo filter
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Lịch hẹn"
-
-        # Header
         headers = [
             "ID",
             "Email khách",
@@ -791,8 +894,26 @@ class BookingViewSet(viewsets.ModelViewSet):
         wb.save(response)
         return response
 
-# ---------Cập nhật mũi tiêm từ khách hàng-----------
 class MyUpdateHistoryByDiseaseAPIView(APIView):
+    """
+    MyUpdateHistoryByDiseaseAPIView - Cập nhật lịch sử tiêm theo bệnh
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Allow customer to update vaccination history by disease (multi-dose).
+
+    Business Rules:
+        - Chỉ cập nhật member thuộc tài khoản hiện tại
+        - Xoá toàn bộ record nhập tay cũ (source_booking IS NULL)
+        - Không động vào record sinh từ booking
+        - Dose number được gửi từ FE và đã validate trước
+
+    Notes:
+        - Không xử lý inventory
+        - Chỉ dùng cho dữ liệu lịch sử (manual record)
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -843,8 +964,23 @@ class MyUpdateHistoryByDiseaseAPIView(APIView):
         return Response({"results": out}, status=200)
 
 
-# ---------- Trả danh sách “khách hàng”  -----------
 class StaffCustomerListAPIView(APIView):
+    """
+    StaffCustomerListAPIView - Trả danh sách “khách hàng” 
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        API tổng hợp dữ liệu khách hàng cho màn hình staff:
+            - Thông tin cá nhân
+            - Lịch hẹn gần nhất
+            - Lịch sử tiêm chủng
+
+    Notes:
+        - Không phân trang (frontend xử lý)
+        - Giữ backward-compatible với schema cũ
+    """
 
     permission_classes = [IsAuthenticated]
     def get(self, request):
@@ -1007,10 +1143,20 @@ class StaffCustomerListAPIView(APIView):
         return Response(ser.data, status=200)
 
 
-# ---------- lấy members của 1 user cụ thể.  -----------
 class StaffCustomerMembersAPIView(APIView):
     """
-    GET /api/records/staff/customers/<user_id>/members/
+    StaffAddHistoryAPIView - Lấy danh sách thành viên trong gia đình của khách hàng
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Cho phép staff nhập lịch sử tiêm thủ công.
+
+    Business Rules:
+        - Không tạo trùng mũi cùng ngày + cùng bệnh
+        - Ưu tiên fill vào planned record trước
+        - Dose number được tính từ các mũi ĐÃ TIÊM (không tính planned)
     """
     permission_classes = [IsAuthenticated]
     def get(self, request, user_id):
@@ -1021,8 +1167,25 @@ class StaffCustomerMembersAPIView(APIView):
         ser = CustomerMemberSlimSerializer(members, many=True)
         return Response(ser.data, status=200)
 
-# ---------- Lịch hẹn tiêm chủng  -----------
 class StaffListAppointmentsAPIView(APIView):
+    """
+    StaffListAppointmentsAPIView - danh sách lịch hẹn tiêm chủng
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Trả danh sách lịch hẹn của 1 customer cho staff/admin.
+
+    Business Rules:
+        - Staff/Admin xem được tất cả
+        - Customer chỉ xem được lịch của chính mình
+        - Có hỗ trợ filter theo status (?status=pending,confirmed,...)
+
+    Output:
+        - Gộp thông tin vaccine, bệnh, giá tiền
+        - Tính trạng thái trễ hẹn (overdue) động
+    """
     permission_classes = [IsAuthenticated]
     def get(self, request, user_id: int):
         role = getattr(request.user, "role", "")
@@ -1059,7 +1222,7 @@ class StaffListAppointmentsAPIView(APIView):
             vaccine_label = ", ".join([f"{s['name']} x{s['qty']}" for s in items_summary]) or (
                 b.vaccine.name if b.vaccine else (f"Gói: {b.package.name}" if b.package else "")
             )
-            # ----- NEW: tính trễ hẹn -----
+            # ----- tính trễ hẹn -----
             is_overdue = (
                 b.status not in ("completed", "cancelled")
                 and b.appointment_date is not None
@@ -1103,8 +1266,26 @@ class StaffListAppointmentsAPIView(APIView):
         return Response(data, status=200)
 
 
-# ---------- cập nhật trạng thái - patch -----------
 class StaffUpdateAppointmentStatusAPIView(APIView):
+    """
+    StaffUpdateAppointmentStatusAPIView
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Staff cập nhật trạng thái lịch hẹn (pending / cancelled / completed).
+
+    Business Rules:
+        - Không cho đổi trạng thái lịch đã completed
+        - cancelled:
+            + Trả tồn kho
+            + Gỡ planned vaccination record
+        - completed:
+            + Allocation reserved -> consumed
+            + Ghi vaccination_date cho VaccinationRecord
+            + Gán vaccine_lot
+    """
     permission_classes = [IsAuthenticated]
     def patch(self, request, user_id: int, appt_id: str):
         role = getattr(request.user, "role", "")
@@ -1240,8 +1421,23 @@ class StaffUpdateAppointmentStatusAPIView(APIView):
                 "price": int(total_price),
             }, status=200)
 
-# ---------- Lịch sử tiêm chủng -----------
 class StaffAddHistoryAPIView(APIView):
+    """
+    StaffAddHistoryAPIView 
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Cho phép staff nhập lịch sử tiêm thủ công cho khách hàng.
+
+    Business Rules:
+        - Không tạo trùng mũi cùng ngày + cùng bệnh
+        - Ưu tiên fill vào planned / overdue record
+        - Nếu không có planned → tạo record mới
+        - Dose number tính theo mũi ĐÃ TIÊM (không tính planned)
+    """
+    
     permission_classes = [IsAuthenticated]
     
     def post(self, request, user_id: int):
@@ -1402,8 +1598,21 @@ class StaffAddHistoryAPIView(APIView):
             "dose": rec.dose_number,  
         }, status=201)
         
-# -----------staff cập nhật tt ng dùng------------------
 class StaffUpdateCustomerProfileAPIView(APIView):
+    """
+    StaffUpdateCustomerProfileAPIView
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Staff cập nhật thông tin cơ bản của customer.
+
+    Business Rules:
+        - Chỉ staff/admin được phép
+        - Đồng bộ thông tin sang member "Bản thân"
+        - Không cho sửa user role
+    """
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, user_id: int):
@@ -1460,8 +1669,23 @@ class StaffUpdateCustomerProfileAPIView(APIView):
             }
         }, status=200)
         
-#-----------  staff qly thành viên -----------------
 class StaffManageMemberAPIView(APIView):
+    """
+    StaffManageMemberAPIView
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Staff quản lý thành viên gia đình của customer:
+            - Thêm
+            - Sửa
+            - Xoá
+
+    Business Rules:
+        - Không được xoá member "Bản thân"
+        - Member phải thuộc customer chỉ định
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request, user_id: int):
@@ -1530,8 +1754,22 @@ class StaffManageMemberAPIView(APIView):
         fm.delete()
         return Response(status=204)
     
-# ---------- Tạo booking  cho n customer  -----------
 class StaffCreateAppointmentAPIView(APIView):
+    """
+    StaffCreateAppointmentAPIView 
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Staff tạo lịch hẹn tiêm cho customer.
+
+    Business Rules:
+        - Member phải thuộc customer
+        - Không cho tạo >1 lịch hẹn tương lai cho cùng vaccine
+        - Dùng BookingSerializer.validate() để tái sử dụng rule
+        - Sau khi tạo booking → sinh planned vaccination records
+    """
     permission_classes = [IsAuthenticated]
     def post(self, request, user_id: int):
         role = getattr(request.user, "role", "")
@@ -1543,14 +1781,12 @@ class StaffCreateAppointmentAPIView(APIView):
         in_ser = StaffBookingCreateInSerializer(data=request.data)
         in_ser.is_valid(raise_exception=True)
         data = in_ser.validated_data
-        # ép owner là customer này
         if data["member"].user_id != user.id:
             return Response({"detail": "Thành viên không thuộc tài khoản này."}, status=400)
         # ---- CHẶN ĐẶT >1 LỊCH HẸN TƯƠNG LAI CHO CÙNG VẮC XIN (CÙNG MEMBER) ----
         today = timezone.now().date()
         member = data["member"]
         for item in data["items"]:
-            # tuỳ StaffBookingCreateInSerializer, thường sẽ là instance Vaccine
             vaccine = item.get("vaccine") or item.get("vaccine_id")
             if not vaccine:
                 continue
@@ -1591,7 +1827,7 @@ class StaffCreateAppointmentAPIView(APIView):
         }
         ser = BookingSerializer(
             data=payload,
-            context={"request": request, "acting_user": user}  # user ở đây là customer đã load ở trên
+            context={"request": request, "acting_user": user}  
         )
         ser.is_valid(raise_exception=True)
         booking = ser.save()
@@ -1601,7 +1837,7 @@ class StaffCreateAppointmentAPIView(APIView):
         return Response(BookingSerializer(booking, context={"request": request}).data, status=201)
     
 
-#  ----------thông báo ----------
+# ---------- # Định dạng ngày dùng trong thông báo (dd/mm/yyyy) -----------
 def format_vi_date(val):
     if not val:
         return ""
@@ -1622,6 +1858,7 @@ def format_vi_date(val):
             pass
     return s
 
+# ---------- Render template message -----------
 def render_msg(tpl: str, ctx: dict | None) -> str:
     if not tpl:
         return ""
@@ -1636,7 +1873,19 @@ def render_msg(tpl: str, ctx: dict | None) -> str:
 
     return re.sub(r"\{\{([^}]+)\}\}", repl, tpl)
 
+# ---------- Gửi email thông báo -----------
 def send_notification_email(to_email: str, subject: str, body: str):
+    """
+    Send notification email to customer.
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Notes:
+        - Email HTML + Plain text
+        - Logo được embed inline (CID)
+        - Body được escape để tránh XSS
+    """
     if not to_email:
         return
 
@@ -1780,15 +2029,32 @@ def send_notification_email(to_email: str, subject: str, body: str):
     
     
 
-# --------- lấy danh sách chi tiết thông báo nhắc lịch----------
 class CustomerNotificationPreviewAPIView(APIView):
+    """
+    CustomerNotificationPreviewAPIView
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Preview danh sách notification sẽ gửi cho khách hàng.
+
+    Audience Types:
+        - custom
+        - upcoming
+        - nextdose
+        - overdue
+
+    Notes:
+        - API preview, KHÔNG gửi mail
+        - Dùng chung logic cho cron job gửi notification
+    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         audience = request.query_params.get("audience")  # upcoming | nextdose | custom | overdue
         days_before = request.query_params.get("days_before")
         next_dose_days = request.query_params.get("next_dose_days")
-        # nhận cả 2 tên
         booking_ids = (
             request.query_params.getlist("booking_ids")
             or request.query_params.getlist("customer_ids")
@@ -1876,7 +2142,7 @@ class CustomerNotificationPreviewAPIView(APIView):
             except Exception:
                 n = 3
             to = today + timedelta(days=n)
-            # Lấy tất cả mũi ĐÃ TIÊM (không dùng next_dose_date nữa)
+            # Lấy tất cả mũi ĐÃ TIÊM 
             base_qs = (
                 VaccinationRecord.objects
                 .filter(vaccination_date__isnull=False)
@@ -1893,7 +2159,7 @@ class CustomerNotificationPreviewAPIView(APIView):
                 if disease:
                     key = (fm.id, f"disease-{disease.id}")
                 else:
-                    # fallback: không có disease thì group theo vaccine
+                    # không có disease thì group theo vaccine
                     v = r.vaccine
                     if not v:
                         continue
@@ -1911,7 +2177,7 @@ class CustomerNotificationPreviewAPIView(APIView):
                     if last_rec.vaccine and last_rec.vaccine.disease_id
                     else None
                 )
-                v = last_rec.vaccine  # có thể None
+                v = last_rec.vaccine  
                 # Lấy phác đồ từ disease trước, không thì fallback vaccine
                 total_doses = (
                     getattr(disease, "doses_required", None)
@@ -1934,7 +2200,6 @@ class CustomerNotificationPreviewAPIView(APIView):
                 disease_name = (
                     disease.name if disease else ""
                 )
-                # Nếu không có vaccine, để None / "" cho an toàn
                 vaccine_id = v.id if v else None
                 vaccine_name = v.name if v else ""
 
@@ -1978,7 +2243,6 @@ class CustomerNotificationPreviewAPIView(APIView):
                     if key not in booked_keys:
                         filtered.append(c)
                 candidates = filtered
-            # Build results giống format cũ
             results = []
             for c in candidates:
                 results.append({
@@ -2031,8 +2295,20 @@ class CustomerNotificationPreviewAPIView(APIView):
         return Response({"count": count, "results": results if want_detail else []})
 
     
-# ---------Thông báo cho khách hàng---------   
 class MyNotificationsAPIView(APIView):
+    """
+    MyNotificationsAPIView
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Trả danh sách thông báo của customer hiện tại.
+
+    Notes:
+        - Render message template với context động
+        - Hỗ trợ {{appointment_date}}, {{vaccine}}, {{location}}
+    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -2057,8 +2333,16 @@ class MyNotificationsAPIView(APIView):
             data.append(item)
         return Response(data)
     
-# ----------đọc thông báo ---------
 class MyNotificationMarkReadAPIView(APIView):
+    """
+    MyNotificationMarkReadAPIView
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Đánh dấu 1 notification là đã đọc.
+    """
     permission_classes = [permissions.IsAuthenticated]
     def post(self, request, pk):
         notif = CustomerNotification.objects.filter(id=pk, user=request.user).first()

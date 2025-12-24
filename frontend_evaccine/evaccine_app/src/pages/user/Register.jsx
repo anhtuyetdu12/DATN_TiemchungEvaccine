@@ -105,10 +105,9 @@ export default function Register({ onClose }) {
   };
 
 
-  // Hàm đóng form → quay về trang chủ
   const handleClose = () => {
-    onClose?.(); // nếu có truyền props onClose thì gọi
-    navigate("/login"); // sau khi đóng sẽ về trang login
+    onClose?.(); 
+    navigate("/login"); 
   };
 
   return (

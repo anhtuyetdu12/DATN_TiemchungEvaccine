@@ -233,13 +233,18 @@ class VaccineAdmin(admin.ModelAdmin):
                 )
             )
         return response
-
+    
+    
+    
 class VaccinePackageDiseaseInline(admin.TabularInline):
     model = VaccinePackageDisease
     extra = 1
     autocomplete_fields = ["disease", "vaccines"]
     verbose_name = "Bệnh trong gói"
     verbose_name_plural = "Bệnh & vắc xin trong gói"
+    
+    class Media:
+        js = ("vaccines/admin/vaccinepackage_inline_filter.js",)
 
 @admin.register(VaccinePackage)
 class VaccinePackageAdmin(admin.ModelAdmin):

@@ -4,6 +4,22 @@ from django.conf import settings
 
 # qly người dùng
 class UserManager(BaseUserManager):
+    """
+    UserManager
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Custom manager cho CustomUser.
+
+    Business Meaning:
+        Chuẩn hoá việc tạo user và superuser.
+
+    Notes:
+        - Email là username
+        - Password được hash
+    """
     def create_user(self, email, full_name, password=None, **extra_fields):
         if not email:
             raise ValueError("Email phải được cung cấp")
@@ -20,6 +36,26 @@ class UserManager(BaseUserManager):
 
 # người dùng
 class CustomUser(AbstractBaseUser, PermissionsMixin):
+    """
+    CustomUser
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Model người dùng chính của hệ thống.
+
+    Business Meaning:
+        Lưu thông tin:
+            - customer
+            - staff
+            - admin / superadmin
+
+    Notes:
+        - Login bằng email
+        - Phân quyền theo role
+        - Hỗ trợ đăng nhập bằng phone cho customer
+    """
     full_name = models.CharField("Họ và tên", max_length=255, default="Unknown")
     email = models.EmailField("Email đăng nhập", unique=True)
     phone = models.CharField("Số điện thoại", max_length=15, blank=True, null=True)
@@ -50,6 +86,22 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
 # nhân viên y tế
 class MedicalStaff(models.Model):
+    """
+    MedicalStaff
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Lưu thông tin nhân viên y tế.
+
+    Business Meaning:
+        Gắn với CustomUser có role = staff.
+
+    Notes:
+        - Quan hệ 1–1 với CustomUser
+        - Không dùng để login
+    """
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, primary_key=True ,verbose_name="Người dùng")
     department = models.CharField("Khoa / phòng ban", max_length=100)
     specialization = models.CharField("Chuyên môn", max_length=100)

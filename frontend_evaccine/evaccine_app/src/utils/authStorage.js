@@ -1,7 +1,6 @@
 // src/utils/authStorage.js
 export const STORAGE_KEYS = ["user", "access", "refresh", "identifier"];
 
-// src/utils/authStorage.js
 export const getStorage = () => {
   const hasSessionAccess = !!sessionStorage.getItem("access");
   const hasLocalAccess   = !!localStorage.getItem("access");
@@ -17,7 +16,7 @@ export const getStorage = () => {
   return sessionStorage;
 };
 
-// Lưu ý: khi login mới, nên xoá kho còn lại để tránh “đụng kho”
+//  khi login mới, nên xoá kho còn lại để tránh “đụng kho”
 export const saveAuth = ({ user, access, refresh, remember }) => {
   // xoá cả hai kho trước
   ["user","access","refresh","identifier","remember"].forEach(k=>{

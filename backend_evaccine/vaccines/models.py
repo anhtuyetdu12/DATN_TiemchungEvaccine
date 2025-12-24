@@ -5,10 +5,26 @@ from django.utils.text import slugify
 from django.core.exceptions import ValidationError
 
 
-# -------------------------
-# Disease (Bệnh)
-# -------------------------
 class Disease(models.Model):
+    """
+    Disease
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Quản lý thông tin bệnh kèm theo metadata phác đồ tiêm chủng.
+
+    Business Meaning:
+        Đại diện cho một bệnh cần phòng ngừa bằng tiêm chủng.
+        Mỗi bệnh có thể có:
+            - số mũi cần tiêm (doses_required)
+            - khoảng cách giữa các mũi (interval_days)
+
+    Notes:
+        - doses_required + interval_days được dùng để kiểm tra phác đồ tiêm
+        - Disease là level cao hơn Vaccine (nhiều vaccine có thể cùng phòng 1 bệnh)
+    """
     name = models.CharField("Tên bệnh", max_length=255)
     description = models.TextField("Mô tả bệnh", blank=True, null=True)
     cause = models.TextField("Nguyên nhân", blank=True, null=True)
@@ -31,11 +47,26 @@ class Disease(models.Model):
         return self.name
 
 
-
-# -------------------------
-# Vaccine Category
-# -------------------------
 class VaccineCategory(models.Model):
+    """
+    VaccineCategory
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Phân loại vắc xin theo nhóm hiển thị.
+
+    Business Meaning:
+        Dùng để nhóm các vắc xin cùng loại trên giao diện:
+            - Vắc xin trẻ em
+            - Vắc xin người lớn
+            - Vắc xin du lịch,...
+
+    Notes:
+        - Chỉ phục vụ phân loại & hiển thị
+        - Không ảnh hưởng logic tiêm chủng
+    """
     name = models.CharField("Tên danh mục", max_length=255)
     description = models.TextField("Mô tả", blank=True, null=True)
     image = models.ImageField("Hình ảnh danh mục", upload_to="vaccine_categories/", blank=True, null=True)
@@ -49,17 +80,28 @@ class VaccineCategory(models.Model):
         return self.name
 
 
-
-# -------------------------
-# Vaccine
-# -------------------------
 class Vaccine(models.Model):
-    category = models.ForeignKey(
-        "VaccineCategory", on_delete=models.SET_NULL, null=True, related_name="vaccines", verbose_name="Danh mục vắc xin"
-    )
-    disease = models.ForeignKey(
-        Disease, on_delete=models.CASCADE, related_name="vaccines", verbose_name="Bệnh phòng ngừa"
-    )
+    """
+    Vaccine
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Quản lý thông tin sản phẩm vắc xin
+
+    Business Meaning:
+        Vắc xin cụ thể được tiêm cho khách hàng để phòng bệnh.
+        Vaccine luôn gắn với 1 Disease và có thể:
+            - áp dụng cho nhiều độ tuổi
+            - có nhiều thông tin y khoa (chỉ định, chống chỉ định, tác dụng phụ)
+
+    Notes:
+        - slug được sinh tự động từ name
+        - clean() validate logic tuổi theo đơn vị (tuổi / tháng)
+    """
+    category = models.ForeignKey("VaccineCategory", on_delete=models.SET_NULL, null=True, related_name="vaccines", verbose_name="Danh mục vắc xin")
+    disease = models.ForeignKey( Disease, on_delete=models.CASCADE, related_name="vaccines", verbose_name="Bệnh phòng ngừa" )
     name = models.CharField("Tên vắc xin", max_length=255)
     manufacturer = models.CharField("Nhà sản xuất", max_length=255, blank=True, null=True)
     origin = models.CharField("Xuất xứ", max_length=100, blank=True, null=True)
@@ -121,7 +163,6 @@ class Vaccine(models.Model):
         if not self.slug:
             base = slugify(self.name or "")
             self.slug = base
-            # đảm bảo unique
             i = 1
             Model = self.__class__
             while Model.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
@@ -130,6 +171,18 @@ class Vaccine(models.Model):
         super().save(*args, **kwargs)
 
     def clean(self):
+        """
+        Kiểm tra và xác thực cấu hình khoảng độ tuổi áp dụng của vắc xin.
+
+        Business Rules:
+            - min_age là bắt buộc
+            - min_age / max_age phải nằm trong giới hạn hợp lý
+            - min_age <= max_age
+            - Quy đổi theo đơn vị: tuổi hoặc tháng
+
+        Notes:
+            - Được gọi khi full_clean() hoặc admin save
+        """
         min_age = self.min_age
         max_age = self.max_age
         unit = self.age_unit or "tuổi"
@@ -155,12 +208,25 @@ class Vaccine(models.Model):
         return self.name
 
 
-
-
-# -------------------------
-# Vaccine Package
-# -------------------------
 class VaccinePackageGroup(models.Model):
+    """
+    VaccinePackageGroup
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Nhóm các gói tiêm theo chủ đề hoặc độ tuổi.
+
+    Business Meaning:
+        Gom các VaccinePackage để hiển thị theo nhóm:
+            - Gói tiêm cho trẻ 0–1 tuổi
+            - Gói tiêm theo độ tuổi
+            - Gói tiêm du lịch
+
+    Notes:
+        - slug được sinh tự động từ title
+    """
     title = models.CharField("Tên nhóm gói (VD: 6 gói theo độ tuổi)", max_length=255)
     description = models.TextField("Mô tả nhóm", blank=True, null=True)
     order = models.PositiveIntegerField("Thứ tự hiển thị", default=0)
@@ -186,7 +252,25 @@ class VaccinePackageGroup(models.Model):
     def __str__(self):
         return self.title
     
+    
 class VaccinePackage(models.Model):
+    """
+    VaccinePackage
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Quản lý gói tiêm chủng gồm nhiều bệnh / vắc xin.
+
+    Business Meaning:
+        Một gói tiêm bao gồm nhiều bệnh,
+        mỗi bệnh có thể có nhiều vắc xin tương ứng.
+
+    Notes:
+        - Gói tiêm không trực tiếp gắn Vaccine
+        - Mapping qua VaccinePackageDisease
+    """
     group = models.ForeignKey(
         VaccinePackageGroup,
         on_delete=models.SET_NULL,
@@ -222,8 +306,27 @@ class VaccinePackage(models.Model):
 
 
 class VaccinePackageDisease(models.Model):
+    """
+    VaccinePackageDisease
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Mapping giữa gói tiêm và bệnh.
+
+    Business Meaning:
+        Trong một gói tiêm:
+            - Mỗi bệnh có thể có nhiều vắc xin lựa chọn
+            - FE hiển thị theo từng bệnh trong gói
+
+    Notes:
+        - Đây là bảng trung gian quan trọng
+        - Không được bỏ qua khi build gói tiêm
+    """
+
     package = models.ForeignKey(  VaccinePackage, on_delete=models.CASCADE, related_name="disease_groups" )
-    disease = models.ForeignKey(  Disease, on_delete=models.CASCADE, related_name="package_diseases")
+    disease = models.ForeignKey(  Disease, on_delete=models.CASCADE, related_name="package_diseases", verbose_name="Phòng bệnh" )
     vaccines = models.ManyToManyField( Vaccine, related_name="package_disease_vaccines", verbose_name="Danh sách vắc xin cho bệnh này" )
     slug = models.SlugField(max_length=255, unique=True, blank=True, null=True)
     

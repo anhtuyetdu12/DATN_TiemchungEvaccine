@@ -15,6 +15,24 @@ from records.models import FamilyMember
 User = get_user_model()
 
 class RegisterSerializer(serializers.ModelSerializer):
+    """
+    RegisterSerializer
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Validate và tạo mới tài khoản người dùng (customer).
+
+    Business Meaning:
+        Dùng cho API đăng ký tài khoản.
+        Cho phép đăng ký bằng email hoặc số điện thoại.
+
+    Notes:
+        - Chỉ tạo user role = customer
+        - Validate mật khẩu theo rule bảo mật
+        - Không cho trùng email / phone
+    """
     repassword = serializers.CharField(write_only=True)
     phone = serializers.CharField(required=False, allow_blank=True) 
 
@@ -67,6 +85,24 @@ class RegisterSerializer(serializers.ModelSerializer):
     
     
 class LoginSerializer(serializers.Serializer):
+    """
+    LoginSerializer
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Validate dữ liệu đăng nhập người dùng.
+
+    Business Meaning:
+        Hỗ trợ đăng nhập bằng:
+            - Email (customer / staff / admin)
+            - Số điện thoại (chỉ customer)
+
+    Notes:
+        - Không sinh token (token xử lý ở View)
+        - Chỉ validate thông tin đăng nhập
+    """
     identifier = serializers.CharField()
     password = serializers.CharField(write_only=True)
     remember = serializers.BooleanField(default=False)
@@ -124,7 +160,23 @@ class LoginSerializer(serializers.Serializer):
 
 
 class CreateStaffSerializer(serializers.ModelSerializer):
-    
+    """
+    CreateStaffSerializer
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Validate và tạo tài khoản staff.
+
+    Business Meaning:
+        Dùng cho admin tạo tài khoản nhân viên nội bộ.
+
+    Notes:
+        - Chỉ chấp nhận email @evaccine.com
+        - Không tạo MedicalStaff (xử lý ở View)
+    """
+
     class Meta:
         model = CustomUser
         fields = ['full_name', 'email', 'password']
@@ -176,6 +228,22 @@ class CreateStaffView(generics.CreateAPIView):
         )
         
 class StaffLoginSerializer(serializers.Serializer):
+    """
+    StaffLoginSerializer
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Validate đăng nhập dành riêng cho staff / admin.
+
+    Business Meaning:
+        Chỉ cho phép nhân viên nội bộ đăng nhập hệ thống quản trị.
+
+    Notes:
+        - Không cho customer login
+        - Không sinh token
+    """
     identifier = serializers.CharField()
     password = serializers.CharField(write_only=True)
 
@@ -198,8 +266,25 @@ class StaffLoginSerializer(serializers.Serializer):
         data['user'] = user
         return data
     
-# staff tạo mới khách hàng 
 class StaffCreateCustomerSerializer(serializers.Serializer):
+    """
+    StaffCreateCustomerSerializer
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Cho phép staff tạo tài khoản khách hàng thay cho khách.
+
+    Business Meaning:
+        Staff có thể:
+            - tạo khách chỉ có hồ sơ (chưa có mật khẩu)
+            - hoặc tạo tài khoản đầy đủ để khách đăng nhập
+
+    Notes:
+        - Nếu không có password → sinh password tạm
+        - Tự động tạo FamilyMember "Bản thân"
+    """
     full_name = serializers.CharField(max_length=255)
     email = serializers.EmailField(required=False, allow_blank=True)
     phone = serializers.CharField(required=False, allow_blank=True)
@@ -217,11 +302,12 @@ class StaffCreateCustomerSerializer(serializers.Serializer):
 
         if not email and not phone:
             raise serializers.ValidationError({"detail": "Cần ít nhất email hoặc số điện thoại."})
-
-        if email and User.objects.filter(email=email).exists():
-            raise serializers.ValidationError({"email": "Email đã tồn tại."})
+        
         if phone and User.objects.filter(phone=phone).exists():
             raise serializers.ValidationError({"phone": "Số điện thoại đã tồn tại."})
+        if email and User.objects.filter(email=email).exists():
+            raise serializers.ValidationError({"email": "Email đã tồn tại."})
+
 
         #  kiểm tra rule mật khẩu nếu có nhập (tức allowLogin = true bên FE)
         if pwd or repwd:
@@ -229,8 +315,6 @@ class StaffCreateCustomerSerializer(serializers.Serializer):
                 raise serializers.ValidationError({"set_password": "Vui lòng nhập mật khẩu"})
             if not repwd:
                 raise serializers.ValidationError({"repassword": "Vui lòng nhập lại mật khẩu"})
-
-            import re
             if " " in pwd:
                 raise serializers.ValidationError({"set_password":"Mật khẩu không được chứa khoảng trắng"})
             if not re.search(r'[A-Z]', pwd):
@@ -258,7 +342,7 @@ class StaffCreateCustomerSerializer(serializers.Serializer):
          # Nếu không có mật khẩu -> sinh pass random & bắt đổi sau
         if not has_password:
             # sinh pass random 10 ký tự
-            raw_password = get_random_string(10)   # <--- SỬA CHỖ NÀY
+            raw_password = get_random_string(10)  
         
         user = User.objects.create_user(
             email=email or f"user{phone}@gmail.com",

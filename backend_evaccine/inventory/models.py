@@ -5,6 +5,26 @@ from vaccines.models import Vaccine
 from django.conf import settings
 
 class VaccineStockLot(models.Model):
+    """
+    VaccineStockLot
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Quản lý lô tồn kho vắc xin.
+
+    Business Meaning:
+        Mỗi bản ghi đại diện cho một lô vắc xin cụ thể:
+            - có hạn sử dụng
+            - số lượng nhập
+            - số lượng còn khả dụng
+
+    Notes:
+        - Một vaccine có thể có nhiều lô
+        - quantity_available thay đổi theo lịch hẹn & tiêm thực tế
+        - is_active dùng để loại trừ lô không còn sử dụng
+    """
     vaccine = models.ForeignKey(Vaccine, on_delete=models.CASCADE, related_name="stock_lots", verbose_name="Vắc xin")
     lot_number = models.CharField("Số lô", max_length=100)
     expiry_date = models.DateField("Hạn dùng")
@@ -24,10 +44,35 @@ class VaccineStockLot(models.Model):
 
     @property
     def is_expired(self):
+        """
+        Kiểm tra lô vắc xin đã hết hạn hay chưa.
+        """
         return self.expiry_date < timezone.now().date()
 
-
 class BookingAllocation(models.Model):
+    """
+    BookingAllocation
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Ghi nhận việc phân bổ vắc xin từ kho cho từng lịch hẹn.
+
+    Business Meaning:
+        Liên kết giữa:
+            - BookingItem (lịch hẹn tiêm)
+            - VaccineStockLot (lô tồn kho)
+
+    Status Flow:
+        - reserved  : giữ chỗ khi đặt lịch
+        - consumed  : đã tiêm
+        - released  : huỷ / trả kho
+
+    Notes:
+        - Không cho xoá lot nếu đã phân bổ (on_delete=PROTECT)
+        - Là nền tảng cho kiểm soát tồn kho chính xác
+    """
     booking_item = models.ForeignKey('records.BookingItem', on_delete=models.CASCADE, related_name='allocations')
     lot = models.ForeignKey(VaccineStockLot, on_delete=models.PROTECT, related_name="allocations")
     quantity = models.PositiveIntegerField(default=0)

@@ -4,6 +4,33 @@ from django.utils import timezone
 from django.db.models import Q, UniqueConstraint
 User = settings.AUTH_USER_MODEL
 
+"""
+File: models.py
+Module: Records (Family Member, Vaccination Record, Booking)
+
+Author: Du Thi Anh Tuyet
+Email: anhtuyetdu21@gmail.com
+Created: 2025-09-25
+Last Modified: 2025-11-30
+Version: 1.0.0
+
+Description:
+    - Quản lý thành viên gia đình (FamilyMember)
+    - Lưu sổ tiêm/lịch sử tiêm và mũi dự kiến (VaccinationRecord)
+    - Quản lý lịch hẹn tiêm (Booking) và các mục vắc xin trong lịch (BookingItem)
+    - Thông báo cho khách hàng (CustomerNotification)
+    - Quy tắc nhắc lịch tự động (NotificationRule)
+
+Notes:
+    - VaccinationRecord dùng UniqueConstraint để chống tạo trùng mũi dự kiến/đã tiêm.
+    - source_booking liên kết record với booking để khóa/xử lý logic ở serializer.
+
+Change Log:
+    - 1.0.0: Init models for vaccination booking module
+"""
+# ==========================
+# THÀNH VIÊN TRONG GIA ĐÌNH
+# ==========================
 class FamilyMember(models.Model):
     RELATION_CHOICES = [
         ("Bản thân", "Bản thân"),
@@ -42,7 +69,9 @@ class FamilyMember(models.Model):
         return f"{self.full_name} ({self.relation})"
 
 
-
+# ======================================
+# SỔ TIÊM / LỊCH SỬ & MŨI DỰ KIẾN TIÊM
+# ======================================
 class VaccinationRecord(models.Model):
     family_member = models.ForeignKey(
         FamilyMember, on_delete=models.CASCADE, related_name="vaccinations", null=True, blank=True,
@@ -89,17 +118,19 @@ class VaccinationRecord(models.Model):
         return f"{self.vaccine_name or (self.vaccine.name if self.vaccine else 'Vaccine?')} - {member}"
 
 
+# ======================
+# LỊCH HẸN TIÊM CHỦNG
+# ======================
 class Booking(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Người đặt")
     member = models.ForeignKey('records.FamilyMember', on_delete=models.CASCADE, verbose_name="Người tiêm")
     vaccine = models.ForeignKey('vaccines.Vaccine', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Vắc xin")
     package = models.ForeignKey('vaccines.VaccinePackage', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Gói tiêm")
-
     appointment_date = models.DateField("Ngày hẹn tiêm", blank=True, null=True)
     location = models.CharField("Địa điểm tiêm", max_length=255, blank=True, null=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
-        "Trạng thái lịch hẹn",
-        max_length=20,
+        "Trạng thái lịch hẹn", max_length=20,
         choices=(("pending","Chờ xác nhận"),("confirmed","Đã xác nhận"),("completed","Đã tiêm xong"),("cancelled","Đã hủy")),
         default="pending",
     )
@@ -117,6 +148,9 @@ class Booking(models.Model):
         return f"Lịch hẹn của {getattr(self.user, 'full_name', self.user)} - {self.appointment_date}"
 
 
+# ==========================================
+# CHI TIẾT VẮC XIN TRONG 1 LỊCH HẸN (ITEM)
+# ==========================================
 class BookingItem(models.Model):
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name="items", verbose_name="Đơn đặt hẹn")
     vaccine = models.ForeignKey('vaccines.Vaccine', on_delete=models.CASCADE, verbose_name="Vắc xin")
@@ -124,10 +158,13 @@ class BookingItem(models.Model):
     unit_price = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Đơn giá")
 
     class Meta:
-        db_table = 'vaccines_bookingitem'     # << GIỮ NGUYÊN TÊN BẢNG!
+        db_table = 'vaccines_bookingitem'     
         verbose_name = "Mục vắc xin"
         verbose_name_plural = "Danh sách mục vắc xin"
         
+# ==================================
+# THÔNG BÁO GỬI CHO KHÁCH HÀNG
+# ==================================       
 class CustomerNotification(models.Model):
     user = models.ForeignKey( settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="customer_notifications" )
     title = models.CharField(max_length=255)
@@ -142,7 +179,9 @@ class CustomerNotification(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
-
+# ======================================
+# QUY TẮC NHẮC LỊCH TỰ ĐỘNG (RULE ENGINE)
+# =====================================
 class NotificationRule(models.Model):
     AUDIENCE_CHOICES = [
         ("upcoming", "Lịch hẹn sắp tới"),
@@ -152,20 +191,16 @@ class NotificationRule(models.Model):
 
     name = models.CharField(max_length=100)
     audience = models.CharField(max_length=20, choices=AUDIENCE_CHOICES)
-    days_before = models.IntegerField(null=True, blank=True)      # cho upcoming
-    next_dose_days = models.IntegerField(null=True, blank=True)   # cho nextdose
-
+    days_before = models.IntegerField(null=True, blank=True)    
+    next_dose_days = models.IntegerField(null=True, blank=True)  
     title_tpl = models.CharField(max_length=255)
     message_tpl = models.TextField()
+    channels = models.JSONField(default=dict, blank=True) 
 
-    channels = models.JSONField(default=dict, blank=True)  # {"app": True, "email": True, "sms": False}
-
-    run_hour = models.IntegerField(default=0, verbose_name="Giờ chạy")      # 12h đêm
+    run_hour = models.IntegerField(default=0, verbose_name="Giờ chạy")    
     run_minute = models.IntegerField(default=0, verbose_name="Phút chạy")
     is_active = models.BooleanField(default=True, verbose_name="Đang kích hoạt")
-
     last_run_date = models.DateField(null=True, blank=True, verbose_name="Ngày chạy gần nhất")
-
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Ngày tạo")
 
     class Meta:

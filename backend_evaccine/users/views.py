@@ -24,6 +24,24 @@ from records.models import FamilyMember
 logger = logging.getLogger(__name__)
 
 class RegisterAPIView(APIView):
+    """
+    RegisterAPIView
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Đăng ký tài khoản người dùng (customer).
+
+    Business Meaning:
+        Cho phép người dùng tạo tài khoản bằng email hoặc số điện thoại.
+        Tài khoản được tạo với role = customer.
+
+    Notes:
+        - Không yêu cầu đăng nhập
+        - Validate trùng email / phone
+        - Password được hash trước khi lưu
+    """
     permission_classes = [AllowAny]
     def post(self, request):
         identifier = request.data.get("identifier")
@@ -46,10 +64,10 @@ class RegisterAPIView(APIView):
             phone = identifier
 
         # Kiểm tra tồn tại
-        if CustomUser.objects.filter(email=email).exists():
-            return Response({"identifier": "Email đã tồn tại"}, status=400)
         if phone and CustomUser.objects.filter(phone=phone).exists():
-            return Response({"identifier": "Số điện thoại đã tồn tại"}, status=400)
+            return Response({"phone": "Số điện thoại đã tồn tại"}, status=400)
+        if CustomUser.objects.filter(email=email).exists():
+            return Response({"email": "Email đã tồn tại"}, status=400)
 
         try:
             user = CustomUser.objects.create_user(
@@ -68,6 +86,23 @@ class RegisterAPIView(APIView):
 
 
 class LoginAPIView(APIView):
+    """
+    LoginAPIView
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Đăng nhập hệ thống bằng email hoặc số điện thoại.
+
+    Business Meaning:
+        Xác thực người dùng và cấp JWT access/refresh token.
+
+    Notes:
+        - Hỗ trợ remember login
+        - Có thể yêu cầu đổi mật khẩu nếu dùng mật khẩu tạm
+        - Phân biệt login cho customer / staff
+    """
     permission_classes = [AllowAny]
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -116,8 +151,25 @@ class LogoutAPIView(APIView):
         except Exception:
             return Response({"detail": "Token không hợp lệ"}, status=400)
 
-# --- Quên mật khẩu ---
 class ForgotPasswordAPIView(APIView):
+    """
+    ForgotPasswordAPIView
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Xử lý yêu cầu quên mật khẩu.
+
+    Business Meaning:
+        - Email: gửi link đặt lại mật khẩu (JWT token, có hạn)
+        - Phone: sinh mật khẩu tạm và bắt đổi lại khi đăng nhập
+
+    Notes:
+        - Token email có hạn 15 phút
+        - Không ghi log password
+        - Email HTML có embed image
+    """
     permission_classes = [AllowAny]
     def post(self, request):
         identifier = request.data.get("identifier")
@@ -230,9 +282,24 @@ class ForgotPasswordAPIView(APIView):
                 "detail": "Đã tạo mật khẩu tạm, vui lòng đăng nhập và đổi mật khẩu",
             }, status=200)
     
-        
-# đặt lại pass
 class ResetPasswordAPIView(APIView):
+    """
+    ResetPasswordAPIView
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Đặt lại mật khẩu cho người dùng.
+
+    Business Meaning:
+        - Email: xác thực bằng token gửi qua email
+        - Phone: không cần token
+
+    Notes:
+        - Token email có thời hạn
+        - Sau khi reset, must_change_password = False
+    """
     permission_classes = [AllowAny]
     def post(self, request):
         identifier = request.data.get("identifier")
@@ -271,7 +338,23 @@ class ResetPasswordAPIView(APIView):
         
 
 class CreateStaffAPIView(APIView):
-    permission_classes = [IsAdminUser]  # chỉ admin mới gọi được
+    """
+    CreateStaffAPIView
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        API tạo tài khoản nhân viên y tế.
+
+    Business Meaning:
+        Admin tạo user staff + hồ sơ MedicalStaff.
+
+    Notes:
+        - Chỉ admin được phép gọi
+        - Tạo CustomUser và MedicalStaff cùng lúc
+    """
+    permission_classes = [IsAdminUser] 
 
     def post(self, request):
         email = request.data.get("email")
@@ -284,7 +367,6 @@ class CreateStaffAPIView(APIView):
 
         if not email or not full_name or not password:
             return Response({"error": "Missing fields"}, status=status.HTTP_400_BAD_REQUEST)
-
         try:
             user = CustomUser.objects.create_user(
                 email=email,
@@ -293,7 +375,6 @@ class CreateStaffAPIView(APIView):
                 role="staff",
                 is_staff=True
             )
-
             staff = MedicalStaff.objects.create(
                 user=user,
                 department=department,
@@ -301,7 +382,6 @@ class CreateStaffAPIView(APIView):
                 license_number=license_number,
                 work_shift=work_shift
             )
-
             return Response({"message": "Staff created successfully"}, status=status.HTTP_201_CREATED)
 
         except Exception as e:
@@ -310,6 +390,22 @@ class CreateStaffAPIView(APIView):
     
     
 class StaffLoginAPIView(APIView):
+    """
+    StaffLoginAPIView
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Đăng nhập hệ thống cho staff / admin.
+
+    Business Meaning:
+        Cấp JWT token cho nhân viên nội bộ.
+
+    Notes:
+        - Không cho customer login
+        - Dùng StaffLoginSerializer
+    """
     permission_classes = [AllowAny]
     def post(self, request):
         serializer = StaffLoginSerializer(data=request.data)
@@ -331,8 +427,25 @@ class StaffLoginAPIView(APIView):
         
         return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
     
-# tạo tài khoản mới do staff
 class StaffCreateCustomerAPIView(APIView):
+    """
+    StaffCreateCustomerAPIView
+
+    Author: Du Thi Anh Tuyet
+    Email: anhtuyetdu21@gmail.com
+
+    Purpose:
+        Cho phép staff tạo tài khoản hoặc hồ sơ khách hàng.
+
+    Business Meaning:
+        Nhân viên có thể:
+            - tạo khách chưa có mật khẩu (chỉ hồ sơ)
+            - hoặc tạo tài khoản đầy đủ cho khách
+
+    Notes:
+        - Chỉ staff / admin / superadmin
+        - Tự động tạo FamilyMember "Bản thân"
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
