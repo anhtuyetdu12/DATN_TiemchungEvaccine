@@ -7,11 +7,7 @@ export async function getVaccineBySlug(slug) {
   return data; // có: name, disease{name}, price, formatted_price, image, origin,...
 }
 
-/** Nếu  lưu ID thay vì slug */
-// export async function getVaccinesByIds(ids = []) {
-//   const { data } = await api.get(`/vaccines/vaccines/?ids=${ids.join(",")}`);
-//   return data;
-// }
+
 export async function getVaccinesByIds(ids = []) {
   const { data } = await api.get(`/vaccines/vaccines/by-ids/?ids=${ids.join(",")}`);
   return data;
@@ -26,7 +22,6 @@ export async function getPackageBySlug(slug) {
 
 /** LẤY TOÀN BỘ VACCINE: tự động chạy qua tất cả các trang (DRF) */
 export async function getAllVaccines(params = {}) {
-  // Trang đầu (có params)
   let url = "/vaccines/vaccines/";
   let firstCall = true;
   const all = [];
@@ -57,9 +52,25 @@ export async function getAllVaccinePackages() {
   return Array.isArray(data) ? data : (data?.results || []);
 }
 
-export async function getAllVaccineCategories() {
-  const { data } = await api.get("/vaccines/categories/");
-  return Array.isArray(data) ? data : (data?.results || []);
+// export async function getAllVaccineCategories() {
+//   const { data } = await api.get("/vaccines/categories/");
+//   return Array.isArray(data) ? data : (data?.results || []);
+// }
+export async function getAllVaccineCategories(params = {}) {
+  let url = "/vaccines/categories/";
+  let firstCall = true;
+  const all = [];
+
+  while (url) {
+    const { data } = await api.get(url, firstCall ? { params } : undefined);
+    const items = Array.isArray(data) ? data : (data?.results || []);
+    all.push(...items);
+
+    url = (Array.isArray(data) ? null : data?.next) || null;
+    firstCall = false;
+  }
+
+  return all;
 }
 
 
@@ -68,5 +79,5 @@ export const exportVaccinesExcel = async (params = {}) => {
   const res = await api.get(`/vaccines/vaccines/export/excel/?${qs}`, {
     responseType: "blob",
   });
-  return res.data; // blob
+  return res.data; 
 };

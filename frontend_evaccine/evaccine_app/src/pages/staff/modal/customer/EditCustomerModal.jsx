@@ -618,7 +618,7 @@ export default function EditCustomerModal({
           }
         } else {
           // Không gọi được API -> fallback: check với doses_required nếu muốn
-          const maxByProtocol = getMaxDose(vId); // dựa vào vaccine.doses_required
+          const maxByProtocol = getMaxDose(vId);
           if (qty > maxByProtocol) {
             toast.error( `Vắc xin ${vName}: phác đồ tối đa ${maxByProtocol} mũi trong một liệu trình. `
               + `Bạn đang đặt ${qty} mũi.` );
@@ -692,11 +692,9 @@ export default function EditCustomerModal({
           toast.warning( `Xác nhận không đầy đủ: có ${failed.length} mũi chưa giữ được vắc xin trong kho.`);
         }
       } else if (action === "cancel") {
-        // Nếu BE KHÔNG có /cancel/ thì dùng setAppointmentStatus fallback
         try {
           res = await api.post(`/records/bookings/${apptId}/cancel/`);
         } catch (err) {
-          // fallback theo service (nếu service này đang đúng với BE của bạn)
           await setAppointmentStatus(customerId, apptId, "cancelled");
           res = { data: { status: "cancelled" } };
         }

@@ -915,7 +915,6 @@ class HistoryCreateInSerializer(serializers.Serializer):
     disease_id = serializers.IntegerField(required=False, allow_null=True)
     
     def validate(self, attrs):
-        # alias: FE gửi place => map sang location
         if not attrs.get("location") and attrs.get("place"):
             attrs["location"] = attrs["place"]
         return attrs
@@ -927,7 +926,7 @@ class HistoryCreateInSerializer(serializers.Serializer):
         d = Disease.objects.filter(id=value).first()
         if not d:
             raise serializers.ValidationError("Phòng bệnh không tồn tại.")
-        return d  # trả về instance luôn
+        return d  
     
 class StaffBookingCreateInSerializer(serializers.Serializer):
     member_id = serializers.PrimaryKeyRelatedField(
@@ -964,7 +963,6 @@ class MyUpdateHistoryByDiseaseInSerializer(serializers.Serializer):
         attrs["member"] = member
         attrs["disease"] = disease
 
-        # validate doses
         cleaned = []
         for idx, d in enumerate(attrs["doses"], start=1):
             date_str = (d.get("date") or "").strip()

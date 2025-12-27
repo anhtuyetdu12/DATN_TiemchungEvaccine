@@ -119,7 +119,7 @@ const buildVaccinationMap = (records) => {
       return;
     }
 
-    // helper: merge, nhưng locked = OR
+    //  merge, nhưng locked = OR
     const mergeDose = (prev, next) => ({
       ...prev,
       ...next,
@@ -164,13 +164,11 @@ const buildVaccinationMap = (records) => {
 
 
 export default function RecordBook() {
-    // Danh sách thành viên trong sổ tiêm chủng
     const [users, setUsers] = useState([]);
     const [activeUser, setActiveUser] = useState(null);
     const [showAddForm, setShowAddForm] = useState(false);
     const [showDetail, setShowDetail] = useState(false);
-    const [isEditing, setIsEditing] = useState(false); // nút chỉnh sửa
-    // Gợi ý vắc xin theo tuổi
+    const [isEditing, setIsEditing] = useState(false); 
     const [ageVaccines, setAgeVaccines] = useState([]);
     const [showMoreAgeVax, setShowMoreAgeVax] = useState(false);
     const navigate = useNavigate();
@@ -225,9 +223,10 @@ export default function RecordBook() {
         };
         setUsers((prev) => [...prev, formattedMember]);
         setActiveUser(newMember.id);
-        const u = new URL(window.location.href);
-        u.searchParams.set("member", String(newMember.id));
-        window.history.replaceState({}, "", u);
+        // const u = new URL(window.location.href);
+        // u.searchParams.set("member", String(newMember.id));
+        // window.history.replaceState({}, "", u);
+        navigate(`?member=${newMember.id}`, { replace: true });
         setShowAddForm(false);
     };
     const location = useLocation();
@@ -236,12 +235,15 @@ export default function RecordBook() {
         if (!users.length) return;
         const params = new URLSearchParams(location.search);
         const queryId = params.get("member");
-        const byQuery = queryId ? users.find(u => String(u.id) === String(queryId)) : null;
-        if (byQuery) {
+        if (queryId) {
+            const byQuery = users.find(u => String(u.id) === String(queryId));
+            // Chỉ set nếu khác activeUser hiện tại
+            if (byQuery && byQuery.id !== activeUser) {
             setActiveUser(byQuery.id);
             return;
+            }
         }
-        // fallback nếu chưa có activeUser (lần đầu) mới set
+       // Nếu chưa có activeUser thì chọn fallback
         if (!activeUser) {
             const fallback = users.find(u => u.relation === "Bản thân") || users[0];
             if (fallback) setActiveUser(fallback.id);
@@ -543,12 +545,10 @@ export default function RecordBook() {
                 </button>
 
                 {users.map((user) => (
-                    <button key={user.id} onClick={() => {
-                             setActiveUser(user.id);
-                             const u = new URL(window.location.href);
-                             u.searchParams.set("member", String(user.id));
-                             window.history.replaceState({}, "", u);
-                   }}
+                    <button key={user.id}  onClick={() => {
+                        setActiveUser(user.id);
+                        navigate(`?member=${user.id}`, { replace: true });
+                        }}
                 className={`tw-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-whitespace-nowrap transition-colors duration-200
                     ${
                         activeUser === user.id

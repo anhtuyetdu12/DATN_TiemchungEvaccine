@@ -175,19 +175,6 @@ export default function VaccinesList() {
   const handleBookingPackage = () => {
     if (!selectedPackage?.disease_groups) return;
     const groups = selectedPackage.disease_groups;
-    // const merged = new Map(); // gộp trùng slug, cộng dồn số lượng
-    // for (const g of groups) {
-    //   if (!g.checked) continue; // chỉ lấy những dòng đang chọn
-    //   const v = g.selectedVaccine ||  g.vaccines?.[0];
-    //   if (!v?.slug) continue;
-    //   const qty = Number(g.quantity || 1);
-    //   merged.set(v.slug, (merged.get(v.slug) || 0) + qty);
-    // }
-    // if (merged.size === 0) return;
-    // // Đẩy vào booking (giữ các vaccine đã chọn từ trước)
-    // for (const [slug, qty] of merged.entries()) {
-    //   addToBooking(slug, qty);
-    // }
     const added = new Set();
     for (const g of groups) {
       if (!g.checked) continue;
@@ -239,19 +226,14 @@ export default function VaccinesList() {
     // helper: kiểm tra 1 vaccine pass filter tuổi
     const matchAge = (v) => {
       if (!ageSelected || ageSelected.includes("all")) return true;
-
       // Chuẩn hóa range vắc xin về tháng & tuổi
       const vUnit = v.age_unit || "tuổi";
       const minAge = Number.isFinite(Number(v.min_age)) ? Number(v.min_age) : null;
       const maxAge = Number.isFinite(Number(v.max_age)) ? Number(v.max_age) : null;
-
-      // convert vaccine range sang [minMonths, maxMonths] & [minYears, maxYears]
       const vMinMonths = minAge == null ? null : (vUnit === "tháng" ? minAge : minAge * 12);
       const vMaxMonths = maxAge == null ? null : (vUnit === "tháng" ? maxAge : maxAge * 12);
-
       const vMinYears = minAge == null ? null : (vUnit === "tuổi" ? minAge : Math.floor(minAge / 12));
       const vMaxYears = maxAge == null ? null : (vUnit === "tuổi" ? maxAge : Math.floor(maxAge / 12));
-
       // 1 vaccine pass nếu khớp với ÍT NHẤT một range được chọn
       return ageSelected.some(id => {
         const range = AGE_RANGES.find(r => r.id === id);
@@ -273,14 +255,14 @@ export default function VaccinesList() {
       });
     };
 
-    // helper: disease
+    //  disease
     const matchDisease = (v) => {
       if (!diseaseSelected || diseaseSelected.includes("all")) return true;
       const id = String(v?.disease?.id || "");
       return diseaseSelected.includes(id);
     };
 
-    // helper: origin
+    //  origin
     const matchOrigin = (v) => {
       if (!originSelected || originSelected.includes("all")) return true;
       const origin = (v.origin || "").trim();

@@ -122,7 +122,7 @@ def create_planned_records_for_booking(booking):
         base_q = VaccinationRecord.objects.filter(
             family_member=member,
             vaccination_date__isnull=True,
-        ).filter( Q(source_booking__isnull=True) | Q(source_booking=booking))
+        )
         
         if disease:
             base_q = base_q.filter( Q(disease=disease) | Q(vaccine__disease=disease))
@@ -179,7 +179,7 @@ def create_planned_records_for_booking(booking):
             if update_fields:
                 existing.save(update_fields=update_fields)
             continue
-        # 5) KHÔNG CÓ RECORD CŨ -> TẠO MỚI
+        # 5) KHÔNG CÓ record cũ -> tạo mới planned record theo lịch hẹn
         VaccinationRecord.objects.create(
             family_member=member,
             disease=disease,
@@ -499,6 +499,12 @@ class BookingViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(appointment_date__lte=d2)
         return qs.order_by("-appointment_date", "-created_at")
 
+    def perform_create(self, serializer):
+        # KHÔNG truyền user ở đây nữa
+        booking = serializer.save()
+        # sinh các mũi dự kiến cho sổ tiêm
+        create_planned_records_for_booking(booking)
+        
     @action(detail=True, methods=["POST"], url_path="confirm")
     def confirm(self, request, pk=None):
         """
@@ -950,7 +956,7 @@ class MyUpdateHistoryByDiseaseAPIView(APIView):
                     disease=disease,
                     vaccination_date__isnull=True,
                     source_booking__isnull=False,
-                ).update(next_dose_date=None, note="")
+                ).update(next_dose_date=None, note="",source_booking=None,)
 
         out = [
             {
@@ -1552,7 +1558,7 @@ class StaffAddHistoryAPIView(APIView):
                     disease=disease,
                     vaccination_date__isnull=True,
                     source_booking__isnull=False,  
-                ).update( next_dose_date=None,note="" )
+                ).update( next_dose_date=None,note="", source_booking=None,  )
             else:
                 # 3) KHÔNG CÓ PLANNED -> MỚI TẠO MŨI MỚI
                 # IMPORTANT: tính last_dose dựa trên các mũi ĐÃ TIÊM để tránh nhảy số do planned-dose
