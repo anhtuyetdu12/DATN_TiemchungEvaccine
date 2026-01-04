@@ -9,18 +9,16 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
     title: "",
     desired_qty: "",
     message: "",
-    urgency: "normal", // low | normal | high
+    urgency: "normal",
   });
   const [submitting, setSubmitting] = useState(false);
   const [touched, setTouched] = useState({});
 
-  // preset
   useEffect(() => {
     if (preset) setForm((s) => ({ ...s, ...preset }));
   }, [preset]);
   
 
-  // helpers
   const fmtDate = (d) => {
     if (!d || d === "-") return "-";
     const t = new Date(d);
@@ -34,7 +32,6 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
   const handleChange = (k, v) => setForm((s) => ({ ...s, [k]: v }));
   const onBlur = (k) => setTouched((t) => ({ ...t, [k]: true }));
 
-  // vaccine
   const selectedVaccine = useMemo(
     () => vaccines.find((v) => String(v.id) === String(form.vaccine_id)),
     [vaccines, form.vaccine_id]
@@ -42,7 +39,6 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
 
   const soonestExpiry = useMemo(() => {
     if (!selectedVaccine) return null;
-    // ưu tiên selectedVaccine.expiry; nếu không có, lấy HSD sớm nhất từ lots
     const fromProp = selectedVaccine.expiry && selectedVaccine.expiry !== "-" ? selectedVaccine.expiry : null;
     if (fromProp) return fromProp;
 
@@ -60,7 +56,6 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
     const computedWarningType = useMemo(() => {
       if (!selectedVaccine) return null;
 
-      // ngưỡng HSD sắp hết = 30 ngày
       const now = new Date();
       const soon = new Date();
       soon.setDate(soon.getDate() + 30);
@@ -86,7 +81,6 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
     [vaccines]
   );
 
-  // Số lượng kiểu QuantityPicker (giữ inline; nếu dùng component sẵn có thì thay block này bằng <QuantityPicker .../>)
   const MAX_QTY = 999999;
   const guardInt = (val) => {
     if (val === "") return "";
@@ -125,7 +119,6 @@ export default function NotifyForm({ vaccines = [], preset, onSent }) {
         message: form.message,
         urgency: form.urgency,
       });
-      // CHỈ 1 nơi toast:
       toast.success("Đã gửi thông báo cho admin.", { toastId: "notify-admin-success" });
       onSent?.();
       setForm({ vaccine_id: "", title: "", desired_qty: "", message: "", urgency: "normal" });

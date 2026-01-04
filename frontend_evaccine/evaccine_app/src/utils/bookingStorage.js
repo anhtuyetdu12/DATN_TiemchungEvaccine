@@ -5,7 +5,6 @@ import { SELECTED_EVENT } from "./selectedVaccines";
 const keyFor = (userId) =>
   userId ? `booking_items_${userId}` : "booking_items_guest";
 
-// Kiểu dữ liệu lưu: [{ slug: "ipv-1", qty: 2 }, { slug: "var-3", qty: 1 }]
 export const readBooking = () => {
   const { user } = loadAuth();
   const key = keyFor(user?.id);
@@ -24,7 +23,6 @@ export const writeBooking = (items) => {
     .filter((it) => it?.slug && it?.qty > 0)
     .map((it) => ({ slug: String(it.slug), qty: Number(it.qty) || 1 }));
 
-  // gộp trùng slug
   const map = new Map();
   for (const it of normalized) {
     map.set(it.slug, (map.get(it.slug) || 0) + it.qty);
@@ -60,10 +58,8 @@ export const clearBooking = () => {
   writeBooking([]);
 };
 
-// Helper cũ: lấy danh sách slug (nếu bạn còn dùng query ?v=)
 export const getBookingSlugs = () => readBooking().map((i) => i.slug);
 
-// Giữ hàm migrate từ key cũ (nếu trước đó chỉ lưu slug)
 export const migrateLegacyBooking = () => {
   const { user } = loadAuth();
   if (!user?.id) return;

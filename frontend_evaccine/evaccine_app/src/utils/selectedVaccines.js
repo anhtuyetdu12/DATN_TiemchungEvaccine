@@ -10,5 +10,5 @@ export function setSelected(slugs) {
 export function addSelected(slug) { addToBooking(slug, 1); }
 export function removeSelected(slug) { removeFromBooking(slug); }
 
-export const SELECTED_EVENT = "vaccines:selected:changed"; // giữ event cũ nếu bạn đã lắng nghe
-export const SELECTED_KEY = "selectedVaccineSlugs";        // không còn dùng, nhưng giữ nếu code cũ tham chiếu
+export const SELECTED_EVENT = "vaccines:selected:changed"; 
+export const SELECTED_KEY = "selectedVaccineSlugs";      

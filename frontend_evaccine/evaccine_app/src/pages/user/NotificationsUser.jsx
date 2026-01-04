@@ -14,7 +14,6 @@ export default function NotificationsUser() {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedIds, setExpandedIds] = useState(() => new Set());
 
-  // lọc theo khoảng ngày
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
@@ -45,7 +44,7 @@ export default function NotificationsUser() {
     return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " VNĐ";
   };
 
-  // ngày dùng để sort / filter (ưu tiên ngày lịch hẹn, sau đó tới sent_at / created_at)
+  // ngày dùng để sort / filter 
   const getSortDateValue = (n) => {
     const meta = n.meta || {};
     return meta.appointment_date || n.sent_at || n.created_at || null;
@@ -56,8 +55,6 @@ export default function NotificationsUser() {
       setLoading(true);
       const data = await getMyNotifications();
       const list = Array.isArray(data) ? data : data.results || [];
-
-      // sort mới nhất lên trên
       const sorted = [...list].sort((a, b) => {
         const da = getSortDateValue(a);
         const db = getSortDateValue(b);

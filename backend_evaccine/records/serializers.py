@@ -74,7 +74,6 @@ class VaccinationRecordSerializer(serializers.ModelSerializer):
     disease_id = serializers.PrimaryKeyRelatedField(queryset=Disease.objects.all(), source="disease", write_only=True, required=False)
     vaccine = VaccineSerializer(read_only=True)
     vaccine_id = serializers.PrimaryKeyRelatedField(queryset=Vaccine.objects.all(), source="vaccine", write_only=True, required=False)
-    # status_label = serializers.SerializerMethodField(read_only=True)
     status_label = serializers.SerializerMethodField()
     locked = serializers.SerializerMethodField(read_only=True)
     can_delete = serializers.SerializerMethodField()
@@ -128,10 +127,8 @@ class VaccinationRecordSerializer(serializers.ModelSerializer):
         """
         today = timezone.now().date()
         booking = getattr(obj, "source_booking", None)
-        # 1. Có ngày tiêm thật → Đã tiêm
         if obj.vaccination_date:
             return "Đã tiêm"
-        # 2. Có booking (mũi dự kiến từ lịch hẹn)
         if booking:
             is_overdue = (
                 booking.status not in ("completed", "cancelled") and
@@ -144,18 +141,15 @@ class VaccinationRecordSerializer(serializers.ModelSerializer):
                 return "Trễ hẹn"
             if booking.status in ("pending", "confirmed"):
                 return "Chờ tiêm"
-            # fallback nếu status booking lạ mà vẫn có next_dose_date
             if obj.next_dose_date:
                 if obj.next_dose_date < today:
                     return "Trễ hẹn"
                 return "Chờ tiêm"
             return "Chưa tiêm"
-        # 3. Record không gắn booking → dùng thuần theo next_dose_date
         if obj.next_dose_date:
             if obj.next_dose_date < today:
                 return "Trễ hẹn"
             return "Chờ tiêm"
-        # 4. Không có gì cả
         return "Chưa tiêm"
         
     def validate(self, attrs):
@@ -288,7 +282,7 @@ class BookingItemReadSerializer(serializers.ModelSerializer):
             if lot.expiry_date < today:
                 return False
         return True
-    # --- trả lý do không thể hoàn thành mũi tiêm ----
+
     def get_cannot_complete_reason(self, obj):
         rec = self._get_related_record(obj)
         if rec and rec.vaccination_date:
@@ -341,7 +335,6 @@ class MemberSlimSerializer(serializers.ModelSerializer):
         model = FamilyMember
         fields = ("id", "full_name", "date_of_birth", "phone","chronic_note",)
 
-# ----------  Booking/Lịch hẹn tiêm (tạo + xem chi tiết) ----------
 class BookingSerializer(serializers.ModelSerializer):
     """
     BookingSerializer
@@ -420,7 +413,6 @@ class BookingSerializer(serializers.ModelSerializer):
             "cancelled": "Đã hủy",
         }
         return mapping.get(obj.status, obj.status)
-    # --- tính số mũi kế tiếp theo member 
     def _get_next_dose_number(self, member, vaccine: Vaccine | None):
         if vaccine and vaccine.disease_id:
             qs = VaccinationRecord.objects.filter(
@@ -500,7 +492,6 @@ class BookingSerializer(serializers.ModelSerializer):
         """
         acting_user = self._acting_user()
         member = attrs["member"]
-        # ===== A) appointment_date =====
         if not attrs.get("appointment_date"):
             raise serializers.ValidationError(
                 {"appointment_date": "Vui lòng chọn ngày hẹn tiêm."}
@@ -511,7 +502,6 @@ class BookingSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"appointment_date": "Ngày hẹn phải từ hôm nay trở đi."}
             )
-        # ===== B) member ownership =====
         if member.user != acting_user:
             raise serializers.ValidationError(
                 {"member_id": "Thành viên không thuộc tài khoản này."}
@@ -523,8 +513,6 @@ class BookingSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"items": "Vui lòng chọn vắc xin hoặc gói vắc xin."}
             )
-        # ===== C) duplicate booking (same day) =====
-        # Chỉ xét các booking còn hiệu lực để tránh chặn lịch đã hủy/hoàn tất
         ACTIVE_STATUSES = ("pending", "confirmed")
 
         want_vaccine_ids = set()
@@ -533,17 +521,13 @@ class BookingSerializer(serializers.ModelSerializer):
         if vaccine:
             want_vaccine_ids.add(vaccine.id)
 
-        # map vaccine -> disease để chặn theo phác đồ bệnh 
         want_vaccines = Vaccine.objects.filter(id__in=want_vaccine_ids).select_related("disease")
         want_disease_ids = {v.disease_id for v in want_vaccines if v.disease_id}
-
         dup_booking_qs = Booking.objects.filter(
             member=member,
             appointment_date=appt_date,
             status__in=ACTIVE_STATUSES,
         )
-
-        # trùng vaccine
         dup_by_vaccine = dup_booking_qs.filter(
             Q(items__vaccine_id__in=want_vaccine_ids) |
             Q(vaccine_id__in=want_vaccine_ids)
@@ -585,7 +569,6 @@ class BookingSerializer(serializers.ModelSerializer):
             seen = set()
             for it in items:
                 v_id = it["vaccine_id"]
-                #  không cho 1 vaccine xuất hiện nhiều hơn 1 item
                 if v_id in seen:
                     raise serializers.ValidationError({ "items": "Mỗi vắc xin chỉ được chọn 1 lần trong một lịch hẹn." })
                 seen.add(v_id)
@@ -600,7 +583,6 @@ class BookingSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError({"items": f"Vắc xin id={v_id} không tồn tại"})
                 disease = getattr(v, "disease", None)
                 total = ( getattr(disease, "doses_required", None) or getattr(v, "doses_required", None)  or 1)
-                # tính tổng mũi của mọi vaccine cùng disease:
                 if disease:
                     used = VaccinationRecord.objects.filter(
                         family_member=member,
@@ -675,7 +657,7 @@ class BookingSerializer(serializers.ModelSerializer):
                             f"(theo phác đồ cách {interval} ngày)."
                         )
                     })
-            #  vaccine đơn 
+            #  đặt 1 vaccine đơn        
             if vaccine:
                 disease = getattr(vaccine, "disease", None)
                 interval = ( getattr(disease, "interval_days", None) or getattr(vaccine, "interval_days", None) )

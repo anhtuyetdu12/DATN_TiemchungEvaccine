@@ -7,7 +7,6 @@ export const getStorage = () => {
   if (hasSessionAccess) return sessionStorage;
   if (hasLocalAccess)   return localStorage;
 
-  // không có access -> ưu tiên nơi có refresh
   const hasSessionRefresh = !!sessionStorage.getItem("refresh");
   const hasLocalRefresh   = !!localStorage.getItem("refresh");
   if (hasSessionRefresh) return sessionStorage;
@@ -16,9 +15,7 @@ export const getStorage = () => {
   return sessionStorage;
 };
 
-//  khi login mới, nên xoá kho còn lại để tránh “đụng kho”
 export const saveAuth = ({ user, access, refresh, remember }) => {
-  // xoá cả hai kho trước
   ["user","access","refresh","identifier","remember"].forEach(k=>{
     sessionStorage.removeItem(k); localStorage.removeItem(k);
   });
@@ -51,7 +48,7 @@ export const loadAuth = () => {
   };
 };
 
-// Tiện kiểm tra hạn JWT access/refresh
+// kiểm tra hạn JWT access/refresh
 export const isJwtExpired = (jwt) => {
   try {
     const [, payload] = jwt.split(".");

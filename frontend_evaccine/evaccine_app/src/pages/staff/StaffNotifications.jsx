@@ -33,7 +33,6 @@ const audienceOptions = [
 export default function StaffAutoReminderDashboard() {
   const fetchIdRef = useRef(0);
 
-  // State chính
   const [audience, setAudience] = useState("upcoming_today");
   const [apptLoading, setApptLoading] = useState(false);
   const [appts, setAppts] = useState([]);
@@ -41,7 +40,6 @@ export default function StaffAutoReminderDashboard() {
   const [apptPage, setApptPage] = useState(1);
   const apptPerPage = 10;
 
-  // Summary tổng quan 3 nhóm
   const [summary, setSummary] = useState({
     upcoming_today: null,
     upcoming_1: null,
@@ -51,7 +49,6 @@ export default function StaffAutoReminderDashboard() {
     loadedAt: null,
   });
 
-  // Sample để render preview nội dung
   const [sample, setSample] = useState({
     customer_name: "",
     member_name: "",
@@ -90,7 +87,6 @@ export default function StaffAutoReminderDashboard() {
     return m[s] || m.default;
   };
 
-  // Template nội dung (demo, READ-ONLY)
   const templates = {
     upcoming_today: {
       title: "Nhắc lịch tiêm hôm nay",
@@ -131,7 +127,6 @@ export default function StaffAutoReminderDashboard() {
 
   const currentTemplate = templates[audience];
 
-  // Xem trước nội dung nhắc cho 1 khách đại diện
   const previewRendered = useMemo(() => {
     if (!currentTemplate) return "";
     const tpl = currentTemplate.msg || "";
@@ -166,7 +161,7 @@ export default function StaffAutoReminderDashboard() {
         previewAudience({ audience: "upcoming", days_before: 0 }),
         previewAudience({ audience: "upcoming", days_before: 1 }),
         previewAudience({ audience: "upcoming", days_before: 3 }),
-        previewAudience({ audience: "nextdose", next_dose_days: 7, only_unscheduled: 1 }), // chỉ đếm các mũi tiếp theo CHƯA có lịch hẹn
+        previewAudience({ audience: "nextdose", next_dose_days: 7, only_unscheduled: 1 }), 
         previewAudience({ audience: "overdue" }),
       ]);
 
@@ -184,16 +179,13 @@ export default function StaffAutoReminderDashboard() {
     }
   }, []);
 
-  // Phân trang client-side
   const currentPageAppts = useMemo(() => {
     const start = (apptPage - 1) * apptPerPage;
     return appts.slice(start, start + apptPerPage);
   }, [appts, apptPage]);
 
   const audienceLabel = audienceOptions.find((o) => o.value === audience)?.label || "";
-  // const currentAudienceCfg = audienceOptions.find((o) => o.value === audience)?.backend || { audience: "upcoming", days_before: 0 };
 
-  // Lấy danh sách chi tiết theo audience
   const fetchAppts = useCallback(async () => {
     setApptLoading(true);
     const fetchId = ++fetchIdRef.current;

@@ -9,22 +9,19 @@ import { migrateLegacyBooking } from "../../utils/bookingStorage";
 
 export default function Login({ setUser }) {
   const navigate = useNavigate();
-  const [identifier, setIdentifier] = useState(""); // email hoặc phone
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [remember, setRemember] = useState(false);
 
 
-  // --- VALIDATE FUNCTIONS ---
   const validateIdentifier = (value) => {
     if (value.includes("@")) {
-      // email
       if (!/@gmail\.com$/.test(value) && !/@evaccine\.com$/.test(value))
         return "Email phải có đuôi @gmail.com hoặc @evaccine.com";
       if (/\s/.test(value)) return "Email không được chứa khoảng trắng";
     } else {
-      // phone
       if (!/^\d{10}$/.test(value)) return "Số điện thoại phải gồm đúng 10 chữ số";
     }
     return "";
@@ -44,9 +41,7 @@ export default function Login({ setUser }) {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); // ngăn chặn load trang 
-
-    // validate trước khi submit
+    e.preventDefault();
     const newErrors = {
       identifier: validateIdentifier(identifier),
       password: validatePassword(password),
@@ -62,16 +57,13 @@ export default function Login({ setUser }) {
         password,
         remember
       });
-
-    const { data } = response;
-
+      const { data } = response;
       // 1) Nếu phải đổi mật khẩu -> KHÔNG lưu token, điều hướng tới reset-password (case mật khẩu tạm qua phone)
       if (data.require_change_password) {
         (remember ? localStorage : sessionStorage).setItem("identifier", identifier);
         navigate("/reset-password?identifier=" + encodeURIComponent(identifier));
         return;
       }
-      // Lưu token + user đúng nơi:
       saveAuth({
         user: {
           ...data.user,
@@ -79,7 +71,7 @@ export default function Login({ setUser }) {
         },
         access: data.access,
         refresh: data.refresh,
-        remember, // checkbox
+        remember, 
       });
       setUser({
         ...data.user,
@@ -87,7 +79,6 @@ export default function Login({ setUser }) {
       });
       migrateLegacyBooking();
       window.dispatchEvent(new Event(SELECTED_EVENT));
-      // Nếu có ?next=... -> ưu tiên quay về đó
       const params = new URLSearchParams(window.location.search);
       const next = params.get("next");
       if (next) {
@@ -97,46 +88,31 @@ export default function Login({ setUser }) {
       } else {
         navigate("/");
       }
-
       toast.success("Đăng nhập thành công!");
-
     } catch (err) {
-      // toast.error(err.response?.data?.detail || "Đăng nhập thất bại");
       const data = err.response?.data || {};
       const pick = (v) => Array.isArray(v) ? v[0] : v;
-   
-      // Đổ lỗi về form để hiển thị dưới input
       setErrors(prev => ({
         ...prev,
         identifier: pick(data.identifier) || "",
         password: pick(data.password) || "",
       }));
-   
-      // Ưu tiên thông báo rõ ràng theo field
-      const msg =
-        pick(data.identifier) ||     // "Tài khoản không tồn tại" / rule theo email/phone
-        pick(data.password)   ||     // "Mật khẩu không đúng"
-        pick(data.detail)     ||     // fallback khi BE trả detail
-        "Đăng nhập thất bại";
+      const msg =  pick(data.identifier) || pick(data.password) || pick(data.detail) || "Đăng nhập thất bại";
       toast.error(msg);
     }
   };
 
-  // Hàm đóng form → quay về trang chủ
   const handleClose = () => {
     navigate("/"); 
   };
   return (
     <div className="tw-fixed tw-inset-0 tw-bg-black/60 tw-flex tw-items-center tw-justify-center tw-z-40  " onClick={handleClose}>
-      {/* Khung chứa ảnh + form */}
       <div className="tw-w-full tw-max-w-7xl tw-bg-white tw-rounded-2xl tw-shadow-2xl tw-flex tw-overflow-hidden tw-mt-[100px]"
         onClick={(e) => e.stopPropagation()} >
-        {/* Cột ảnh bên trái */}
         <div className="tw-hidden md:tw-flex tw-w-1/2 tw-items-center tw-justify-center tw-bg-blue-50">
           <img  src="images/logoimg.jpg" alt="Login" className="tw-max-w-full tw-max-h-full tw-object-contain tw-rounded-l-2xl" />
         </div>
 
-        {/* Cột form bên phải */}
         <div className="tw-w-full md:tw-w-1/2 tw-p-10 tw-text-center tw-relative">
           <button  onClick={handleClose} className="tw-absolute tw-top-4 tw-right-4 tw-text-gray-500 hover:tw-text-red-500 tw-text-3xl tw-font-bold tw-w-14 tw-h-14 tw-flex tw-items-center tw-justify-center tw-rounded-full hover:tw-bg-gray-100" >
             <i className="fa-solid fa-xmark"></i>

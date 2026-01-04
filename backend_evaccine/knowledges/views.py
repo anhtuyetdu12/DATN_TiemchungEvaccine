@@ -88,8 +88,6 @@ class KnowledgeArticleViewSet(viewsets.ModelViewSet):
     )
     serializer_class = KnowledgeArticleSerializer
     permission_classes = [permissions.IsAuthenticated]
-    # Cấp quyền theo action:
-    # - update/partial_update/destroy: admin hoặc author (draft/pending) mới được sửa/xóa
     def get_permissions(self):
         if self.action in ["update", "partial_update", "destroy"]:
             return [IsAdminOrAuthorCanEdit()]
@@ -97,7 +95,6 @@ class KnowledgeArticleViewSet(viewsets.ModelViewSet):
             return [permissions.AllowAny()]
         return super().get_permissions()
 
-     # Lọc danh sách bài viết theo query params:
     def get_queryset(self):
         qs = super().get_queryset()
         status_q = self.request.query_params.get("status")
@@ -113,7 +110,6 @@ class KnowledgeArticleViewSet(viewsets.ModelViewSet):
         if mine == "1":
             qs = qs.filter(author=self.request.user)
         return qs
-    # Tạo bài viết mới:
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
@@ -154,7 +150,6 @@ class KnowledgeArticleViewSet(viewsets.ModelViewSet):
         article.save()
         return Response(self.get_serializer(article).data)
 
-    # Admin từ chối bài
     @action(detail=True, methods=["post"])
     def reject(self, request, pk=None):
         if not request.user.is_staff:
@@ -194,7 +189,6 @@ class KnowledgeArticleViewSet(viewsets.ModelViewSet):
         qs = qs[:limit]
         ser = self.get_serializer(qs, many=True)
         return Response(ser.data)
-    # Upload ảnh thumbnail bài viết
     @action(
         detail=False,
         methods=["post"],

@@ -30,7 +30,6 @@ export const openPrintWindow = (html) => {
   win.print();
 };
 
-// ---- Template chung cho CSS, dùng cho mọi phiếu ----
 const baseStyles = `
   <style>
     body {

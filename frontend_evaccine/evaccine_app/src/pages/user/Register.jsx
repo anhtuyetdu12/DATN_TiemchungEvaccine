@@ -11,13 +11,12 @@ export default function Register({ onClose }) {
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [repassword, setRePassword] = useState("");
-  const [role] = useState("customer"); // mặc định là customer
+  const [role] = useState("customer"); 
   const [showPassword, setShowPassword] = useState(false);
   const [showRePassword, setShowRePassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [identifier, setIdentifier] = useState("");
 
- // --- VALIDATE FUNCTIONS ---
   const validateFullName = (value) => {
     if (!/^[\p{L}\s]+$/u.test(value)) {
       return "Họ và tên chỉ được chứa chữ cái và khoảng trắng";
@@ -30,11 +29,9 @@ export default function Register({ onClose }) {
 
   const validateIdentifier = (value) => {
     if (value.includes("@")) {
-      // email
       if (!value.endsWith("@gmail.com")) return "Email phải có đuôi @gmail.com";
       if (/\s/.test(value)) return "Email không được chứa khoảng trắng";
     } else {
-      // phone
       if (!/^\d{10}$/.test(value)) return "Số điện thoại phải gồm đúng 10 chữ số";
     }
     return "";
@@ -54,7 +51,6 @@ export default function Register({ onClose }) {
     return "";
   };
 
-  // --- HANDLERS ON BLUR ---
   const handleBlur = (field) => {
     let err = "";
     switch (field) {
@@ -67,11 +63,9 @@ export default function Register({ onClose }) {
     setErrors((prev) => ({ ...prev, [field]: err }));
   };
 
-  // --- HANDLE SUBMIT ---
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // validate all fields trước khi gửi
     const newErrors = {
       fullName: validateFullName(fullName),
       identifier: validateIdentifier(identifier),

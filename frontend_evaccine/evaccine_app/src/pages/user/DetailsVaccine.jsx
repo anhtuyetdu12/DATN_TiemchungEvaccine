@@ -23,7 +23,6 @@ export default function DetailsVaccine() {
   const navigate = useNavigate();
 
   const handleBack = () => {
-    // nếu có lịch sử thì quay lại, không thì về danh sách
     if (window.history.length > 1) navigate(-1);
     else navigate("/vaccines");
   };
@@ -34,7 +33,6 @@ export default function DetailsVaccine() {
       return;
     }
     addToBooking(data.slug, 1);
-    // Nếu booking form vẫn dùng ?v=... thì build từ storage:
     const slugs = getBookingSlugs();
     navigate(`/bookingform?v=${slugs.join(",")}`);
   };
@@ -61,7 +59,6 @@ export default function DetailsVaccine() {
 const buildIntro = (v) => {
   if (!v) return null;
 
-  // Mặc định: dựng động từ dữ liệu BE (nếu có)
   const ageText = formatTargetAge(v);
   const prevention = v?.disease?.prevention || v?.disease?.description;
   const schedule = v?.schedule_text || (v?.doses_required ? `${v.doses_required} liều` : null);
@@ -82,8 +79,6 @@ const buildIntro = (v) => {
   );
 };
 
-
-  // 👉 Dùng useMemo để xây detailBlocks từ data
   const detailBlocks = useMemo(() => ([
     { id: "gioithieu",  title: "Giới thiệu vắc xin",        content: buildIntro(data)  },
     { id: "benhly",     title: "Thông tin bệnh lý",         content: data?.disease?.description },
@@ -97,7 +92,6 @@ const buildIntro = (v) => {
 
   ]), [data]);
 
-  // Scroll spy
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => entry.isIntersecting && setActiveSection(entry.target.id));
@@ -105,9 +99,8 @@ const buildIntro = (v) => {
 
     Object.values(sectionRefs.current).forEach((el) => el && observer.observe(el));
     return () => observer.disconnect();
-  }, [detailBlocks]); // re-attach khi danh sách section thay đổi
+  }, [detailBlocks]); 
 
-  // Lấy vị trí sidebar để sticky
   useEffect(() => {
     if (sidebarRef.current) {
       const rect = sidebarRef.current.getBoundingClientRect();
@@ -146,7 +139,7 @@ const buildIntro = (v) => {
             <span className="tw-font-medium">Quay lại</span>
           </button>
         </div>
-        {/* Khung thông tin sản phẩm */}
+
         <div className="tw-bg-white tw-rounded-2xl tw-shadow-md tw-p-8 tw-mb-8">
           <div className="tw-flex tw-gap-8">
             <div className="tw-w-1/3">
@@ -175,7 +168,6 @@ const buildIntro = (v) => {
                          tw-border-[#47b8fa] tw-bg-white tw-px-6 tw-py-2 tw-text-gray-800 tw-font-medium tw-min-w-[90px] tw-overflow-hidden"
                             aria-label="Chip Selection"  aria-pressed="true" >
                             <p className="tw-mx-1 tw-leading-[14px] tw-text-gray-800">{data.unit || "—"}</p>
-                            {/* Góc gập */}
                             <span  className="tw-absolute tw-right-[-1px] tw-top-[-1px] tw-w-[23px] tw-h-[23px] tw-bg-[#47b8fa]"
                               style={{ clipPath: "polygon(100% 0px, 0px 0px, 100% 100%)" }} >
                               <i className="fa-solid fa-check tw-text-white tw-text-[10px] tw-absolute tw-right-[4px] tw-top-[4px]"></i>
@@ -215,9 +207,7 @@ const buildIntro = (v) => {
           </div>
         </div>
 
-        {/* Khung trắng bao quanh nội dung + sidebar */}
         <div className="tw-bg-white tw-rounded-2xl tw-shadow-md tw-p-6 tw-mb-8">
-
          {/* Sidebar + Nội dung */}
           <div className="tw-flex tw-gap-6 ">
             <div className="tw-w-1/3" ref={sidebarRef}>
@@ -258,7 +248,7 @@ const buildIntro = (v) => {
                 </div>
               ))}
 
-              {/* Nút Xem tất cả / Thu gọn trực tiếp */}
+              {/* Nút Xem tất cả / Thu gọn */}
               <div className="tw-flex tw-justify-center tw-mt-4">
                 <button type="button"  aria-label="Xem tất cả / Thu gọn"
                   onClick={() => setExpanded(!expanded)}
@@ -278,17 +268,12 @@ const buildIntro = (v) => {
           </div>
 
 
-          {/* Miễn trừ trách nhiệm  */}
           <div className="tw-mt-8">
             <div className="tw-bg-gray-50 tw-border tw-border-gray-200 tw-p-4 tw-rounded-lg tw-text-gray-700 tw-text-sm tw-w-full">
-              
-              {/* Hàng trên: icon + tiêu đề */}
               <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
                 <i className="fa-solid fa-circle-exclamation tw-text-[#fd8206] tw-text-2xl"></i>
                 <p className="tw-font-semibold tw-text-2xl tw-text-black tw-uppercase">Miễn trừ trách nhiệm</p>
               </div>
-
-              {/* Nội dung bên dưới */}
               <p className="tw-text-gray-600 tw-text-left">
                 Thông tin này chỉ có tính tham khảo, không dùng để thay thế ý kiến tham
                 vấn của chuyên viên Y tế. Người bệnh cần được bác sĩ thăm khám, chẩn đoán

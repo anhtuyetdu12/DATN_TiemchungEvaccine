@@ -39,7 +39,7 @@ export default function Home() {
     loadKnowledge();
   }, []);
 
-  // ===== LOAD DS VẮC XIN / BỆNH (CHO MÙA NÀY TIÊM GÌ) =====
+  // ===== LOAD DS VẮC XIN / BỆNH  =====
   useEffect(() => {
     const loadSeasonData = async () => {
       try {
@@ -50,16 +50,12 @@ export default function Home() {
         ]);
 
         const vaccineList = Array.isArray(vaccines)
-          ? vaccines
-          : Array.isArray(vaccines?.results)
-          ? vaccines.results
-          : [];
+          ? vaccines : Array.isArray(vaccines?.results)
+          ? vaccines.results : [];
 
         const diseaseList = Array.isArray(diseases)
-          ? diseases
-          : Array.isArray(diseases?.results)
-          ? diseases.results
-          : [];
+          ? diseases : Array.isArray(diseases?.results)
+          ? diseases.results : [];
 
         const tabs = diseaseList
           .map((d, index) => {
@@ -71,9 +67,7 @@ export default function Home() {
               );
             });
 
-            // Tạo key luôn có giá trị và duy nhất
-            const tabKey =
-              d.slug || (d.id ? `disease-${d.id}` : `disease-index-${index}`);
+            const tabKey = d.slug || (d.id ? `disease-${d.id}` : `disease-index-${index}`);
 
             return {
               key: tabKey,
@@ -97,7 +91,6 @@ export default function Home() {
     loadSeasonData();
   }, []);
 
-  // ===== UTIL =====
   const shortText = (text = "", len = 120) =>
     text.length > len ? text.slice(0, len - 3) + "..." : text;
 
@@ -120,9 +113,7 @@ export default function Home() {
       toast.error("Không xác định được vắc xin để đặt hẹn.");
       return;
     }
-    // lưu vào giỏ
     addToBooking(slug, 1);
-    // lấy toàn bộ slug hiện có trong giỏ để build query
     const slugs = getBookingSlugs();
     navigate(`/bookingform?v=${slugs.join(",")}`);
   };

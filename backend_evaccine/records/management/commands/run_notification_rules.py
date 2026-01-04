@@ -21,11 +21,9 @@ def ensure_default_rules():
     - Overdue
     """
 
-    # Giờ mặc định chạy (có thể chỉnh trong Admin sau)
     DEFAULT_HOUR = 0
     DEFAULT_MINUTE = 0
 
-    # Danh sách rule mặc định
     defaults = [
         # 1. Lịch tiêm hôm nay (T-0)
         {
@@ -105,7 +103,6 @@ def ensure_default_rules():
                 "is_active": True,
             },
         )
-        # Nếu đã tồn tại thì không sửa, để bạn chỉnh trong admin nếu muốn
         if created:
             print(f"Created default notification rule: {rule.name}")
 
@@ -114,7 +111,6 @@ class Command(BaseCommand):
     help = "Chạy các rule nhắc lịch tiêm tự động (upcoming T-0/T-1/T-3, nextdose, overdue)"
 
     def handle(self, *args, **options):
-        # Đảm bảo có đủ rule mặc định
         ensure_default_rules()
 
         now = timezone.localtime()
@@ -130,7 +126,6 @@ class Command(BaseCommand):
                 now.hour == rule.run_hour and now.minute < rule.run_minute
             ):
                 continue
-             #CHỈ gộp theo user cho rule overdue
             is_overdue_rule = (rule.audience == "overdue")
             result = send_auto_notifications(
                 audience=rule.audience,
@@ -139,7 +134,7 @@ class Command(BaseCommand):
                 days_before=rule.days_before,
                 next_dose_days=rule.next_dose_days,
                 only_unscheduled=True,
-                distinct_user=is_overdue_rule,   # rule overdue: True, còn lại: False
+                distinct_user=is_overdue_rule,   
                 channels=rule.channels,
             )
             rule.last_run_date = today

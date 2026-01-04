@@ -6,8 +6,7 @@ const api = axios.create({ baseURL: "http://127.0.0.1:8000/api/" });
 
 api.interceptors.request.use((config) => {
   const access =
-    sessionStorage.getItem("access") ||
-    localStorage.getItem("access");
+    sessionStorage.getItem("access") || localStorage.getItem("access");
   if (access) config.headers.Authorization = `Bearer ${access}`;
   return config;
 });
@@ -18,7 +17,6 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     const status = error.response?.status;
 
-    // Không cố refresh chính /token/refresh/
     if (!originalRequest || originalRequest._retry || originalRequest.url?.includes("/api/token/refresh/")) {
       return Promise.reject(error);
     }
@@ -39,7 +37,6 @@ api.interceptors.response.use(
          if (newAccess) {
            store.setItem("access", newAccess);
          }
-         // QUAN TRỌNG: nếu server trả refresh mới (do ROTATE_REFRESH_TOKENS=True) thì lưu lại
          if (newRefresh) {
            store.setItem("refresh", newRefresh);
          }

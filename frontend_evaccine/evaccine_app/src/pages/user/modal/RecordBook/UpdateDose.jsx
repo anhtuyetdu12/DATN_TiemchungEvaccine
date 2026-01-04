@@ -1,6 +1,5 @@
 // cập nhật mũi tiêm 
 import { useState, useEffect  } from "react";
-// import { addVaccinationRecord } from "../../../../services/recordBookService";
 import { toast } from "react-toastify";
 import { updateDiseaseHistory } from "../../../../services/recordBookService";
 
@@ -9,7 +8,6 @@ export default function UpdateDose({ disease,  memberId, selectedDoseNumber = 1,
   const [expanded, setExpanded] = useState(false); 
 
   useEffect(() => {
-    // Nếu có dữ liệu cũ: giữ nguyên vaccine, date, location, sắp thứ tự 1..n
     const base = (Array.isArray(initialDoses) && initialDoses.length > 0)
       ? initialDoses.map((d, idx) => ({
           id: d.id ?? idx + 1,
@@ -17,18 +15,15 @@ export default function UpdateDose({ disease,  memberId, selectedDoseNumber = 1,
           vaccine: d.vaccine || "",
           location: d.location || d.place || "",
           open: false,
-          // nếu BE/parent truyền từ booking thì set locked = true
           locked: !!(d.locked || d.from_booking),
         }))
       : [{ id: 1, date: "", vaccine: "", location: "", open: false, locked: false }];
-    // Mở sẵn tab mũi được chọn (nếu trong khoảng)
     const openIndex = Math.min(Math.max(1, selectedDoseNumber), base.length) - 1;
     base[openIndex].open = true;
     setDoses(base);
   }, [disease, initialDoses, selectedDoseNumber]);
 
 
-  // Lấy ngày hôm nay theo local (YYYY-MM-DD)
   const [today, setToday] = useState("");
 
   useEffect(() => {
@@ -41,7 +36,6 @@ export default function UpdateDose({ disease,  memberId, selectedDoseNumber = 1,
 
   const handleDoseChange = (index, field, value) => {
     const newDoses = [...doses];
-    //chặn ngày lớn hơn today (nếu today đã có)
     if (field === "date" && today) {
       if (value > today) {
         value = today;
@@ -51,7 +45,6 @@ export default function UpdateDose({ disease,  memberId, selectedDoseNumber = 1,
     setDoses(newDoses);
   };
 
-  // thêm mũi 
   const handleAddDose = () => {
     const limit = disease?.doseCount || 1;     
     if (doses.length >= limit) {
@@ -76,7 +69,6 @@ export default function UpdateDose({ disease,  memberId, selectedDoseNumber = 1,
   const handleConfirm = async () => {
     try {
       const cleaned = doses.filter((d) => {
-        // Mũi locked thì luôn giữ lại, không cho biến mất khỏi payload
         if (d.locked) return true;
         return (
           (d.date && d.date.trim() !== "") ||
@@ -95,7 +87,7 @@ export default function UpdateDose({ disease,  memberId, selectedDoseNumber = 1,
           date: d.date || "",
           vaccine: d.vaccine || "",
           location: d.location || "",
-          locked: !!d.locked,      // gửi luôn locked lên BE
+          locked: !!d.locked,      
         })),
       });
       toast.success("Cập nhật lịch sử tiêm thành công!");

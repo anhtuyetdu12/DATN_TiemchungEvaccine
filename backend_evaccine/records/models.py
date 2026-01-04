@@ -89,7 +89,6 @@ class VaccinationRecord(models.Model):
     source_booking = models.ForeignKey( "Booking", null=True, blank=True, on_delete=models.SET_NULL, related_name="records" )
     class Meta:
         constraints = [
-            # 1) Mũi DỰ KIẾN: không cho trùng ngày hẹn cho cùng bệnh
             models.UniqueConstraint(
                 fields=["family_member", "disease", "next_dose_date"],
                 condition=Q(
@@ -99,7 +98,6 @@ class VaccinationRecord(models.Model):
                 ),
                 name="uniq_planned_dose_per_day_by_disease",
             ),
-            # 2) Mũi ĐÃ TIÊM: không cho 2 mũi cùng bệnh cùng ngày
             models.UniqueConstraint(
                 fields=["family_member", "disease", "vaccination_date"],
                 condition=Q(

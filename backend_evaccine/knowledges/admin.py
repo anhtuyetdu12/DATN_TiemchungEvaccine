@@ -64,7 +64,6 @@ class KnowledgeArticleAdmin(admin.ModelAdmin):
         )
     status_colored.short_description = "Trạng thái"
 
-    # KHAI BÁO ACTION
     actions = ["approve_articles", "reject_articles"]
 
     def approve_articles(self, request, queryset):

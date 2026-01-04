@@ -101,7 +101,7 @@ class VaccineViewSet(viewsets.ModelViewSet):
     """
     queryset = Vaccine.objects.all().select_related("disease", "category").order_by("-created_at")
     serializer_class = VaccineSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]  #  an toàn hơn AllowAny
+    permission_classes = [IsAuthenticatedOrReadOnly] 
     filterset_fields = ["id", "slug", "status", "disease", "category"]
 
     lookup_field = "slug"
@@ -111,7 +111,6 @@ class VaccineViewSet(viewsets.ModelViewSet):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
         return ctx
-    # Lấy danh sách vắc xin theo danh sách ID 
     @action(detail=False, methods=["get"], url_path="by-ids")
     def by_ids(self, request):
         ids = request.query_params.get("ids", "")
@@ -168,7 +167,6 @@ class VaccineViewSet(viewsets.ModelViewSet):
         member = FamilyMember.objects.filter(id=member_id).first()
         if not member:
             return Response({"error": "Thành viên không tồn tại"}, status=404)
-        #  cho phép staff / admin xem
         user = request.user
         role = getattr(user, "role", "")
         if member.user != user and role not in ("staff", "admin", "superadmin"):
@@ -176,7 +174,6 @@ class VaccineViewSet(viewsets.ModelViewSet):
         if not member.date_of_birth:
             return Response({"error": "Thiếu ngày sinh của thành viên"}, status=400)
 
-        # --- TÍNH TUỔI THEO THÁNG ---
         today = date.today()
         years = today.year - member.date_of_birth.year - (
             (today.month, today.day) < (member.date_of_birth.month, member.date_of_birth.day)
@@ -186,7 +183,6 @@ class VaccineViewSet(viewsets.ModelViewSet):
             month_delta -= 1
         age_months = max(0, min(years * 12 + month_delta, 110 * 12))
 
-        # --- TEXT TUỔI ĐẸP HƠN ---
         if age_months < 12:
             age_text = f"{age_months} tháng"
         else:
@@ -197,12 +193,10 @@ class VaccineViewSet(viewsets.ModelViewSet):
             else:
                 age_text = f"{y} tuổi {m} tháng"
 
-        # ---  chỉ lấy vaccine active, lọc theo bệnh nếu có ---
         qs = Vaccine.objects.filter(status="active").select_related("disease", "category")
         if disease_id and str(disease_id).isdigit():
             qs = qs.filter(disease_id=int(disease_id))
 
-        # --- CHUẨN HOÁ min/max tuổi VỀ ĐƠN VỊ THÁNG ---
         qs = qs.annotate(
             min_months=Case(
                 When(age_unit="tháng", then=F("min_age")),
@@ -221,7 +215,6 @@ class VaccineViewSet(viewsets.ModelViewSet):
             & (Q(max_months__gte=age_months) | Q(max_months__isnull=True))
         )
 
-        # --- ĐÃ TIÊM BAO NHIÊU MŨI CHO TỪNG bệnh NÀY? ---
         dose_subquery = (
             VaccinationRecord.objects
             .filter(
@@ -239,10 +232,9 @@ class VaccineViewSet(viewsets.ModelViewSet):
         )
         qs = qs.annotate(
             doses_used=Coalesce(Subquery(dose_subquery), Value(0), output_field=IntegerField()),
-            disease_doses_required=F("disease__doses_required"),     # phác đồ theo bệnh
+            disease_doses_required=F("disease__doses_required"),   
             disease_interval_days=F("disease__interval_days"),
         )
-        # --- MŨI KẾ TIẾP LÀ MŨI SỐ MẤY? (THEO BỆNH) ---
         qs = qs.annotate(
             next_dose_number=Case(
                 When(disease_doses_required__isnull=True, then=Value(1)),
@@ -250,7 +242,6 @@ class VaccineViewSet(viewsets.ModelViewSet):
                 output_field=IntegerField(),
             ) 
         )
-        # --- NẾU FE GỬI THÊM dose_number THÌ LỌC THEO MŨI CỤ THỂ (THEO BỆNH) ---
         if dose_number and str(dose_number).isdigit():
             qs = qs.filter(next_dose_number=int(dose_number))
 
@@ -281,7 +272,7 @@ class VaccineViewSet(viewsets.ModelViewSet):
             "appointment_date": appointment_date,
             "location": location,
             "notes": notes,
-            "vaccine_id": vaccine.id,  # 👈 dùng BookingSerializer nhánh vaccine_id
+            "vaccine_id": vaccine.id,  
         }
         ser = BookingSerializer(data=payload, context={"request": request})
         ser.is_valid(raise_exception=True)

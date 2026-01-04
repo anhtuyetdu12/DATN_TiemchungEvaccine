@@ -6,10 +6,8 @@ import ViewCustomerDetailModal from "./modal/customer/ViewCustomerDetailModal";
 import AddCustomerModal from "./modal/customer/AddCustomerModal";
 import { fetchCustomers, fetchCustomerMembers } from "../../services/customerService";
 
-// util: parse YYYY-MM-DD an toàn theo local
 const toLocalDate = (d) => (d ? new Date(`${d}T00:00:00`) : null);
 
-// --- highlight helper (tô đậm từ khóa) ---
 const Highlight = ({ text = "", q = "" }) => {
   if (!text) return "-";
   if (!q) return text;
@@ -183,7 +181,6 @@ export default function StaffCustomers() {
   const [newAppointment, setNewAppointment] = useState({ date: "", vaccine: "", center: "" });
   const [newVaccineRecord, setNewVaccineRecord] = useState({ date: "", vaccine: "", batch: "", note: "" });
 
-  // Tìm kiếm KH + cả THÀNH VIÊN gia đình (ô tìm kiếm chung)
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return customers.filter((c) => {
@@ -236,7 +233,6 @@ export default function StaffCustomers() {
     setCustomers((prev) => prev.map((c) => (c.id === custId ? { ...c, appointments: [appt, ...c.appointments] } : c)));
   };
 
-  // helper: tìm danh sách thành viên khớp theo từ khóa chung
   const getMemberHits = (c, term) => {
     if (!term) return [];
     const t = term.toLowerCase();

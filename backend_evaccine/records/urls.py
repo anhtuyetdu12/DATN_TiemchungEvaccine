@@ -19,16 +19,13 @@ router.register(r"bookings", BookingViewSet, basename="booking")
 urlpatterns = [
     *router.urls,
     path("remaining-doses/", RemainingDosesView.as_view()),
-    # ==== STAFF CRM over records ====
     path("staff/customers/", StaffCustomerListAPIView.as_view(), name="records-staff-customers"),
     path("staff/customers/<int:user_id>/members/", StaffCustomerMembersAPIView.as_view(), name="records-staff-customer-members"),
 
-    # lịch hẹn cho 1 customer
     path("staff/customers/<int:user_id>/appointments", StaffCreateAppointmentAPIView.as_view(), name="records-staff-appt-create"),
     path("staff/customers/<int:user_id>/appointments/list", StaffListAppointmentsAPIView.as_view(), name="records-staff-appt-list"),
     path("staff/customers/<int:user_id>/appointments/<str:appt_id>", StaffUpdateAppointmentStatusAPIView.as_view(), name="records-staff-appt-update"),
 
-    # thêm lịch sử tiêm cho 1 customer
     path("staff/customers/<int:user_id>/history", StaffAddHistoryAPIView.as_view(), name="records-staff-history-add"),
     path("staff/customers/<int:user_id>/profile", StaffUpdateCustomerProfileAPIView.as_view(), name="records-staff-customer-profile"),
     path("staff/customers/<int:user_id>/members", StaffManageMemberAPIView.as_view(), name="records-staff-members-create"),

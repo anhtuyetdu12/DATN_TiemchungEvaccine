@@ -33,14 +33,12 @@ const adaptArticle = (a) => ({
   publishedAt: a.published_at,
 });
 
-// ====== API ======
 
 export async function getKnowledgeCategories() {
   const { data } = await api.get("/knowledges/categories/");
   return pickList(data).map(adaptCategory);
 }
 
-// params: { status, category, visibility, mine, limit }
 export async function getKnowledgeArticles(params = {}) {
   const { data } = await api.get("/knowledges/articles/", { params });
   return pickList(data).map(adaptArticle);

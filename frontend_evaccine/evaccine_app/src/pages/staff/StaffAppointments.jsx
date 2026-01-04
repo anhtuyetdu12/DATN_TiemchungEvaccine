@@ -8,13 +8,11 @@ import api from "../../services/axios";
 import { completeBookingItems } from "../../services/bookingService";
 
 export default function StaffAppointments() {
-  // --- state dữ liệu & điều khiển ---
-  const [appointments, setAppointments] = useState([]); // list (page hiện tại)
-  const [count, setCount] = useState(0); // tổng bản ghi
-  const [page, setPage] = useState(1); // trang đang xem
-  const perPage = 10; // cấu hình DRF của bạn
+  const [appointments, setAppointments] = useState([]); 
+  const [count, setCount] = useState(0); 
+  const [page, setPage] = useState(1); 
+  const perPage = 10;
 
-  // draft (UI đang gõ/chọn) vs applied (đã bấm Lọc)
   const [draftSearch, setDraftSearch] = useState("");
   const [draftFilter, setDraftFilter] = useState("all");
   const [draftDate, setDraftDate] = useState("");
@@ -26,18 +24,17 @@ export default function StaffAppointments() {
   const [loading, setLoading] = useState(false);
   const [openStatus, setOpenStatus] = useState(false);
 
-  const [detail, setDetail] = useState(null); // đối tượng booking để xem modal
+  const [detail, setDetail] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const [reactionNote, setReactionNote] = useState("");
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [completingItem, setCompletingItem] = useState(null);
   const [submittingComplete, setSubmittingComplete] = useState(false);
-  const [selectedItemIds, setSelectedItemIds] = useState([]); // danh sách item.id đã tiêm trong buổi này
+  const [selectedItemIds, setSelectedItemIds] = useState([]); 
 
   
   const openCompleteModal = async (row) => {
     try {
-      // luôn lấy dữ liệu mới nhất kèm items_detail, can_complete...
       const res = await api.get(`/records/bookings/${row.id}/`);
       setCompletingItem(res.data);
       setReactionNote("");
@@ -64,7 +61,7 @@ export default function StaffAppointments() {
       if (appliedFilter !== "all") params.status = appliedFilter;
       if (appliedSearch) params.search = appliedSearch.trim();
       if (appliedDate) {
-        params.date_from = appliedDate;   // lọc đúng 1 ngày
+        params.date_from = appliedDate;  
         params.date_to   = appliedDate;
         }
         const res = await api.get("/records/bookings/", { params });
@@ -80,8 +77,6 @@ export default function StaffAppointments() {
       }
   };
 
-
-  // Chỉ fetch khi đổi trang HOẶC có thay đổi đã-ap-dụng (sau khi bấm Lọc)
   useEffect(() => {
     fetchAppointments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,7 +92,6 @@ export default function StaffAppointments() {
         const res = await api.post(`/records/bookings/${item.id}/confirm/`);
         const data = res.data;
         toast.success(`Đã xác nhận lịch #${item.id}`);
-        // nếu có mũi fail (partial confirm)
         if (Array.isArray(data.failed_items) && data.failed_items.length > 0) {
           const lines = data.failed_items
             .map( (f) => `- ${f.vaccine_name}: ${f.reason || "Không rõ lý do"}` )
@@ -129,7 +123,6 @@ export default function StaffAppointments() {
     return <span className={`${cls} tw-px-3 tw-py-1 tw-rounded-full`}>{label || "—"}</span>;
   };
 
-  // --- util tải file từ blob ---
   const downloadBlob = (blob, filename) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -156,11 +149,10 @@ export default function StaffAppointments() {
   // --- Xuất Excel ---
   const exportExcel = async () => {
     try {
-      const qs = buildQuery(); // dùng appliedFilter, appliedSearch, appliedDate, page nếu bạn muốn
+      const qs = buildQuery(); 
       const res = await api.get(`/records/bookings/export/excel/?${qs}`, {
         responseType: "blob",
       });
-
       downloadBlob(
         res.data,
         `lich-hen${appliedDate ? `-${appliedDate}` : ""}.xlsx`
@@ -170,7 +162,6 @@ export default function StaffAppointments() {
       toast.error("Xuất Excel thất bại");
     }
   };
-
 
   const applyFilter = () => {
     setAppliedSearch(draftSearch);
@@ -186,10 +177,19 @@ export default function StaffAppointments() {
     setAppliedFilter("all");
     setAppliedDate("");
     setPage(1);
-    // useEffect sẽ tự fetch
   };
 
- // Hiển thị danh sách vắc xin mà người dùng đã đặt trong lịch hẹn
+  const getCustomerContact = (booking) => {
+    const user = booking.user || {};
+
+    const phone = booking.phone ||  booking.user_phone ||
+      user.phone || user.username;    
+        
+    const email = booking.email || user.email;
+
+    return phone || email || "—";
+  };
+
   const getVaccineList = (booking) => {
     const items = booking?.items_detail || [];
     if (items.length) {
@@ -201,7 +201,6 @@ export default function StaffAppointments() {
         })
         .filter(Boolean);
     }
-    // fallback: lịch cũ có 1 vaccine hoặc là gói
     if (booking?.vaccine?.name) return [booking.vaccine.name];
     if (booking?.package?.name) return [`Gói: ${booking.package.name}`];
     if (booking?.vaccine_type) return [booking.vaccine_type];
@@ -209,29 +208,23 @@ export default function StaffAppointments() {
     return [];
   };
 
-  // Lấy danh sách "phòng bệnh" từ các item trong lịch hẹn
   const getDiseaseList = (booking) => {
     const items = booking?.items_detail || [];
     if (items.length) {
       return items
         .map((it) => {
-          const diseaseName =
-            it?.vaccine?.disease?.name ||  // kiểu mới: vaccine.disease.name
-            it?.disease?.name ||           // nếu BE trả thẳng disease
-            it?.disease_name ||            // hoặc text disease_name
-            null;
+          const diseaseName = it?.vaccine?.disease?.name || it?.disease?.name ||           
+            it?.disease_name ||  null;
           return diseaseName ? diseaseName.trim() : null;
         })
         .filter(Boolean);
     }
 
-    // fallback cho dữ liệu cũ
     if (booking?.disease?.name) return [booking.disease.name];
     if (booking?.disease_name) return [booking.disease_name];
     return [];
   };
 
-  // Chỉ hiển thị 2 dòng; còn lại là "…". Hover sẽ thấy đầy đủ qua title
   const VaccineCell = ({ booking }) => {
     const list = getVaccineList(booking);
     if (!list.length) return <>—</>;
@@ -267,8 +260,6 @@ export default function StaffAppointments() {
     );
   };
 
-
-  //xác nhận phản ứng sau tiêm
   const submitComplete = async () => {
     if (!completingItem || submittingComplete) return;
     if (!selectedItemIds.length) {
@@ -294,14 +285,10 @@ export default function StaffAppointments() {
     }
   };
 
-
-
-
-  // Định dạng ngày về dd/mm/yyyy
   const formatDate = (isoStr) => {
     if (!isoStr) return "—";
     const d = new Date(`${isoStr}T00:00:00`);
-    if (Number.isNaN(d.getTime())) return isoStr; // fallback nếu chuỗi không phải ISO
+    if (Number.isNaN(d.getTime())) return isoStr; 
     const dd = `${d.getDate()}`.padStart(2, "0");
     const mm = `${d.getMonth() + 1}`.padStart(2, "0");
     const yyyy = d.getFullYear();
@@ -320,7 +307,6 @@ export default function StaffAppointments() {
 
       {/* Bộ lọc */}
       <div className="tw-bg-white tw-rounded-xl tw-shadow-md tw-p-4 tw-space-y-4 tw-py-6">
-        {/* Hàng trên: chỉ các bộ lọc */}
         <div className="tw-px-6">
           <div className="tw-grid md:tw-grid-cols-3 tw-gap-4">
             <input  type="text"  placeholder="Nhập thông tin tìm kiếm..."
@@ -421,7 +407,10 @@ export default function StaffAppointments() {
 
             {appointments.map((item) => (
               <tr key={item.id} className="tw-border-b hover:tw-bg-pink-50 tw-text-xl">
-                <td className="tw-p-2">{item.user?.email || "—"}</td>
+                <td className="tw-p-2 tw-max-w-[220px] tw-overflow-hidden tw-text-ellipsis tw-whitespace-nowrap"
+                  title={getCustomerContact(item)}>
+                  {getCustomerContact(item)}
+                </td>
                 <td className="tw-p-2">{item.member?.full_name || "—"}</td>
                 <td className="tw-p-2">{formatDate(item.appointment_date)}</td>
                 <td className="tw-p-2 tw-text-center">
@@ -474,7 +463,7 @@ export default function StaffAppointments() {
         )}
       </div>
 
-      {/* Modal chi tiết: truyền nguyên booking từ API */}
+      {/* Modal chi tiết */}
       <AppointmentDetailModal detail={detail} onClose={() => setDetail(null)} />
 
       {/* Modal xác nhận/hủy */}

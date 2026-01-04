@@ -30,7 +30,6 @@ export default function KnowledgeQuickViewModal({ article, onClose }) {
         <div className="tw-bg-white tw-rounded-[28px] tw-w-full tw-max-w-[960px] tw-h-[80vh] tw-overflow-hidden 
             tw-shadow-[0_18px_60px_rgba(15,23,42,0.32)] tw-border tw-border-slate-100/80 tw-grid md:tw-grid-cols-[1.25fr,1.75fr] tw-gap-0"
             onClick={(e) => e.stopPropagation()}>
-            {/* LEFT: Ảnh / gradient */}
             <div className="tw-relative tw-bg-slate-900 tw-h-[220px] md:tw-h-full tw-overflow-hidden">
                 {article.thumbnail ? (
                     <img src={article.thumbnail} alt={article.title}
@@ -63,7 +62,6 @@ export default function KnowledgeQuickViewModal({ article, onClose }) {
                 </div>
             </div>
 
-            {/* RIGHT: Nội dung đọc nhanh */}
             <div className="tw-relative tw-flex tw-flex-col tw-p-4 md:tw-p-5 tw-space-y-2 tw-h-full tw-overflow-hidden">
                 <button className="tw-absolute tw-top-4 tw-right-6 tw-w-9 tw-h-9 tw-rounded-full tw-flex tw-items-center tw-justify-center 
                             tw-bg-slate-100 hover:tw-bg-slate-200 tw-text-slate-500 hover:tw-text-red-600 tw-text-sm tw-transition"

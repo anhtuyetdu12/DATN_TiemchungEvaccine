@@ -50,7 +50,6 @@ class InventoryViewSet(viewsets.ViewSet):
         try: threshold = int(threshold) if threshold is not None else None
         except: threshold = None
 
-        # tổng khả dụng theo vaccine
         agg = (VaccineStockLot.objects
                .filter(is_active=True)
                .values("vaccine")

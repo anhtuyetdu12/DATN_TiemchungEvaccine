@@ -67,7 +67,6 @@ class FamilyMemberViewSet(viewsets.ModelViewSet):
         queryset = self.get_queryset()
         self_member = queryset.filter(relation="Bản thân").first()
         if not self_member:
-            # Tạo default member cho user chính
             self_member = FamilyMember.objects.create(
                 user=user,
                 full_name=getattr(user, "full_name", "") or user.email,
@@ -78,11 +77,9 @@ class FamilyMemberViewSet(viewsets.ModelViewSet):
                 phone=getattr(user, "phone", ""),
                 is_self=True  
             )
-            # Đặt queryset gồm member mới + các thành viên khác
             other_members = queryset.exclude(id=self_member.id)
             queryset = [self_member] + list(other_members)
         else:
-            # Đảm bảo “Bản thân” luôn lên đầu danh sách
             other_members = queryset.exclude(id=self_member.id)
             queryset = [self_member] + list(other_members)
         serializer = self.get_serializer(queryset, many=True)
@@ -148,7 +145,6 @@ def create_planned_records_for_booking(booking):
         used = used_q.count()
 
         if used >= total:
-            # Đủ phác đồ rồi thì không sinh mũi dự kiến nữa
             continue
         next_dose_number = used + 1
         # 3) HỦY CÁC MŨI DỰ KIẾN CŨ (cho cùng bệnh/vaccine) KHÔNG TRÙNG NGÀY HẸN MỚI
@@ -218,10 +214,9 @@ class VaccinationRecordViewSet(viewsets.ModelViewSet):
         user = self.request.user
         role = getattr(user, "role", "")
         qs = VaccinationRecord.objects.all()
-        # Customer thường -> chỉ xem được sổ tiêm của chính họ
+
         if (not user.is_superuser) and (role not in ("staff", "admin", "superadmin")):
             qs = qs.filter(family_member__user=user)
-        # Nếu có filter theo member_id
         if member_id:
             qs = qs.filter(family_member_id=member_id)
         return qs.select_related(
@@ -290,18 +285,14 @@ class RemainingDosesView(APIView):
             .first()
         )
         disease = vaccine.disease if vaccine else None
-
         if not member or not vaccine:
             return Response({"error": "Không hợp lệ"}, status=400)
 
-        # 1) Tổng mũi theo phác đồ
         total = (
             getattr(vaccine.disease, "doses_required", None)
             or getattr(vaccine, "doses_required", None)
             or 1
         )
-
-        # 2) Đếm mũi đã tiêm (ưu tiên group theo bệnh)
         if disease:
             used = (
                 VaccinationRecord.objects
@@ -322,10 +313,8 @@ class RemainingDosesView(APIView):
                 )
                 .count()
             )
-
         remaining = max(total - used, 0)
-
-        # 3) Mũi đã TIÊM gần nhất + khoảng cách theo phác đồ
+        #Mũi đã TIÊM gần nhất + khoảng cách theo phác đồ
         today = timezone.now().date()
         raw_date = request.data.get("vaccination_date")
         if isinstance(raw_date, str):
@@ -352,16 +341,13 @@ class RemainingDosesView(APIView):
 
         last_rec = admin_qs.order_by("-vaccination_date").first()
 
-        # Ngày SỚM NHẤT có thể tiêm theo phác đồ
         earliest_next_date = None
         if remaining > 0:
             if last_rec and last_rec.vaccination_date and interval:
-                earliest_next_date = last_rec.vaccination_date + timedelta(days=interval)
+                earliest_next_date = last_rec.vaccination_date + timedelta(days=interval)  # Ngày sớm nhất = Ngày tiêm gần nhất + Khoảng cách ngày
             elif used == 0:
-                # chưa tiêm mũi nào, cho phép từ hôm nay
                 earliest_next_date = today
 
-        # 4) Record DỰ KIẾN (nếu có)
         planned_qs = VaccinationRecord.objects.filter(
             family_member=member,
             vaccination_date__isnull=True,
@@ -375,38 +361,26 @@ class RemainingDosesView(APIView):
             planned_qs = planned_qs.filter(vaccine=vaccine)
 
         next_rec = planned_qs.order_by("next_dose_date").first()
-
         next_date = None
         next_dose_number = None
 
         if remaining > 0:
-            # số thứ tự mũi tiếp theo theo phác đồ
             next_dose_number = used + 1
-
             if next_rec:
                 planned_date = next_rec.next_dose_date
-
-                # Nếu có ngày tối thiểu theo phác đồ và
-                # ngày dự kiến cũ < ngày tối thiểu  -> coi là dữ liệu rác
                 if earliest_next_date and planned_date and planned_date < earliest_next_date:
-                    # Tuỳ bạn: có thể clear luôn record dự kiến cũ
                     next_rec.next_dose_date = None
-                    # next_rec.source_booking = None
                     next_rec.save(update_fields=["next_dose_date"])
 
                     next_date = earliest_next_date
                 else:
-                    # ngày dự kiến hợp lệ hoặc không có earliest_next_date
                     next_date = planned_date or earliest_next_date
 
-                # Nếu record dự kiến có dose_number thì ưu tiên
                 if next_rec.dose_number:
                     next_dose_number = next_rec.dose_number
             else:
-                # Không có record dự kiến -> dùng ngày tính theo phác đồ
                 next_date = earliest_next_date
 
-        # 5) Trạng thái phác đồ (giữ như cũ)
         if used >= total:
             status_code = "completed"
             status_label = f"Đã tiêm đủ {used}/{total} mũi theo phác đồ."
@@ -465,6 +439,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         
         if not user.is_superuser and role not in ("staff", "admin", "superadmin"):
             qs = qs.filter(user=user)
+            
         status_param = self.request.query_params.get("status")
         search = self.request.query_params.get("search")
         date_from = self.request.query_params.get("date_from")
@@ -500,9 +475,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         return qs.order_by("-appointment_date", "-created_at")
 
     def perform_create(self, serializer):
-        # KHÔNG truyền user ở đây nữa
         booking = serializer.save()
-        # sinh các mũi dự kiến cho sổ tiêm
         create_planned_records_for_booking(booking)
         
     @action(detail=True, methods=["POST"], url_path="confirm")
@@ -569,7 +542,6 @@ class BookingViewSet(viewsets.ModelViewSet):
                             f"Hiện còn {usable_total} liều (còn hạn), cần {need} liều."
                         )
                         code = "not_enough_stock"
-                    # Nếu có lỗi → ghi vào failed_items, KHÔNG reserve, tiếp tục mũi khác
                     if reason:
                         failed_items.append(
                             {   "item_id": item.id,
@@ -579,7 +551,6 @@ class BookingViewSet(viewsets.ModelViewSet):
                             }
                         )
                         continue
-                    # ĐỦ HÀNG → trừ tồn kho theo FIFO trên các lô còn hạn
                     lots = usable_qs.select_for_update().order_by("expiry_date")
                     for lot in lots:
                         if need <= 0:
@@ -609,7 +580,6 @@ class BookingViewSet(viewsets.ModelViewSet):
                     else:
                         ok_item_ids.append(item.id)
                 if not ok_item_ids:
-                    # không có mũi nào reserve được → không cho confirm
                     msg = (
                         failed_items[0]["reason"]
                         if failed_items
@@ -635,7 +605,6 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Response({"detail":"Không thể hủy lịch đã tiêm."}, status=400)
 
         with transaction.atomic():
-            # 1) Trả hàng từ các allocation đang giữ
             for item in booking.items.all():
                 for alloc in item.allocations.select_for_update().filter(status="reserved"):
                     lot = alloc.lot
@@ -643,7 +612,6 @@ class BookingViewSet(viewsets.ModelViewSet):
                     lot.save(update_fields=["quantity_available"])
                     alloc.status = "released"
                     alloc.save(update_fields=["status"])
-           # 2) Clear planned record liên quan booking (kể cả legacy next_dose_date=appointment_date)
             vaccine_ids = list(booking.items.values_list("vaccine_id", flat=True))
 
             VaccinationRecord.objects.filter(
@@ -684,7 +652,6 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Lịch đã hủy không thể hoàn thành."}, status=400)
         reaction_note = (request.data.get("reaction_note") or "").strip()
         item_ids = request.data.get("item_ids") or []
-        # chuẩn hóa item_ids -> list[int]
         if isinstance(item_ids, (str, int)):
             item_ids = [item_ids]
         try:
@@ -696,14 +663,12 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Vui lòng chọn ít nhất 1 mũi đã tiêm."}, status=400)
 
         with transaction.atomic():
-            # Lọc ra các item tương ứng
             items_qs = booking.items.select_related("vaccine__disease").filter(id__in=item_ids)
             if not items_qs.exists():
                 return Response({"detail": "Không tìm thấy mũi tiêm tương ứng."}, status=404)
 
             if items_qs.count() > 2:
                 return Response( {"detail": "Mỗi buổi chỉ được xác nhận tối đa 2 mũi."}, status=400,)
-            # --- 2 mũi phải thuộc 2 bệnh khác nhau ---
             disease_ids = {
                 (it.vaccine.disease_id if it.vaccine and it.vaccine.disease_id else None)
                 for it in items_qs
@@ -713,7 +678,6 @@ class BookingViewSet(viewsets.ModelViewSet):
             today = timezone.now().date()
             vacc_date = today
 
-            # ========== kiểm tra lại allocation & hạn dùng tại NGÀY TIÊM ==========
             for item in items_qs.select_related("vaccine").all():
                 allocs = (
                     item.allocations
@@ -751,11 +715,8 @@ class BookingViewSet(viewsets.ModelViewSet):
                         },
                         status=400,
                     )
-            # ==================→ allocation & hạn dùng OK ==================
-            # 1) Đổi allocation reserved -> consumed CHO CÁC ITEM ĐƯỢC CHỌN
             for item in items_qs:
                 item.allocations.filter(status="reserved").update(status="consumed")
-            # 2) Cập nhật VaccinationRecord dự kiến của các vaccine được chọn
             vaccine_ids = list(items_qs.values_list("vaccine_id", flat=True).distinct())
             rec_qs = VaccinationRecord.objects.select_for_update().filter(
                 family_member=booking.member,
@@ -771,7 +732,6 @@ class BookingViewSet(viewsets.ModelViewSet):
                     rec.note = (rec.note + "\n" if rec.note else "") + reaction_note
                 rec.save(update_fields=["vaccination_date", "next_dose_date", "note", "source_booking"])
                 updated += 1
-            # 3) Gán số lô cho các record vừa tiêm hôm nay (chỉ item được chọn)
             for item in items_qs.select_related("vaccine").all():
                 v = item.vaccine
                 if not v:
@@ -807,7 +767,6 @@ class BookingViewSet(viewsets.ModelViewSet):
                         break
                     rec.vaccine_lot = lot.lot_number
                     rec.save(update_fields=["vaccine_lot"])
-            # 4) Tính lại trạng thái booking:
             total_items = booking.items.count()
             vaccines_in_booking = booking.items.values_list("vaccine_id", flat=True)
             done_vaccine_ids = (
@@ -821,14 +780,11 @@ class BookingViewSet(viewsets.ModelViewSet):
                 .distinct()
             )
             done_count = done_vaccine_ids.count()
-            # còn mũi nào vẫn còn giữ hàng (reserved) không?
             has_reserved = BookingAllocation.objects.filter(
                 booking_item__booking=booking,
                 status="reserved",
             ).exists()
             if done_count >= total_items or not has_reserved:
-                # Hoặc tất cả vaccine đã tiêm,
-                # hoặc không còn mũi nào đang được giữ hàng -> coi như lịch đã khép lại
                 booking.status = "completed"
                 booking.completed_at = timezone.now()
             booking.save(update_fields=["status", "completed_at"])
@@ -855,7 +811,6 @@ class BookingViewSet(viewsets.ModelViewSet):
         ]
         ws.append(headers)
         for b in qs:
-            # Tính tổng tiền + tên vắc xin giống StaffCustomerListAPIView
             item_names = []
             total_price = 0
             for it in b.items.all():
@@ -867,7 +822,6 @@ class BookingViewSet(viewsets.ModelViewSet):
                     except Exception:
                         pass
             vaccine_label = ", ".join(item_names) or ( b.vaccine.name if b.vaccine else (f"Gói: {b.package.name}" if b.package else ""))
-            # status_label dùng luôn helper trong BookingSerializer
             ser = BookingSerializer(b, context={"request": request})
             status_label = ser.data.get("status_label", b.status)
             ws.append([
@@ -880,7 +834,6 @@ class BookingViewSet(viewsets.ModelViewSet):
                 total_price,
                 b.location or "Trung tâm tiêm chủng E-Vaccine",
             ])
-        # Auto-width đơn giản
         for col in ws.columns:
             max_len = 0
             col_letter = get_column_letter(col[0].column)
@@ -891,7 +844,6 @@ class BookingViewSet(viewsets.ModelViewSet):
                 except Exception:
                     pass
             ws.column_dimensions[col_letter].width = max_len + 2
-        # Trả file về client
         response = HttpResponse(
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
@@ -1460,17 +1412,13 @@ class StaffAddHistoryAPIView(APIView):
         mid = data.get("member_id")
 
         if mid:
-            # chỉ chấp nhận member thuộc user này
             member = FamilyMember.objects.filter(id=mid, user=user).first()
             if not member:
                 return Response({"detail": "Thành viên không thuộc tài khoản này"}, status=400)
-
-        # nếu không gửi member_id → fallback về “Bản thân” như cũ
         if not member:
             member = FamilyMember.objects.filter(user=user).order_by("-is_self", "-created_at").first()
         if not member:
             return Response({"detail": "Chưa có hồ sơ thành viên"}, status=400)
-        # lấy vắc xin và bệnh
         vaccine_name_raw = (data["vaccine"] or "").strip()
         v_obj = (
             Vaccine.objects
@@ -1478,11 +1426,9 @@ class StaffAddHistoryAPIView(APIView):
             .select_related("disease")
             .first()
         )
-        # disease = v_obj.disease if v_obj and v_obj.disease_id else None
         disease = data.get("disease_id") 
         if isinstance(disease, int):
             disease = Disease.objects.filter(id=disease).first()
-        # Nếu FE không chọn phòng bệnh thì mới fallback sang vaccine.disease
         if not disease and v_obj and v_obj.disease_id:
             disease = v_obj.disease
         # 1) KIỂM TRA ĐÃ CÓ MŨI GIỐNG HỆT CHƯA
@@ -1496,7 +1442,6 @@ class StaffAddHistoryAPIView(APIView):
             existing_qs = existing_qs.filter(vaccine_name__iexact=vaccine_name_raw)
         existing = existing_qs.first()
         if existing:
-            # ĐÃ CÓ MŨI RỒI -> chỉ update thêm thông tin nếu cần, KHÔNG tạo record mới
             if v_obj and not existing.vaccine_id:
                 existing.vaccine = v_obj
             if disease and not existing.disease_id:
@@ -1521,7 +1466,6 @@ class StaffAddHistoryAPIView(APIView):
                         source_booking__isnull=True, 
                     )
                     .order_by(
-                        # ưu tiên record có next_dose_date (lịch hẹn), rồi theo ngày hẹn sớm nhất
                         models.Case(
                             models.When(next_dose_date__isnull=False, then=models.Value(0)),
                             default=models.Value(1),
@@ -1549,7 +1493,7 @@ class StaffAddHistoryAPIView(APIView):
                     planned.location = data["location"]
 
                 planned.vaccination_date = data["date"]
-                planned.next_dose_date = None  # đã tiêm thì bỏ lịch hẹn
+                planned.next_dose_date = None  
                 planned.save()
                 rec = planned
                 # ===== CLEAR PLANNED BOOKING TRỄ HẸN (TRÁNH MŨI ẢO) =====
@@ -1561,7 +1505,6 @@ class StaffAddHistoryAPIView(APIView):
                 ).update( next_dose_date=None,note="", source_booking=None,  )
             else:
                 # 3) KHÔNG CÓ PLANNED -> MỚI TẠO MŨI MỚI
-                # IMPORTANT: tính last_dose dựa trên các mũi ĐÃ TIÊM để tránh nhảy số do planned-dose
                 if disease:
                     last_dose = (  VaccinationRecord.objects.filter(
                             family_member=member,
@@ -1843,7 +1786,6 @@ class StaffCreateAppointmentAPIView(APIView):
         return Response(BookingSerializer(booking, context={"request": request}).data, status=201)
     
 
-# ---------- # Định dạng ngày dùng trong thông báo (dd/mm/yyyy) -----------
 def format_vi_date(val):
     if not val:
         return ""
@@ -2058,7 +2000,7 @@ class CustomerNotificationPreviewAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        audience = request.query_params.get("audience")  # upcoming | nextdose | custom | overdue
+        audience = request.query_params.get("audience")  
         days_before = request.query_params.get("days_before")
         next_dose_days = request.query_params.get("next_dose_days")
         booking_ids = (
@@ -2070,7 +2012,6 @@ class CustomerNotificationPreviewAPIView(APIView):
         today = timezone.now().date()
         results = []
         count = 0
-        # 1) chọn theo danh sách booking chỉ định
         if audience == "custom":
             bks = (
                 Booking.objects
@@ -2102,7 +2043,6 @@ class CustomerNotificationPreviewAPIView(APIView):
                         "vaccine": ", ".join(dict.fromkeys(vaccine_names)) if vaccine_names else "",
                     })
 
-        # 2) lịch sắp tới
         elif audience == "upcoming":
             try:
                 n = int(days_before or 0)
@@ -2141,14 +2081,12 @@ class CustomerNotificationPreviewAPIView(APIView):
                         "status": b.status,
                         "vaccine": ", ".join(dict.fromkeys(vaccine_names)) if vaccine_names else "",
                     })
-        # 3) mũi tiếp theo từ sổ tiêm (theo phác đồ trong sổ)
         elif audience == "nextdose":
             try:
                 n = int(next_dose_days or 3)
             except Exception:
                 n = 3
             to = today + timedelta(days=n)
-            # Lấy tất cả mũi ĐÃ TIÊM 
             base_qs = (
                 VaccinationRecord.objects
                 .filter(vaccination_date__isnull=False)
@@ -2161,11 +2099,9 @@ class CustomerNotificationPreviewAPIView(APIView):
                 disease = r.disease or (r.vaccine.disease if r.vaccine and r.vaccine.disease_id else None)
                 if not fm or not usr:
                     continue
-                # Nếu có bệnh → group theo bệnh, không phụ thuộc vaccine
                 if disease:
                     key = (fm.id, f"disease-{disease.id}")
                 else:
-                    # không có disease thì group theo vaccine
                     v = r.vaccine
                     if not v:
                         continue
@@ -2177,14 +2113,12 @@ class CustomerNotificationPreviewAPIView(APIView):
                 last_rec = recs[-1]
                 fm = last_rec.family_member
                 usr = fm.user
-                # Ưu tiên bệnh
                 disease = last_rec.disease or (
                     last_rec.vaccine.disease
                     if last_rec.vaccine and last_rec.vaccine.disease_id
                     else None
                 )
                 v = last_rec.vaccine  
-                # Lấy phác đồ từ disease trước, không thì fallback vaccine
                 total_doses = (
                     getattr(disease, "doses_required", None)
                     or (getattr(v, "doses_required", None) if v else None)
@@ -2224,7 +2158,6 @@ class CustomerNotificationPreviewAPIView(APIView):
                     "total_doses": total_doses,
                 })
 
-            # Nếu chỉ muốn nhắc những mũi CHƯA có booking tương ứng (only_unscheduled=1)
             if only_unscheduled and candidates:
                 member_ids = {c["member_id"] for c in candidates}
                 vaccine_ids = {c["vaccine_id"] for c in candidates}
@@ -2267,7 +2200,6 @@ class CustomerNotificationPreviewAPIView(APIView):
                 })
             count = len(results)
 
-        # 4) trễ hẹn
         elif audience == "overdue":
             qs = (
                 Booking.objects
@@ -2327,7 +2259,6 @@ class MyNotificationsAPIView(APIView):
             if "{{" in msg and "}}" in msg:
                 ctx = {
                     "name": request.user.full_name or request.user.email or request.user.phone or "",
-                    # meta từ lúc gửi
                     "date": (n.meta or {}).get("appointment_date") or "",
                     "appointment_date": (n.meta or {}).get("appointment_date") or "",
                     "member": (n.meta or {}).get("member_name") or "",

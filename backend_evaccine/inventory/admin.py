@@ -25,12 +25,10 @@ class VaccineStockLotAdmin(admin.ModelAdmin):
             today = timezone.localdate()
             soon = today + timedelta(days=30)
 
-            # threshold = vaccine.low_stock_threshold nếu null thì 20
             threshold_expr = Coalesce(F("vaccine__low_stock_threshold"), 20)
 
             qs = qs.filter(is_active=True).filter(
                 Q(quantity_available__lte=0) |
-                # Q(quantity_available__lte=threshold_expr) |
                 Q(expiry_date__lt=today) |
                 Q(expiry_date__range=(today, soon))
             )
@@ -57,7 +55,6 @@ class VaccineStockLotAdmin(admin.ModelAdmin):
 
     def status_badge(self, obj):
         today = timezone.localdate()
-        # 1) hết hạn / sắp hết hạn
         if obj.expiry_date and obj.expiry_date < today:
             return format_html('<span style="color:#b91c1c;font-weight:600;">Hết hạn</span>')
         if obj.expiry_date:
@@ -67,11 +64,9 @@ class VaccineStockLotAdmin(admin.ModelAdmin):
                     '<span style="color:#ca8a04;font-weight:600;">Sắp hết hạn (còn {} ngày)</span>',
                     days_left
                 )
-        # 2) hết hàng
         q = obj.quantity_available or 0
         if q <= 0:
             return format_html('<span style="color:#b91c1c;font-weight:600;">Hết hàng</span>')
-        # 3) sắp hết (low stock)
         threshold = getattr(obj.vaccine, "low_stock_threshold", None) or 20
         if q <= threshold:
             return format_html(
@@ -81,7 +76,3 @@ class VaccineStockLotAdmin(admin.ModelAdmin):
         return format_html('<span style="color:#15803d;font-weight:600;">Bình thường</span>')
 
 
-@admin.register(BookingAllocation)
-class BookingAllocationAdmin(admin.ModelAdmin):
-    list_display = ("booking_item", "lot", "quantity", "status", "reserved_at")
-    list_filter = ("status", "lot__vaccine")

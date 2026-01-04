@@ -119,7 +119,7 @@ def generate_bot_reply(session, user_text: str) -> str:
             contents=contents,
             config=types.GenerateContentConfig(
                 temperature=0.3,
-                max_output_tokens=2048,   # hoặc 1024/1536/2048
+                max_output_tokens=2048,   
             ),
         )
         reply = (getattr(response, "text", "") or "").strip()

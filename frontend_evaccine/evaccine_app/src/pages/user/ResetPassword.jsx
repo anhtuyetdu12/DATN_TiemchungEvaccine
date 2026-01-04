@@ -11,7 +11,6 @@ export default function ResetPassword() {
   const token = params.get("token") || null;
 
   const isEmail = identifier.includes("@");
-  // const isPhone = /^\d{10}$/.test(identifier);
 
   const [newPassword, setNewPassword] = useState("");
   const [rePassword, setRePassword] = useState("");
@@ -54,7 +53,7 @@ export default function ResetPassword() {
 
     try {
       await axios.post("http://127.0.0.1:8000/api/users/reset-password/", {
-        identifier, // phone: không cần token | email: cần token
+        identifier, 
         token,
         password: newPassword,
         repassword: rePassword,
@@ -123,8 +122,7 @@ export default function ResetPassword() {
           </label>
           <input
             type={showPassword2 ? "text" : "password"}
-            placeholder="Nhập lại mật khẩu mới"
-            value={rePassword}
+            placeholder="Nhập lại mật khẩu mới"  value={rePassword}
             onChange={(e) => setRePassword(e.target.value)}
             onBlur={handleBlurRe}
             className="tw-w-full tw-p-3 tw-text-xl tw-border tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-400 focus:tw-outline-none"

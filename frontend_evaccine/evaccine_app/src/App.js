@@ -39,16 +39,14 @@ import { loadAuth, clearAllAuth, isJwtExpired , getStorage } from "./utils/authS
 
 function App() {
   const [user, setUser] = useState(null);
-  const [authReady, setAuthReady] = useState(false); // chỉ render user sau khi bootstrap xong
+  const [authReady, setAuthReady] = useState(false); 
 
-    // Bootstrap auth khi mở app
     useEffect(() => {
       (async () => {
-        const saved = loadAuth(); // { access, refresh, user, store }
+        const saved = loadAuth();
         const access = saved.access;
         const refresh = saved.refresh;
 
-        // Không có gì → khách
         if (!access && !refresh) {
           clearAllAuth();
           setUser(null);
@@ -56,46 +54,38 @@ function App() {
           return;
         }
 
-        // Có access còn hạn → verify nhanh
         if (access && !isJwtExpired(access)) {
           try {
             await axios.post("http://127.0.0.1:8000/api/token/verify/", { token: access });
-            // OK → nhận user từ storage (hoặc gọi /me nếu bạn muốn)
             const u = saved.user ? { ...saved.user, role: saved.user.role?.toLowerCase().trim() } : null;
             setUser(u);
             setAuthReady(true);
             return;
           } catch {
-            // access hỏng → thử refresh nếu có
           }
         }
 
-        // Access hết hạn/hỏng → thử refresh
         if (refresh && !isJwtExpired(refresh)) {
           try {
             const { data } = await axios.post("http://127.0.0.1:8000/api/token/refresh/", { refresh });
             if (data.access) {
               saved.store.setItem("access", data.access);
               if (data.refresh) saved.store.setItem("refresh", data.refresh);
-              // Sau khi có access mới, có thể verify hoặc tin tưởng luôn:
               const u = saved.user ? { ...saved.user, role: saved.user.role?.toLowerCase().trim() } : null;
               setUser(u);
               setAuthReady(true);
               return;
             }
           } catch {
-            // refresh fail → rơi xuống clear
           }
         }
 
-        // Không thể xác thực → xoá phiên
         clearAllAuth();
         setUser(null);
         setAuthReady(true);
       })();
     }, []);
 
-    // Heartbeat refresh mỗi 20'
     useEffect(() => {
       const store = getStorage();
       const refresh = store.getItem("refresh");
@@ -104,7 +94,7 @@ function App() {
         try {
           const { data } = await axios.post("http://127.0.0.1:8000/api/token/refresh/", { refresh: store.getItem("refresh") });
           if (data.access) store.setItem("access", data.access);
-          if (data.refresh) store.setItem("refresh", data.refresh); // lưu refresh mới nếu có
+          if (data.refresh) store.setItem("refresh", data.refresh); 
         } catch {
           clearAllAuth();
           window.location.href = "/login";
@@ -116,7 +106,6 @@ function App() {
 
     return (
       <div className="App">
-       {/* Navbar: chỉ truyền user sau khi authReady */}
         {authReady && (user?.role === "staff" ? (
           <StaffNavBar user={user} setUser={setUser} />
         ) : (

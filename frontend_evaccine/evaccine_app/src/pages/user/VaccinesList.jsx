@@ -1,4 +1,3 @@
-// Danh mục vaccine
 import { useState, useEffect, useMemo  } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import AccordionFilter from "../../components/AccordionFilter";
@@ -33,23 +32,20 @@ export default function VaccinesList() {
   const [selectedPackage, setSelectedPackage] = useState(null);
 
 
-  // --- Checkbox chọn tất cả ---
   const toggleCheckAll = () => {
   const newState = !checkedAll;
   setCheckedAll(newState);
 
-  // cập nhật toàn bộ group trong selectedPackage
   if (selectedPackage) {
     const updated = { ...selectedPackage };
     updated.disease_groups = updated.disease_groups.map((group) => ({
-      ...group,
-      checked: newState,
-    }));
-    setSelectedPackage(updated);
-  }
-};
+        ...group,
+        checked: newState,
+      }));
+      setSelectedPackage(updated);
+    }
+  };
   
-  // --- LẤY DỮ LIỆU TỪ BACKEND ---
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -69,7 +65,7 @@ export default function VaccinesList() {
         }));
         // 2. chuẩn hóa packages để FE xài
         const fetchedPackages = (packagesList || [])
-          .filter((p) => !!p.slug) // bỏ mấy cái chưa có slug
+          .filter((p) => !!p.slug) 
           .map((p) => ({
             id: p.id,
             slug: p.slug,
@@ -131,7 +127,6 @@ export default function VaccinesList() {
 
 
   //------ bộ lọc -----
-   // RANGES tuổi (FE định nghĩa, so khớp min_age/max_age từ BE)
   const AGE_RANGES = useMemo(() => ([
     { id: "all", label: "Tất cả" },
     { id: "0-6m", label: "Từ 0 đến < 6 tháng tuổi",  toMonths: { min: 0, max: 5 } },
@@ -144,18 +139,15 @@ export default function VaccinesList() {
     { id: "65y+",   label: "65 tuổi trở lên",         toYears:  { min: 65, max: 110 } },
   ]), []);
 
-  // State bộ lọc
   const [filters, setFilters] = useState({
     ages: ["all"],
     diseases: ["all"],
     origins: ["all"],
   });
 
-  // Options động cho Disease & Origin
   const [diseaseOptions, setDiseaseOptions] = useState([{ id: "all", label: "Tất cả" }]);
   const [originOptions, setOriginOptions] = useState([{ id: "all", label: "Tất cả" }]);
 
-  // Lấy list bệnh để render filter “Phòng bệnh”
   useEffect(() => {
     (async () => {
       try {
@@ -180,7 +172,6 @@ export default function VaccinesList() {
       if (!g.checked) continue;
       const v = g.selectedVaccine || g.vaccines?.[0];
       if (!v?.slug) continue;
-      // Mỗi loại vaccine chỉ add 1 lần
       if (added.has(v.slug)) continue;
       added.add(v.slug);
       addToBooking(v.slug, 1);
@@ -190,7 +181,6 @@ export default function VaccinesList() {
   };
 
 
-  //  TÍNH TỔNG TIỀN GÓI THEO LỰA CHỌN HIỆN TẠI
   const subtotal = useMemo(() => {
     if (!selectedPackage?.disease_groups) return 0;
     let total = 0;
@@ -199,16 +189,13 @@ export default function VaccinesList() {
       const v = group.selectedVaccine || group.vaccines?.[0];
       if (!v) return;
       const qty = Number(group.quantity || 1);
-      const unitPrice = Number(v.price || 0); // chỉ dùng giá gốc
+      const unitPrice = Number(v.price || 0);
       total += unitPrice * qty;
     });
 
     return total;
   }, [selectedPackage]);
 
-
-
-  // Lấy Origin động từ dữ liệu vắc xin
   useEffect(() => {
     const unique = Array.from(
       new Set((vaccines || []).map(v => (v.origin || "").trim()).filter(Boolean))
@@ -217,16 +204,13 @@ export default function VaccinesList() {
     setOriginOptions([{ id: "all", label: "Tất cả" }, ...opts]);
   }, [vaccines]);
 
-  //  Hàm apply filters
   const applyFilters = useMemo(() => {
-    const ageSelected = filters.ages;       // array of ids
+    const ageSelected = filters.ages;      
     const diseaseSelected = filters.diseases;
     const originSelected = filters.origins;
 
-    // helper: kiểm tra 1 vaccine pass filter tuổi
     const matchAge = (v) => {
       if (!ageSelected || ageSelected.includes("all")) return true;
-      // Chuẩn hóa range vắc xin về tháng & tuổi
       const vUnit = v.age_unit || "tuổi";
       const minAge = Number.isFinite(Number(v.min_age)) ? Number(v.min_age) : null;
       const maxAge = Number.isFinite(Number(v.max_age)) ? Number(v.max_age) : null;
@@ -234,7 +218,6 @@ export default function VaccinesList() {
       const vMaxMonths = maxAge == null ? null : (vUnit === "tháng" ? maxAge : maxAge * 12);
       const vMinYears = minAge == null ? null : (vUnit === "tuổi" ? minAge : Math.floor(minAge / 12));
       const vMaxYears = maxAge == null ? null : (vUnit === "tuổi" ? maxAge : Math.floor(maxAge / 12));
-      // 1 vaccine pass nếu khớp với ÍT NHẤT một range được chọn
       return ageSelected.some(id => {
         const range = AGE_RANGES.find(r => r.id === id);
         if (!range) return false;
@@ -255,14 +238,12 @@ export default function VaccinesList() {
       });
     };
 
-    //  disease
     const matchDisease = (v) => {
       if (!diseaseSelected || diseaseSelected.includes("all")) return true;
       const id = String(v?.disease?.id || "");
       return diseaseSelected.includes(id);
     };
 
-    //  origin
     const matchOrigin = (v) => {
       if (!originSelected || originSelected.includes("all")) return true;
       const origin = (v.origin || "").trim();
@@ -281,14 +262,12 @@ export default function VaccinesList() {
     return (list) => list.filter( (v) => matchAge(v) && matchDisease(v) && matchOrigin(v) && matchSearch(v));
   }, [filters, AGE_RANGES, searchText]);
 
-  //  re-calc displayedVaccines khi filters đổi
   useEffect(() => {
     setPage(1);
     setDisplayedVaccines(applyFilters(vaccines));
   }, [applyFilters, vaccines]);
 
   
-  // ----- phân trang ----------
   const [page, setPage] = useState(1);
   const perPage = 12;
   const startIndex = (page - 1) * perPage;
@@ -433,7 +412,6 @@ export default function VaccinesList() {
               <div className=" tw-sticky tw-top-5 tw-self-start tw-h-[480px] tw-pr-2">
 
                 <div className=" tw-bg-white tw-rounded-xl tw-shadow-sm tw-text-left tw-h-full tw-flex tw-flex-col ">
-                  {/* Header cố định */}
                   <div className="tw-flex tw-h-14 tw-items-center tw-gap-2 tw-border-b tw-border-gray-200 tw-px-4 tw-py-4">
                     <i className="fa-solid fa-filter tw-text-blue-600 tw-text-[18px]"></i>
                     <h3 className="tw-text-blue-600 tw-font-semibold tw-text-[18px]"> Bộ lọc vắc xin </h3>
@@ -655,10 +633,8 @@ export default function VaccinesList() {
                   {selectedPackage ? selectedPackage.name : "Chọn gói vaccine"}
                 </div>
 
-                {/* Header bảng */}
                 <div className="tw-px-6 tw-pt-4">
                   <div className="tw-grid tw-grid-cols-[2fr_1fr_1fr_1fr] tw-gap-2 tw-font-semibold tw-text-gray-700 tw-border-b tw-pb-2">
-                    
                     {/* Cột Vắc xin với checkbox */}
                     <div className="tw-flex tw-items-center tw-gap-4">
                       <button type="button"  role="checkbox"
@@ -704,7 +680,6 @@ export default function VaccinesList() {
                       </button>
 
                       <div className="tw-flex tw-flex-col tw-gap-2 tw-w-full">
-                        {/* Tên phòng bệnh */}
                         <span className="tw-font-semibold tw-text-gray-800 tw-text-[14px]">
                           {group.disease?.name || "Không rõ tên bệnh"}
                         </span>
@@ -768,7 +743,6 @@ export default function VaccinesList() {
                     <div className="tw-flex tw-items-center tw-justify-between tw-border tw-border-gray-300 
                                     tw-rounded-full tw-w-[100px] tw-bg-white tw-shadow-sm tw-overflow-hidden">
                       
-                      {/* Nút trừ */}
                       <button onClick={() => {
                           const updated = { ...selectedPackage };
                           const current = updated.disease_groups[groupIndex].quantity;
@@ -784,7 +758,6 @@ export default function VaccinesList() {
                         <i className="fa-solid fa-minus"></i>
                       </button>
 
-                      {/* Input */}
                       <input type="number" value={group.quantity || 1}
                         min={1} max={selectedVaccine?.doses_required || 1}
                         onChange={(e) => {
@@ -796,7 +769,6 @@ export default function VaccinesList() {
                         }} className="tw-w-14 tw-h-10 tw-text-center tw-border-none tw-font-semibold 
                                   tw-text-gray-800 focus:tw-outline-none tw-bg-transparent" />
 
-                      {/* Nút cộng */}
                       <button onClick={() => {
                           const updated = { ...selectedPackage };
                           const current = updated.disease_groups[groupIndex].quantity;
@@ -816,7 +788,6 @@ export default function VaccinesList() {
                     </div>
                   </div>
 
-                    {/* --- Cột 4: Đơn giá --- */}
                   <div className="tw-flex tw-flex-col tw-items-end">
                     <span className="tw-text-[#fd8206] tw-font-semibold tw-text-[14px]">
                       {selectedVaccine?.price
@@ -886,7 +857,6 @@ export default function VaccinesList() {
         )}
       </div>
 
-      {/* <ChatWidget /> */}
     </section>
   );
 }

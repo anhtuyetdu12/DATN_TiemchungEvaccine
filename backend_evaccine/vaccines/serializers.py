@@ -90,7 +90,6 @@ class VaccineSerializer(serializers.ModelSerializer):
     formatted_price = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
 
-    # --- CÁC FIELD CHỈ ĐỌC TỪ ANNOTATE CỦA by_age ---
     min_months = serializers.IntegerField(read_only=True)
     max_months = serializers.IntegerField(read_only=True, allow_null=True)
     doses_used = serializers.IntegerField(read_only=True)

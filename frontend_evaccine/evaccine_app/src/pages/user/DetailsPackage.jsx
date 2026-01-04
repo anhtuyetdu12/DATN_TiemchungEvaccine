@@ -41,9 +41,7 @@ export default function DetailsPackage() {
     return;
   }
 
-  // Thêm vaccine vào giỏ booking (1 liều)
   addToBooking(vaccine.slug, 1);
-  // Lấy toàn bộ slug hiện có trong giỏ và điều hướng sang form đặt hẹn
   const slugs = getBookingSlugs();
     if (!slugs.length) {
       toast.error("Giỏ đặt hẹn đang trống.");

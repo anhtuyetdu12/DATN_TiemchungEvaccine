@@ -2,10 +2,9 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import api from "../../services/axios"; // <-- đã có sẵn trong app
+import api from "../../services/axios";
 
 export default function StaffHomeDB() {
-  /* ========= Theme ========= */
   const [dark, setDark] = useState(() => localStorage.getItem("dark") === "1");
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
@@ -25,12 +24,11 @@ export default function StaffHomeDB() {
     second: "2-digit",
   });
 
-  /* ========= Filters & View ========= */
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all"); // all|pending|confirmed|cancelled|completed
-  const [view, setView] = useState("calendar"); // calendar | list | kanban
-  const [selectedDate, setSelectedDate] = useState(""); // dd/MM/yyyy
+  const [statusFilter, setStatusFilter] = useState("all"); 
+  const [view, setView] = useState("calendar"); 
+  const [selectedDate, setSelectedDate] = useState(""); 
   const [monthCursor, setMonthCursor] = useState(new Date());
   const todayStr = useMemo(() => {
     const d = now;
@@ -42,14 +40,12 @@ export default function StaffHomeDB() {
   const monthInputValue = useMemo(() => {
     const y = monthCursor.getFullYear();
     const m = String(monthCursor.getMonth() + 1).padStart(2, "0");
-    return `${y}-${m}`; // yyyy-MM
+    return `${y}-${m}`;
   }, [monthCursor]);
 
-  /* ========= Data from BE ========= */
   const [loading, setLoading] = useState(false);
-  const [appointments, setAppointments] = useState([]); // <== dùng cùng shape với bản demo
+  const [appointments, setAppointments] = useState([]);
 
-  // utils cần "ổn định" để làm deps
   const fmtDMY = useCallback((d) => {
     const dd = String(d.getDate()).padStart(2, "0");
     const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -73,10 +69,8 @@ export default function StaffHomeDB() {
     [fmtDMY, parseISO]
   );
 
-  // Map 1 booking BE -> 1 appointment card cho UI StaffHome
   const adaptBooking = useCallback(
     (b) => {
-      // Lấy label vắc xin giống StaffAppointments
       const items = b.items_detail || [];
       let vaccineLabel = "—";
       if (items.length) {
@@ -96,8 +90,7 @@ export default function StaffHomeDB() {
         vaccineLabel = b.vaccine_name;
       }
 
-      // map status -> 3 cột cho kanban StaffHome (pending/confirmed/canceled)
-      const status = b.status === "cancelled" ? "canceled" : b.status; // completed sẽ không hiện ở 3 cột cũ
+      const status = b.status === "cancelled" ? "canceled" : b.status; 
 
       return {
         id: b.id,
@@ -112,16 +105,15 @@ export default function StaffHomeDB() {
           : b.appointment_date === new Date().toISOString().slice(0, 10)
           ? "medium"
           : "normal",
-        checkedIn: false, // có thể lấy từ server nếu có cờ
+        checkedIn: false, 
       };
     },
     [toDMY]
   );
 
-  // Tính khoảng ngày của tháng đang xem
   const monthRangeISO = useMemo(() => {
     const y = monthCursor.getFullYear();
-    const m = monthCursor.getMonth(); // 0-based
+    const m = monthCursor.getMonth();
     const first = new Date(y, m, 1);
     const last = new Date(y, m + 1, 0);
     const toISO = (d) =>
@@ -131,7 +123,6 @@ export default function StaffHomeDB() {
     return { from: toISO(first), to: toISO(last) };
   }, [monthCursor]);
 
-  // Gọi API bookings cho THÁNG hiện tại (gộp tất cả trang)
   const fetchMonth = useCallback(async () => {
     setLoading(true);
     try {
@@ -198,16 +189,15 @@ export default function StaffHomeDB() {
     fetchMonth();
   }, [fetchMonth]);
 
-  // Jump controls giống bản gốc
   const jumpToMonth = (e) => {
-    const v = e.target.value; // yyyy-MM
+    const v = e.target.value; 
     if (!v) return;
     const [y, m] = v.split("-").map(Number);
     setMonthCursor(new Date(y, m - 1, 1));
     setSelectedDate("");
   };
   const jumpToDate = (e) => {
-    const v = e.target.value; // yyyy-MM-dd
+    const v = e.target.value;
     if (!v) return;
     const [y, m, d] = v.split("-").map(Number);
     const dStr = `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
@@ -221,7 +211,6 @@ export default function StaffHomeDB() {
     return { d: dd, m: mm, y: yyyy };
   };
 
-  /* ========= Derived lists ========= */
   const filtered = useMemo(() => {
     let list = appointments.filter(
       (a) =>
@@ -254,30 +243,17 @@ export default function StaffHomeDB() {
     return order.map((k) => ({ date: k, items: g[k] }));
   }, [filtered]);
 
-  // KPI
   const total = appointments.length;
   const confirmed = appointments.filter((a) => a.status === "confirmed").length;
   const pending = appointments.filter((a) => a.status === "pending").length;
   const canceled = appointments.filter((a) => a.status === "canceled").length;
 
-  /* ========= Right column (alerts demo) ========= */
-  // const alerts = [
-  //   { color: "amber", text: "3 vắc xin sắp hết hạn", href: "/staff/vaccines?tab=expiry" },
-  //   { color: "rose", text: "5 nhắc lịch quá hạn", href: "/staff/notifications?filter=overdue" },
-  //   { color: "cyan", text: "2 khách có lưu ý dị ứng", href: "/staff/customers?tag=allergy" },
-  // ];
-  // const [activities, setActivities] = useState([]);
-  // const pushActivity = (text) =>
-  //   setActivities((prev) => [{ id: Date.now(), text }, ...prev].slice(0, 12));
-
-  /* ========= Actions (call BE) ========= */
 
   const postAndRefresh = async (url, okMsg, actMsg) => {
     try {
       await api.post(url);
       toast.success(okMsg);
       await fetchMonth();
-      // pushActivity(actMsg);
     } catch (e) {
       const msg = e?.response?.data?.detail || "Thao tác thất bại";
       toast.error(msg);
@@ -298,7 +274,6 @@ export default function StaffHomeDB() {
       `🗑️ Hủy #${item.id} (${item.date})`
     );
 
-  /* ========= Kanban ========= */
   const kanbanCols = useMemo(
     () =>
       [ { key: "pending", title: "Chờ xác nhận", color: "tw-bg-amber-50 tw-border-amber-100" },
@@ -308,7 +283,6 @@ export default function StaffHomeDB() {
     [filtered]
   );
 
-  /* ========= Calendar Month (heat) ========= */
   const monthMeta = useMemo(() => {
     const y = monthCursor.getFullYear();
     const m = monthCursor.getMonth();
@@ -326,7 +300,6 @@ export default function StaffHomeDB() {
     for (let i = 0; i < startWeekDay; i++) cells.push(null);
     for (let d = 1; d <= daysInMonth; d++) cells.push({ d, n: count[d] || 0 });
     while (cells.length % 7 !== 0) cells.push(null);
-    // if (cells.length < 42) while (cells.length < 42) cells.push(null);
 
     const max = Math.max(0, ...Object.values(count));
     return { y, m, daysInMonth, cells, counts: count, max };
@@ -334,7 +307,6 @@ export default function StaffHomeDB() {
 
   const isSameDMY = (a, b) => a && b && a === b;
 
-  /* ========= UI helpers (giữ gần như bản gốc) ========= */
   const renderSegmented = () => (
     <div className={`tw-rounded-full tw-p-1 tw-flex tw-gap-1 tw-border ${
         dark ? "tw-border-white/10 tw-bg-white/10" : "tw-bg-white tw-border-gray-200"
@@ -342,7 +314,7 @@ export default function StaffHomeDB() {
       {[
         { key: "calendar", label: "Lịch" },
         { key: "list", label: "Danh sách" },
-        { key: "kanban", label: "Trạng thái" }, // đổi "status" -> "kanban" cho rõ ràng
+        { key: "kanban", label: "Trạng thái" }, 
       ].map((opt) => {
         const active = view === opt.key;
         return (
@@ -510,7 +482,6 @@ export default function StaffHomeDB() {
     </div>
   );
 
-  /* ========= RENDER (khung y như bản gốc) ========= */
   return (
     <div className={`tw-pt-[125px] tw-pb-16 tw-min-h-screen 
       ${ dark ? "tw-bg-[#0b1220]"
@@ -521,7 +492,6 @@ export default function StaffHomeDB() {
         ${ dark ? "tw-bg-white/5 tw-backdrop-blur" : "tw-bg-gradient-to-r tw-from-[#e6f3ff] tw-via-[#fdf2f8] tw-to-[#fff]"
           } tw-border tw-border-gray-100/50 tw-shadow-sm tw-overflow-hidden`}>
          <div className="tw-p-6 md:tw-p-8 tw-flex tw-flex-col tw-items-center tw-gap-4">
-          {/* <div className="tw-flex tw-flex-col tw-items-center xl:tw-items-start tw-gap-3"> */}
             <div className="tw-flex tw-items-center tw-gap-3">
               <span className="tw-text-[25px]">🩺</span>
                 <h1 className={`tw-text-[26px] md:tw-text-[30px] tw-font-extrabold 
@@ -546,7 +516,6 @@ export default function StaffHomeDB() {
                 <i className={dark ? "fa-regular fa-moon" : "fa-regular fa-sun"}></i>
                 <span className="tw-text-lg">{dark ? "Tối" : "Sáng"}</span>
               </button>
-            {/* </div> */}
           </div>
 
           {/* KPI */}
@@ -789,62 +758,7 @@ export default function StaffHomeDB() {
             )}
           </section>
 
-          {/* Cảnh báo + hoạt động (giữ nguyên) */}
-          {/* <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-2 tw-gap-6 tw-py-10">
-            <section>
-              <div className={`tw-rounded-2xl tw-border 
-                ${ dark ? "tw-bg-white/5 tw-border-white/10" : "tw-bg-white tw-border-gray-100 tw-shadow-sm"}`} >
-                <div  className={`tw-flex tw-items-center tw-justify-between tw-px-5 tw-py-4 tw-border-b  
-                ${ dark ? "tw-border-white/10" : "tw-border-gray-100" }`}>
-                  <h3 className={`tw-font-semibold ${dark ? "tw-text-white" : "tw-text-[#163b6b]"}`}>⚠️ Cảnh báo</h3>
-                  <Link to="/staff/vaccines" className="tw-text-base tw-text-blue-700 hover:tw-underline">
-                    Xem kho
-                  </Link>
-                </div>
-                <ul className="tw-p-4 tw-space-y-2">
-                  {alerts.map((a, i) => {
-                    const tone = a.color === "amber"
-                        ? "tw-text-amber-700 tw-bg-amber-50 tw-border-amber-100"
-                        : a.color === "rose"
-                        ? "tw-text-rose-700 tw-bg-rose-50 tw-border-rose-100"
-                        : "tw-text-cyan-700 tw-bg-cyan-50 tw-border-cyan-100";
-                    return (
-                      <li key={i} className={`tw-flex tw-justify-between tw-items-center tw-rounded-xl tw-px-3 tw-py-2 tw-border
-                         ${dark ? "tw-bg-white/5 tw-border-white/10 tw-text-white" : tone}`} >
-                        <span className="tw-text-lg">{a.text}</span>
-                        <Link to={a.href} className={`tw-text-lg ${dark ? "tw-text-blue-300" : "tw-text-blue-700"} tw-underline`}>
-                          Xem
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            </section>
 
-            <section>
-              <div  className={`tw-rounded-2xl tw-border tw-flex-1 tw-min-h-[260px]  
-              ${ dark ? "tw-bg-white/5 tw-border-white/10" : "tw-bg-white tw-border-gray-100 tw-shadow-sm"}`} >
-                <div  className={`tw-flex tw-items-center tw-justify-between tw-px-5 tw-py-4 tw-border-b  
-                ${ dark ? "tw-border-white/10" : "tw-border-gray-100"  }`}>
-                  <h3 className={`tw-font-semibold ${dark ? "tw-text-white" : "tw-text-[#163b6b]"}`}>🕒 Hoạt động gần đây</h3>
-                </div>
-                <div className="tw-p-4 tw-space-y-2 tw-max-h-[320px] tw-overflow-auto">
-                  {activities.length === 0 && <div className={dark ? "tw-text-white/70" : "tw-text-gray-500"}>Chưa có hoạt động.</div>}
-                  {activities.map((a) => (
-                    <div  key={a.id}
-                      className={`tw-flex tw-items-center tw-justify-between tw-text-sm tw-rounded-lg tw-px-3 tw-py-2 tw-border 
-                        ${dark ? "tw-bg-white/5 tw-border-white/10 tw-text-white" : "tw-bg-gray-50 tw-border-gray-100"}`} >
-                      <span className="tw-truncate">{a.text}</span>
-                      <span className={dark ? "tw-text-white/50" : "tw-text-gray-400"}>
-                        {new Date(a.id).toLocaleTimeString("vi-VN")}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-          </div> */}
         </div>
 
         {/* FAB */}

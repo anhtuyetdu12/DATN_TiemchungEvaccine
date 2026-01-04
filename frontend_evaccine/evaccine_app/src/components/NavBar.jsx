@@ -1,36 +1,28 @@
 import { Link  } from "react-router-dom";
 import { useEffect, useState } from "react";
-// import api from "../services/axios";
 import axios from "axios";
 import { clearAllAuth, getStorage , loadAuth} from "../utils/authStorage";
 import { SELECTED_EVENT} from "../utils/selectedVaccines";
 import { readBooking } from "../utils/bookingStorage";
 
 export default function NavBar({ user, setUser }) {
-  // const navigate = useNavigate(); 
   const [loading, setLoading] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // bộ đếm
   const [count, setCount] = useState(0);
 
   const refreshBadge = () => {
     const { user, access } = loadAuth();
     if (!access || !user) {
-      // Nếu chưa đăng nhập thì không hiển thị badge
       setCount(0);
       return;
     }
-
     const items = readBooking() || [];
-
-    // Đếm theo SỐ VẮC XIN KHÁC NHAU (slug)
     const uniqueSlugs = new Set(
       items
-        .map(it => (typeof it === "string" ? it : it.slug)) // hỗ trợ cả kiểu ["slug"] và [{slug, qty}]
+        .map(it => (typeof it === "string" ? it : it.slug)) 
         .filter(Boolean)
     );
-
     setCount(uniqueSlugs.size);
   };
 
@@ -56,7 +48,6 @@ export default function NavBar({ user, setUser }) {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // tự động đóng khi click ra phía ngoài 
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (!e.target.closest(".user-dropdown")) {
@@ -77,9 +68,7 @@ export default function NavBar({ user, setUser }) {
       }
     } catch (_) {}
     finally {
-      // Xoá toàn bộ thông tin đăng nhập
       clearAllAuth();
-      // Xoá luôn session + lịch sử chat EVaccine
       localStorage.removeItem("evaccine_chat_session_id");
       localStorage.removeItem("evaccine_chat_messages");
       setUser(null);
@@ -88,7 +77,6 @@ export default function NavBar({ user, setUser }) {
   };
 
   useEffect(() => {
-      // giả lập load xong sau 1.5 giây
       const timer = setTimeout(() => setLoading(false), 1500);
       return () => clearTimeout(timer);
   }, []);

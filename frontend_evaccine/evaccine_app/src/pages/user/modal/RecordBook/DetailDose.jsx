@@ -8,17 +8,15 @@ import { addToBooking, getBookingSlugs } from "../../../../utils/bookingStorage"
 export default function DetailDose({ disease, onClose, memberId }) {
   const [activeTab, setActiveTab] = useState(disease?.selectedDoseNumber || 1);
   const [expanded, setExpanded] = useState(false);
-  const [vaccineData, setVaccineData] = useState(null);      // { member, age, vaccines: [...] }
+  const [vaccineData, setVaccineData] = useState(null);    
   const [suggestedVaccine, setSuggestedVaccine] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [doseStatuses, setDoseStatuses] = useState([]); // ["Đã tiêm", "Chờ tiêm", ...]
+  const [doseStatuses, setDoseStatuses] = useState([]); 
   const [selectedVaccine, setSelectedVaccine] = useState(null);
-  // mô tả bệnh
   const description = disease.description || "Chưa có mô tả về bệnh này. Vui lòng tham khảo ý kiến bác sĩ để biết thêm chi tiết.";
   const navigate = useNavigate();
 
   const handleBookFromDose = () => {
-    // Ưu tiên vắc xin đang được user chọn, fallback sang suggested
     const target = selectedVaccine || suggestedVaccine;
     const slug = target?.slug;
 
@@ -45,17 +43,14 @@ export default function DetailDose({ disease, onClose, memberId }) {
     (async () => {
       try {
         const records = await getVaccinationRecords(memberId);
-        // Bảo đảm records là mảng dù service chưa chuẩn hoá
         const list = Array.isArray(records)
           ? records
           : Array.isArray(records?.results) ? records.results : [];
-        // so sánh id phải “nới” kiểu (string/number)
         const rows = list.filter(r => String(r?.disease?.id ?? r?.disease_id ?? "") === String(disease.id));
-        // map mũi -> list bản ghi (phòng trường hợp có nhiều bản ghi)
-        const byDose = new Map(); // key: doseNumber(1-based) -> array
+        const byDose = new Map(); 
         rows.forEach(r => {
           const dn = r?.dose_number || 0;
-          if (!dn) return; // bỏ qua nếu không có số mũi
+          if (!dn) return; 
           if (!byDose.has(dn)) byDose.set(dn, []);
           byDose.get(dn).push(r);
         });
@@ -79,13 +74,11 @@ export default function DetailDose({ disease, onClose, memberId }) {
           return "Chưa tiêm";
         };
 
-        // Tính cho từng mũi từ 1..doseCount
         const maxDoses = disease?.doseCount || 1;
         const statuses = Array.from({ length: maxDoses }).map((_, idx) => {
           const doseIdx = idx  + 1;
           const arr = byDose.get(doseIdx) || [];
           if (arr.length === 0) return "Chưa tiêm";
-          // Ưu tiên: Đã tiêm > Chờ tiêm > Trễ hẹn > Chưa tiêm
           const ranking = { "Đã tiêm": 3, "Chờ tiêm": 2, "Trễ hẹn": 1, "Chưa tiêm": 0 };
           let best = "Chưa tiêm";
           arr.forEach(r => {
@@ -98,13 +91,11 @@ export default function DetailDose({ disease, onClose, memberId }) {
         if (mounted) setDoseStatuses(statuses);
       } catch (err) {
         if (mounted) setDoseStatuses([]);
-        // không cần toast ở đây để tránh ồn, vì view này vẫn chạy được
       }
     })();
     return () => { mounted = false; };
   }, [memberId, disease?.id, disease?.doseCount]);
 
-  // tính xem có cần nút “xem thêm”
   const [showButton, setShowButton] = useState(false);
   const paragraphRef = useRef(null);
   useEffect(() => {
@@ -116,12 +107,10 @@ export default function DetailDose({ disease, onClose, memberId }) {
     }
   }, [description]);
 
-  // Đồng bộ lại tab nếu đổi disease khi mở modal khác
   useEffect(() => {
     setActiveTab(disease?.selectedDoseNumber || 1);
   }, [disease?.selectedDoseNumber]);
 
-  // tải gợi ý vắc xin theo độ tuổi
   useEffect(() => {
     if (!memberId || !disease?.id) return;
     let mounted = true;
@@ -136,7 +125,7 @@ export default function DetailDose({ disease, onClose, memberId }) {
 
         const first = list[0] || null;
         setSuggestedVaccine(first);
-        setSelectedVaccine(first); // mặc định chọn vắc xin đầu tiên
+        setSelectedVaccine(first); 
       })
       .catch((err) => {
         toast.error(

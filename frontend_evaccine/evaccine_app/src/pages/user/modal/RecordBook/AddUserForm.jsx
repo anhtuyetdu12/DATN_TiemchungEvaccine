@@ -5,13 +5,11 @@ import { toast } from "react-toastify";
 export default function AddUserForm({ onSave, onClose }) {
   const [nickname, setNickname] = useState("");
   const [fullname, setFullname] = useState("");
-  // relationship mặc định là "Khác"
   const [relation, setRelation] = useState("Khác");
   const [gender, setGender] = useState("Nam");
   const [dob, setDob] = useState("");
   const [phone, setPhone] = useState("");
 
-  // lấy ngày hôm nay theo local (YYYY-MM-DD)
   const [today, setToday] = useState("");
   useEffect(() => {
     const t = new Date();
@@ -54,7 +52,6 @@ export default function AddUserForm({ onSave, onClose }) {
     { label: "Khác", icon: "fa-solid fa-venus-mars", color: "tw-text-orange-500" },
   ];
 
-  // danh sách mối quan hệ
   const relationships = [
     "Vợ","Chồng","Con trai","Con gái","Bố","Mẹ",
     "Ông ngoại","Bà ngoại","Ông nội","Bà nội","Bạn bè","Khác"

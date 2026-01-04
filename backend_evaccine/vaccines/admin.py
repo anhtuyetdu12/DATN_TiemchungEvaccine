@@ -49,7 +49,6 @@ class VaccineAdmin(admin.ModelAdmin):
     list_editable = ()
     ordering = ("-created_at",)
 
-    # --- Trạng thái hoạt động ---
     def colored_status(self, obj):
         colors = {"active": "#16a34a", "inactive": "#ef4444"}
         color = colors.get(obj.status, "#6b7280")
@@ -59,14 +58,12 @@ class VaccineAdmin(admin.ModelAdmin):
         )
     colored_status.short_description = "Trạng thái"
 
-    # --- Định dạng giá ---
     def formatted_price(self, obj):
         if obj.price is None:
             return "—"
         return f"{obj.price:,.0f} VNĐ"
     formatted_price.short_description = "Giá"
 
-    # --- Helper: tổng tồn kho theo lô ---
     def _total_stock(self, obj):
         return sum(
             (lot.quantity_available or 0)
@@ -74,7 +71,6 @@ class VaccineAdmin(admin.ModelAdmin):
             if getattr(lot, "is_active", True)
         )
 
-    # --- Helper: hạn sử dụng sớm nhất trong các lô còn hàng ---
     def _nearest_expiry(self, obj):
         dates = [
             lot.expiry_date
@@ -87,7 +83,6 @@ class VaccineAdmin(admin.ModelAdmin):
             return None
         return min(dates)
 
-    # --- Hiển thị tình trạng kho (hết hàng / sắp hết / còn) ---
     def stock_status(self, obj):
         total = self._total_stock(obj)
         if total is None:
@@ -110,7 +105,6 @@ class VaccineAdmin(admin.ModelAdmin):
         return format_html('<span style="color:#15803d;">Còn {}</span>', total)
 
 
-    # --- Hiển thị trạng thái hạn sử dụng ---
     def expiry_status(self, obj):
         today = timezone.localdate()
 
@@ -183,7 +177,6 @@ class VaccineAdmin(admin.ModelAdmin):
         }),
     )
 
-    # --- Thông báo tổng quan trên danh sách ---
     def changelist_view(self, request, extra_context=None):
         response = super().changelist_view(request, extra_context=extra_context)
         if not hasattr(response, "context_data"):
@@ -199,14 +192,11 @@ class VaccineAdmin(admin.ModelAdmin):
         for vaccine in qs:
             threshold = getattr(vaccine, "low_stock_threshold", None) or 20
             lots = [lot for lot in vaccine.stock_lots.all() if getattr(lot, "is_active", True)]
-            # nếu vaccine không có lô active thì bỏ qua (tuỳ bạn)
             if not lots:
                 continue
-            # 1) tồn kho (theo tổng) => hết hàng / sắp hết
             total = sum((lot.quantity_available or 0) for lot in lots)
             has_out_of_stock = total <= 0
             has_low_stock = 0 < total <= threshold
-            # 2) hạn dùng (theo từng lô) => hết hạn / sắp hết hạn
             has_expired = any(lot.expiry_date and lot.expiry_date < today for lot in lots)
             has_expiring_soon = any(
                 lot.expiry_date and today <= lot.expiry_date <= soon for lot in lots

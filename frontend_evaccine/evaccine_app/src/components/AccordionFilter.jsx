@@ -13,16 +13,13 @@ export default function AccordionFilter({
   const [isOpen, setIsOpen] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [search, setSearch] = useState("");
-  // Lọc theo từ khoá (nếu bật withSearch)
   const filteredOptions = useMemo(() => {
     if (!withSearch || !search.trim()) return options;
     const kw = search.trim().toLowerCase();
     return options.filter((opt) => (opt.label || "").toLowerCase().includes(kw));
   }, [options, withSearch, search]);
 
-  // Danh sách hiển thị khi chưa bấm "Xem thêm"
   const visibleOptions = useMemo(() => {
-    // luôn ưu tiên render “Tất cả” (nếu có) ở trên
     const allOpt = filteredOptions.find((o) => o.id === "all");
     const rest = filteredOptions.filter((o) => o.id !== "all");
     const sliced = expanded ? rest : rest.slice(0, showMoreAt);

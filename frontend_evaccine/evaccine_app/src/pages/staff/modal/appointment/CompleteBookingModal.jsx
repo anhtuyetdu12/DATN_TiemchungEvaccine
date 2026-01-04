@@ -17,7 +17,6 @@ export default function CompleteBookingModal({
     [booking?.items_detail]
   );
 
-  // Lấy disease_id cho 1 mũi
   const getDiseaseId = (it) => it?.vaccine?.disease?.id || it?.disease?.id || it?.disease_id || null;
 
   if (!show || !booking) return null;
@@ -26,7 +25,6 @@ export default function CompleteBookingModal({
     if (!setSelectedItemIds) return;
     const target = items.find((x) => x.id === id);
     if (!target) return;
-    //  báo can_complete = false → không cho chọn
     if (target.can_complete === false) {
       if (target.cannot_complete_reason) {
         alert(target.cannot_complete_reason);
@@ -42,12 +40,10 @@ export default function CompleteBookingModal({
       }
       const currentItems = items.filter((it) => prev.includes(it.id));
       const currentCount = currentItems.length;
-      // tối đa 2 mũi
       if (currentCount >= 2) {
         alert("Mỗi buổi chỉ được xác nhận tối đa 2 mũi.");
         return prev;
       }
-      // 2 mũi phải thuộc 2 bệnh khác nhau
       const newDiseaseId = getDiseaseId(target);
       const currentDiseaseIds = new Set( currentItems.map(getDiseaseId).filter(Boolean) );
       if (currentDiseaseIds.has(newDiseaseId)) {

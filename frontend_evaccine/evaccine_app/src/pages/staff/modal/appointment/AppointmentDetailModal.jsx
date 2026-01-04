@@ -1,7 +1,6 @@
 // src/pages/staff/modal/AppointmentDetailModal.jsx
 import { useEffect, useMemo } from "react";
 
-// === Helpers ===
 const formatDate = (isoStr) => {
   if (!isoStr) return "—";
   const d = new Date(isoStr);
@@ -17,7 +16,6 @@ const formatVND = (n) => {
   return `${Number(n).toLocaleString("vi-VN")} VNĐ`;
 };
 const STATUS_VN = {
-  // dùng cho booking (status code từ BE)
   pending: "Chờ xác nhận",
   confirmed: "Đã xác nhận",
   cancelled: "Đã hủy",
@@ -25,7 +23,6 @@ const STATUS_VN = {
   overdue: "Trễ hẹn",
 };
 
-// Màu cho TRẠNG THÁI BOOKING (tổng buổi tiêm)
 const BOOKING_STATUS_CLASS = {
   "Chờ xác nhận": "tw-bg-yellow-100 tw-text-yellow-700",
   "Đã xác nhận":  "tw-bg-sky-100 tw-text-sky-700",
@@ -34,14 +31,13 @@ const BOOKING_STATUS_CLASS = {
   "Trễ hẹn":      "tw-bg-orange-100 tw-text-orange-700",
 };
 
-// Màu cho TRẠNG THÁI TỪNG MŨI (sổ tiêm)
 const ITEM_STATUS_CLASS = {
   // trạng thái sổ tiêm
   "Đã tiêm":   "tw-bg-green-100 tw-text-green-700",
   "Chờ tiêm":  "tw-bg-sky-100 tw-text-sky-700",
   "Trễ hẹn":   "tw-bg-orange-100 tw-text-orange-700",
   "Chưa tiêm": "tw-bg-red-100 tw-text-red-700",
-  // fallback: nếu vì lý do gì status_label của item là label booking
+  //  status_label của item là label booking
   "Chờ xác nhận": "tw-bg-yellow-100 tw-text-yellow-700",
   "Đã xác nhận":  "tw-bg-sky-100 tw-text-sky-700",
   "Đã tiêm xong": "tw-bg-blue-100 tw-text-blue-700",
@@ -49,26 +45,20 @@ const ITEM_STATUS_CLASS = {
 };
 
 
-// --- trạng thái từng mũi: dùng chung nhãn với staff ---
 const getItemStatus = (booking, item) => {
-  // 0) ƯU TIÊN STATUS TỪ BE (item-level)
   const raw = item?.status_label || item?.status || "";
   if (raw) {
     const normalized = STATUS_VN[raw] || raw;
     const shot = item?.vaccination_date || item?.injected_at;
-    // dateLabel ưu tiên theo dữ liệu thật
     const dateLabel = shot
       ? formatDate(shot)
       : (item?.next_dose_date ? formatDate(item.next_dose_date)
         : (booking?.appointment_date ? formatDate(booking.appointment_date) : "—"));
-    // Nếu BE đã nói "Đã tiêm" thì phải hiển thị "Đã tiêm"
     if (normalized === "Đã tiêm") return { label: "Đã tiêm", dateLabel };
-    // Nếu BE trả "Chờ tiêm/Trễ hẹn/..." thì dùng luôn
     if (["Chờ tiêm", "Trễ hẹn", "Chưa tiêm"].includes(normalized)) {
       return { label: normalized, dateLabel };
     }
   }
-  // 1) fallback nếu BE không trả status_label
   const shot = item?.vaccination_date || item?.injected_at;
   if (shot) return { label: "Đã tiêm", dateLabel: formatDate(shot) };
   const appt = item?.next_dose_date || booking?.appointment_date;
@@ -90,7 +80,6 @@ const getItemDates = (booking, item) => {
 };
 
 
-// Trạng thái tổng của booking: lấy đúng theo DB
 const StatusPill = ({ booking }) => {
   if (!booking) {
     return (
@@ -111,7 +100,6 @@ const StatusPill = ({ booking }) => {
 
 
 export default function AppointmentDetailModal({ detail, onClose }) {
-  // Gọi hook MỖI LẦN render (dùng dữ liệu an toàn)
   const dob = detail?.member?.date_of_birth;
   const age = useMemo(() => {
     if (!dob) return null;

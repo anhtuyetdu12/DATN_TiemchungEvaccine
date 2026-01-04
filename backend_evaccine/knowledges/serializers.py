@@ -53,7 +53,6 @@ class KnowledgeArticleSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-    # lấy tên tác giả hiển thị
     def get_author_name(self, obj):
         user = obj.author
         if not user:
@@ -65,10 +64,8 @@ class KnowledgeArticleSerializer(serializers.ModelSerializer):
         if getattr(user, "email", None):
             return user.email
         return str(user)
-    # lấy tên danh mục hiển thị
     def get_category_name(self, obj):
         return obj.category.name if obj.category else None
-    # gán tác giả khi tạo bài
     def create(self, validated_data):
         request = self.context.get("request")
         if request and request.user and request.user.is_authenticated:

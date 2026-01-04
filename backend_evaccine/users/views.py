@@ -49,7 +49,6 @@ class RegisterAPIView(APIView):
         password = request.data.get("password")
         repassword = request.data.get("repassword")
 
-         # Kiểm tra trường bắt buộc
         if not identifier or not password or not repassword or not full_name:
             return Response({"detail": "Vui lòng điền đầy đủ thông tin"}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -63,7 +62,6 @@ class RegisterAPIView(APIView):
             email = f"user{identifier}@gmail.com"
             phone = identifier
 
-        # Kiểm tra tồn tại
         if phone and CustomUser.objects.filter(phone=phone).exists():
             return Response({"phone": "Số điện thoại đã tồn tại"}, status=400)
         if CustomUser.objects.filter(email=email).exists():
@@ -114,7 +112,6 @@ class LoginAPIView(APIView):
             if remember:
                 refresh.set_exp(lifetime=datetime.timedelta(days=30))
 
-            # Nếu user phải đổi pass (ví dụ sau khi nhận temp password)
             if user.must_change_password:
                 return Response({
                     "require_change_password": True,
@@ -176,25 +173,21 @@ class ForgotPasswordAPIView(APIView):
         if not identifier:
             return Response({"detail": "Phải nhập email hoặc số điện thoại"}, status=400)
 
-        # --- Email ---
         if "@" in identifier:
             try:
                 user = CustomUser.objects.get(email=identifier)
             except CustomUser.DoesNotExist:
                 return Response({"detail": "Email không tồn tại"}, status=400)
 
-            # Token 30 phút
             token = RefreshToken.for_user(user).access_token
-            token.set_exp(lifetime=timedelta(minutes=15))  # 15 phút
+            token.set_exp(lifetime=timedelta(minutes=15)) 
             reset_link = f"{settings.FRONTEND_URL}/reset-password?identifier={identifier}&token={str(token)}"
 
-            # Gửi email
             subject = "Đặt lại mật khẩu"
             text_content = (
                 f"Xin chào {user.full_name},\n\n"
                 f"Bạn vừa yêu cầu đặt lại mật khẩu. Bấm link sau để đặt lại mật khẩu (hạn 15 phút):\n{reset_link}"
             )
-            # Gửi mail đặt lại mật khẩu
             html_content = f"""
                 <!DOCTYPE html>
                 <html>
@@ -267,13 +260,11 @@ class ForgotPasswordAPIView(APIView):
 
             return Response({"detail": "Đã gửi email đặt lại mật khẩu"}, status=200)
 
-        # --- Phone ---
         else:
             try:
                 user = CustomUser.objects.get(phone=identifier)
             except CustomUser.DoesNotExist:
                 return Response({"detail": "Số điện thoại không tồn tại"}, status=400)
-            # sinh mật khẩu tạm
             temp_password = ''.join(random.choice(string.ascii_letters + string.digits + "!@#$%^&*") for _ in range(8))
             user.set_password(temp_password)
             user.must_change_password = True
@@ -305,14 +296,13 @@ class ResetPasswordAPIView(APIView):
         identifier = request.data.get("identifier")
         password = request.data.get("password")
         repassword = request.data.get("repassword")
-        token = request.data.get("token")  # chỉ bắt buộc cho email
+        token = request.data.get("token")  
 
         if not identifier or not password or not repassword:
             return Response({"detail": "Thiếu trường bắt buộc"}, status=400)
         if password != repassword:
             return Response({"detail": "Mật khẩu nhập lại không khớp"}, status=400)
 
-        # Email: verify token
         if "@" in identifier:
             if not token:
                 return Response({"detail": "Thiếu mã xác thực trong email. Vui lòng mở email đặt lại mật khẩu để lấy mã."}, status=400)
@@ -322,14 +312,12 @@ class ResetPasswordAPIView(APIView):
                 user = CustomUser.objects.get(id=user_id, email=identifier)
             except Exception:
                 return Response({"detail": "Mã xác thực không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu đặt lại mật khẩu mới."}, status=400)
-        # Phone: không cần token
         else:
             try:
                 user = CustomUser.objects.get(phone=identifier)
             except CustomUser.DoesNotExist:
                 return Response({"detail": "Số điện thoại không tồn tại"}, status=400)
 
-        # Đổi mật khẩu
         user.set_password(password)
         user.must_change_password = False
         user.save()
@@ -366,7 +354,7 @@ class CreateStaffAPIView(APIView):
         work_shift = request.data.get("work_shift")
 
         if not email or not full_name or not password:
-            return Response({"error": "Missing fields"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Vui lòng nhập đầy đủ thông tin bắt buộc"}, status=status.HTTP_400_BAD_REQUEST)
         try:
             user = CustomUser.objects.create_user(
                 email=email,
@@ -382,11 +370,11 @@ class CreateStaffAPIView(APIView):
                 license_number=license_number,
                 work_shift=work_shift
             )
-            return Response({"message": "Staff created successfully"}, status=status.HTTP_201_CREATED)
+            return Response({"message": "Tạo mới nhân viên y tế thành công"}, status=status.HTTP_201_CREATED)
 
         except Exception as e:
-            logger.error(f"Error creating staff: {e}")
-            return Response({"error": "Server error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(f"Lỗi khi tạo nhân viên: {e}")
+            return Response({"error": "Đã xảy ra lỗi máy chủ. Vui lòng thử lại sau"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     
 class StaffLoginAPIView(APIView):
@@ -465,7 +453,6 @@ class StaffCreateCustomerAPIView(APIView):
         except Exception:
             pass
         
-         # message tuỳ thuộc có pass hay không
         if has_password:
             msg = "Đã tạo tài khoản cho khách hàng. Khách có thể đăng nhập ngay bằng tài khoản vừa tạo."
         else:

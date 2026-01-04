@@ -41,7 +41,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ['full_name', 'email', 'phone', 'password', 'repassword']
 
     def validate_full_name(self, value):
-        # dùng str.isalpha() + isspace() để chấp nhận dấu tiếng Việt
         if not all(c.isalpha() or c.isspace() for c in value):
             raise serializers.ValidationError("Họ và tên chỉ được chứa chữ cái và khoảng trắng")
         if len(value.strip()) < 5:
@@ -79,7 +78,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        validated_data["role"] = "customer"   # Chỉ user thường được đăng ký
+        validated_data["role"] = "customer"   
         validated_data['password'] = make_password(validated_data['password'])
         return CustomUser.objects.create(**validated_data)
     
@@ -109,13 +108,11 @@ class LoginSerializer(serializers.Serializer):
 
     def validate_identifier(self, value):
         if "@" in value:
-            # Email login
             if not (value.endswith("@gmail.com") or value.endswith("@evaccine.com")):
                 raise serializers.ValidationError("Email phải có đuôi @gmail.com hoặc @evaccine.com")
             if " " in value:
                 raise serializers.ValidationError("Email không được chứa khoảng trắng")
         else:
-            # Phone login (chỉ cho user)
             if not re.fullmatch(r'\d{10}', value):
                 raise serializers.ValidationError("Số điện thoại phải gồm đúng 10 chữ số")
         return value
@@ -131,7 +128,6 @@ class LoginSerializer(serializers.Serializer):
         identifier = data.get('identifier')
         password = data.get('password')
 
-        # --- Lấy user ---
         if "@" in identifier:
             user = CustomUser.objects.filter(email=identifier).first()
         else:
@@ -143,15 +139,12 @@ class LoginSerializer(serializers.Serializer):
         if not user.check_password(password):
             raise serializers.ValidationError({"password": "Mật khẩu không đúng"})
 
-        # --- Check login rules ---
         if "@" in identifier:
-            # Login bằng email
             if identifier.endswith("@gmail.com") and user.role != "customer":
                 raise serializers.ValidationError({"identifier": "Email này chỉ dành cho user"})
             if identifier.endswith("@evaccine.com") and user.role not in ["staff", "admin", "superadmin"]:
                 raise serializers.ValidationError({"identifier": "Email này chỉ dành cho staff hoặc admin"})
         else:
-            # Login bằng phone -> chỉ cho user
             if user.role != "customer":
                 raise serializers.ValidationError({"identifier": "Số điện thoại chỉ dành cho user"})
 
@@ -259,7 +252,6 @@ class StaffLoginSerializer(serializers.Serializer):
         if not user.check_password(password):
             raise serializers.ValidationError({"password": "Mật khẩu không đúng"})
 
-        # Chỉ cho staff hoặc admin login
         if user.role not in ["staff", "admin", "superadmin"]:
             raise serializers.ValidationError({"identifier": "Email này không dành cho staff"})
 
@@ -308,8 +300,6 @@ class StaffCreateCustomerSerializer(serializers.Serializer):
         if email and User.objects.filter(email=email).exists():
             raise serializers.ValidationError({"email": "Email đã tồn tại."})
 
-
-        #  kiểm tra rule mật khẩu nếu có nhập (tức allowLogin = true bên FE)
         if pwd or repwd:
             if not pwd:
                 raise serializers.ValidationError({"set_password": "Vui lòng nhập mật khẩu"})
@@ -339,9 +329,7 @@ class StaffCreateCustomerSerializer(serializers.Serializer):
         
         raw_password = (validated_data.get("set_password") or "").strip()
         has_password = bool(raw_password)
-         # Nếu không có mật khẩu -> sinh pass random & bắt đổi sau
         if not has_password:
-            # sinh pass random 10 ký tự
             raw_password = get_random_string(10)  
         
         user = User.objects.create_user(
@@ -355,7 +343,6 @@ class StaffCreateCustomerSerializer(serializers.Serializer):
             date_of_birth=dob,
         )
 
-        # tạo member “Bản thân”
         if not FamilyMember.objects.filter(user=user, relation="Bản thân").exists():
             FamilyMember.objects.create(
                 user=user,

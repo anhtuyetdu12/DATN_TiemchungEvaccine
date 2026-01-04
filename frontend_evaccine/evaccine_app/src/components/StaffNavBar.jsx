@@ -1,6 +1,5 @@
 import { Link  } from "react-router-dom";
 import { useEffect, useState } from "react";
-// import api from "../services/axios";
 import axios from "axios";
 import { clearAllAuth, getStorage } from "../utils/authStorage";
 
@@ -9,8 +8,6 @@ export default function StaffNavBar({ user, setUser }) {
   const [loading, setLoading] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
   
-  // const navigate = useNavigate(); 
-  // Tự động đóng khi click ra ngoài
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (!e.target.closest(".user-dropdown")) {
@@ -22,22 +19,19 @@ export default function StaffNavBar({ user, setUser }) {
   }, []);
 
   const handleLogout = async () => {
-      try {
-        const store = getStorage();
-        const refresh = store.getItem("refresh");
-        if (refresh) {
-          await axios.post("http://127.0.0.1:8000/api/users/logout/", { refresh });
-        }
-      } catch (_) {}
-      finally {
-        clearAllAuth();
-        setUser(null);
-        window.location.href = "/login";
+    try {
+      const store = getStorage();
+      const refresh = store.getItem("refresh");
+      if (refresh) {
+        await axios.post("http://127.0.0.1:8000/api/users/logout/", { refresh });
       }
-    };
-
-
-   
+    } catch (_) {}
+    finally {
+      clearAllAuth();
+      setUser(null);
+      window.location.href = "/login";
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1500);

@@ -8,7 +8,6 @@ export async function previewAudience(params) {
   return data;
 }
 
-// === user ===
 export async function getMyNotifications() {
   const { data } = await api.get("/records/me/notifications/");
   return data;

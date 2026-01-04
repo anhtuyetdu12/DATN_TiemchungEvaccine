@@ -2,7 +2,6 @@
 import { useEffect, useState, useRef } from "react";
 import { startChatSession, sendChatMessage } from "../services/chatService";
 
-// Tạo key theo user / guest
 const getSessionKey = (user) =>
   user?.id ? `evaccine_chat_session_id_${user.id}` : "evaccine_chat_session_id_guest";
 
@@ -18,14 +17,12 @@ const WELCOME_MESSAGE = {
 export default function ChatWidget({ user }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Lấy sessionId đã lưu (nếu có)
   const [sessionId, setSessionId] = useState(() => {
     if (typeof window === "undefined") return null;
     const key = getSessionKey(user);
     return localStorage.getItem(key) || null;
   });
 
-  // Lấy messages đã lưu (nếu có)
   const [messages, setMessages] = useState(() => {
     if (typeof window === "undefined") return [WELCOME_MESSAGE];
     const key = getMessagesKey(user);
@@ -47,7 +44,6 @@ export default function ChatWidget({ user }) {
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
 
-   // Khi user đổi (guest → user, user A → user B, logout) → load lại đúng history
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -75,13 +71,11 @@ export default function ChatWidget({ user }) {
       setMessages([WELCOME_MESSAGE]);
     }
 
-    // Option: khi logout (user -> null) thì đóng khung chat
     if (!user) {
       setIsOpen(false);
     }
-  }, [user]); // user.id thay đổi thì chạy
+  }, [user]); 
 
-  // Tạo session mới cho user / guest hiện tại
   const createSession = async () => {
     try {
       const data = await startChatSession();
@@ -100,7 +94,6 @@ export default function ChatWidget({ user }) {
     }
   };
 
-  // Khởi tạo session nếu chưa có
   useEffect(() => {
     if (!sessionId) {
       createSession();
@@ -108,7 +101,6 @@ export default function ChatWidget({ user }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  // Auto scroll xuống cuối khi có message mới
   useEffect(() => {
     if (bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -126,14 +118,11 @@ export default function ChatWidget({ user }) {
     }
   }, [messages, user]);
 
-  // Gửi message
   const sendMessageWithText = async (rawText) => {
     const text = (rawText || "").trim();
     if (!text || loading) return;
 
     setLoading(true);
-
-    // Đảm bảo có session
     let currentSessionId = sessionId;
     if (!currentSessionId) {
       currentSessionId = await createSession();
@@ -151,7 +140,6 @@ export default function ChatWidget({ user }) {
       }
     }
 
-    // Thêm message user vào UI
     setMessages((prev) => [
       ...prev,
       { sender: "user", text, timestamp: new Date().toISOString() },
@@ -211,7 +199,6 @@ export default function ChatWidget({ user }) {
 
   return (
     <>
-      {/* Nút launcher: avatar + tooltip nhỏ */}
       {!isOpen && (
         <div className="tw-fixed tw-bottom-6 tw-right-6 tw-z-[9999] tw-flex tw-flex-col tw-items-end tw-gap-2">
           <div className="tw-bg-white tw-text-[#2563eb] tw-text-[11px] tw-px-3 tw-py-1.5 tw-rounded-full tw-shadow-lg tw-border tw-border-blue-100 tw-flex tw-items-center tw-gap-1">

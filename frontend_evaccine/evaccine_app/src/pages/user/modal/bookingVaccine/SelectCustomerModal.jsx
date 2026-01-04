@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 export default function SelectCustomerModal({ open, onClose, customers, onSelect }) {
   const [pendingCustomer, setPendingCustomer] = useState(null);
 
-  // Mỗi lần mở modal thì reset lựa chọn tạm
   useEffect(() => {
     if (open) {
       setPendingCustomer(null);
@@ -14,17 +13,14 @@ export default function SelectCustomerModal({ open, onClose, customers, onSelect
 
   const handleConfirm = () => {
     if (!pendingCustomer) {
-      // chưa chọn ai thì chỉ đóng modal (hoặc bạn có thể cho alert/ttoast ở đây nếu muốn)
       return onClose();
     }
-    // Gửi customer đã chọn ra ngoài
     onSelect(pendingCustomer);
   };
 
   return (
     <div className="tw-fixed tw-inset-0 tw-bg-black/40 tw-flex tw-items-center tw-justify-center tw-z-50 tw-pt-[90px]">
       <div className="tw-bg-white tw-rounded-lg tw-shadow-lg tw-w-[450px] tw-max-w-full tw-p-5">
-        {/* Header */}
         <div className="tw-flex tw-justify-between tw-items-center tw-mb-4">
           <h2 className="tw-font-bold tw-text-2xl tw-mt-2">Chọn người tiêm</h2>
           <button  onClick={onClose}
@@ -62,7 +58,6 @@ export default function SelectCustomerModal({ open, onClose, customers, onSelect
                   <p className="tw-text-sm tw-text-gray-500"> {c.relation} | {c.dob} </p>
                 </div>
 
-                {/* icon tick nhỏ để dễ nhận biết */}
                 {isSelected && (
                   <span className="tw-text-cyan-600">
                     <i className="fa-solid fa-check-circle" />

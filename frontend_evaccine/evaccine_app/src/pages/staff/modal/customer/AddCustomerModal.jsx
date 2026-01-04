@@ -18,14 +18,14 @@ export default function AddCustomerModal({ show, onClose, onAdd }) {
   const [result, setResult] = useState(null);
   const [showPwd, setShowPwd] = useState(false);
   const [showRePwd, setShowRePwd] = useState(false);
-  const [allowLogin, setAllowLogin] = useState(true); // mặc định: có tài khoản đăng nhập
+  const [allowLogin, setAllowLogin] = useState(true);
 
 
   const validate = () => {
     if (!form.full_name.trim()) return "Vui lòng nhập họ tên";
     if (!form.email && !form.phone) return "Cần ít nhất email hoặc số điện thoại";
     if (form.email && !/\S+@\S+\.\S+/.test(form.email)) return "Email không hợp lệ";
-    // Chỉ bắt mật khẩu nếu allowLogin = true
+
     if (allowLogin) {
       if (!setPassword) return "Vui lòng nhập mật khẩu cho khách";
       if (!repassword) return "Vui lòng nhập lại mật khẩu";
@@ -39,7 +39,6 @@ export default function AddCustomerModal({ show, onClose, onAdd }) {
     return "";
   };
 
-  // đóng bằng phím ESC cho tiện
   useEffect(() => {
     if (!show) return;
     const handler = (e) => e.key === "Escape" && onClose();
@@ -142,7 +141,6 @@ export default function AddCustomerModal({ show, onClose, onAdd }) {
             <div>Mã KH: <b>{result.user.code}</b></div>
             <div>Email: <b>{result.user.email || "-"}</b> | SĐT: <b>{result.user.phone || "-"}</b></div>
 
-            {/* Nếu BE đã gửi email, thường set_password_url sẽ là null */}
             {result.set_password_url ? (
               <div className="tw-mt-2">
                 <div className="tw-text-slate-700 tw-text-base tw-mb-1">Link đặt mật khẩu lần đầu (gửi cho khách):</div>

@@ -54,10 +54,7 @@ def send_message(request):
         session = ChatSession.objects.get(id=session_id)
     except ChatSession.DoesNotExist:
         return Response({"error": "Invalid session"}, status=status.HTTP_404_NOT_FOUND)
-    # lưu tin nhắn user
     ChatMessage.objects.create(session=session, sender="user", content=content)
-    # gọi OpenAI dựa trên session + câu hỏi mới
     reply = generate_bot_reply(session, content)
-    # lưu tin nhắn bot
     ChatMessage.objects.create(session=session, sender="bot", content=reply)
     return Response({"reply": reply}, status=status.HTTP_200_OK)

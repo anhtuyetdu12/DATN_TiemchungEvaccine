@@ -7,24 +7,20 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
   const [activeTab, setActiveTab] = useState("info");
   const overlayRef = useRef(null);
 
-  //click chọn thông tin cá nhân
   const [selectedMemberId, setSelectedMemberId] = useState(null);
-  // tìm member đang chọn
   const selectedMember = useMemo(() => {
     const arr = customer?.members || [];
     return arr.find(m => String(m.id) === String(selectedMemberId)) || null;
   }, [customer, selectedMemberId]);
 
-  // chuẩn hoá trường hiển thị bên trái
   const displayName   = selectedMember ? (selectedMember.name || selectedMember.full_name || "-") 
                                       : (customer?.name || "-");
   const displayDOB    = selectedMember ? (selectedMember.dob || selectedMember.date_of_birth || null)
                                       : (customer?.dob || customer?.date_of_birth || null);
   const displayPhone  = selectedMember?.phone ?? customer?.phone ?? "-";
   const displayEmail  = selectedMember?.email ?? customer?.email ?? "-";
-  const displayRelation = selectedMember?.relation || null; // để gắn badge nếu muốn
+  const displayRelation = selectedMember?.relation || null; 
 
-  // initials nên lấy theo displayName
   const initials = useMemo(() => {
     const parts = (displayName || "").trim().split(/\s+/);
     return parts.slice(0, 2).map(p => p[0]).join("").toUpperCase() || "?";
@@ -58,16 +54,13 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
     completed: "Hoàn thành",
   };
 
-  // danh sách lịch sử tiêm chủng
   const [historyMember, setHistoryMember] = useState("ALL");
-  // số đếm 
   const historyFiltered = useMemo(() => {
     const list = customer?.history || [];
     if (historyMember === "ALL") return list;
     return list.filter(h => String(h.member_id) === String(historyMember));
   }, [customer, historyMember]); 
 
-  //lọc dsach người tiêm
   const memberOptions = useMemo(() => {
     const base = [{ value: "ALL", label: "Tất cả thành viên" }];
     const items = (customer?.members || []).map(m => ({
@@ -77,11 +70,9 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
     return [...base, ...items];
   }, [customer]);
 
-  // danh sách lịch hẹn 
   const [fullCustomer, setFullCustomer] = useState(customer); 
   const [apptMember, setApptMember] = useState("ALL");
 
-  //lọc dsach thành viên lịch hẹn
   const apptFiltered = useMemo(() => {
     const list = fullCustomer?.appointments || [];
     if (apptMember === "ALL") return list;
@@ -92,7 +83,7 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
 
   useEffect(() => {
     if (activeTab !== "appointments" || !fullCustomer?.id) return;
-    let isMounted = true; // tránh setState khi unmount
+    let isMounted = true;
 
     (async () => {
       try {
@@ -101,7 +92,6 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
         });
         if (!isMounted) return;
         setFullCustomer(prev => ({ ...prev, appointments: data }));
-        // nếu muốn: console.log("Loaded appointments", data);
       } catch (err) {
         toast.error("Không tải được lịch hẹn");
       }
@@ -190,7 +180,7 @@ export default function ViewCustomerDetailModal({ customer, onClose }) {
           </div>
         </div>
 
-        {/* ⬇️ Content: phần này sẽ cuộn khi dài */}
+        {/*  Content*/}
         <div className="tw-flex-1 tw-min-h-0 tw-overflow-y-auto tw-p-6 tw-space-y-6 tw-scrollbar tw-scrollbar-thin tw-scrollbar-thumb-gray-300 tw-scrollbar-track-transparent
                     [&::-webkit-scrollbar]:tw-h-2 [&::-webkit-scrollbar]:tw-w-2 [&::-webkit-scrollbar-thumb]:tw-rounded-full
                     [&::-webkit-scrollbar-track]:tw-bg-gray-100 [&::-webkit-scrollbar-thumb]:tw-bg-gradient-to-b

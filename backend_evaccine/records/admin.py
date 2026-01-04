@@ -20,7 +20,6 @@ class FamilyMemberAdmin(admin.ModelAdmin):
     list_filter = ("gender", "relation", "created_at")
     ordering = ("-created_at",)
 
-    # cột người dùng (hiển thị đẹp)
     def get_user_info(self, obj):
         user = obj.user
         name = user.full_name or "(Chưa có tên)"
@@ -31,9 +30,8 @@ class FamilyMemberAdmin(admin.ModelAdmin):
         return format_html("<b>{}</b><br>{}", name, contact)
     get_user_info.short_description = "Người dùng"
 
-    # hiển thị label tiếng Việt từ choices
     def relation_vi(self, obj):
-        return obj.relation  # relation đã là nhãn VN trong choices
+        return obj.relation  
     relation_vi.short_description = "Mối quan hệ"
 
     def gender_vi(self, obj):
@@ -83,25 +81,18 @@ class BookingAdmin(admin.ModelAdmin):
     status_vi.short_description = "Trạng thái"
     
     def has_module_permission(self, request):
-        # Chỉ cho nhóm 'ops' hay staff đặc biệt xem mục này
         return request.user.is_superuser or request.user.groups.filter(name="ops").exists()
 
     def has_view_permission(self, request, obj=None):
         return self.has_module_permission(request)
 
     def has_add_permission(self, request):
-        # Không cho tạo từ phía vaccines admin
         return False
 
     def has_change_permission(self, request, obj=None):
-        # Tuỳ bạn, có thể False để read-only
         return self.has_module_permission(request)
 
     def has_delete_permission(self, request, obj=None):
         return False
 
 
-@admin.register(NotificationRule)
-class NotificationRuleAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "audience", "run_hour", "run_minute", "is_active", "last_run_date")
-    list_filter = ("audience", "is_active")

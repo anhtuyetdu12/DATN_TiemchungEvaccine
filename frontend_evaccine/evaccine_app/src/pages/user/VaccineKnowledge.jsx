@@ -1,5 +1,4 @@
-// src/pages/VaccineKnowledge.jsx
-import React, { useEffect, useState } from "react";
+import  { useEffect, useState } from "react";
 import { getKnowledgeCategories, getPublicKnowledgeArticles,} from "../../services/knowledgeService";
 import KnowledgeQuickViewModal from "../user/modal/knowledge/KnowledgeQuickViewModal";
 
@@ -18,18 +17,14 @@ export default function VaccineKnowledge() {
     const load = async () => {
       try {
         setLoading(true);
-
-        // 1. Danh mục active
         const cats = await getKnowledgeCategories();
         const activeCats = (cats || []).filter((c) => c.isActive);
 
-        // 2. Lấy featured + all public
         const [featuredList, latestAll] = await Promise.all([
           getPublicKnowledgeArticles({ visibility: "featured", limit: 10 }),
           getPublicKnowledgeArticles({ limit: 80 }),
         ]);
 
-        // 3. Lấy bài theo từng danh mục (chuẩn theo backend public)
         const catEntries = await Promise.all(
           activeCats.map(async (cat) => {
             const items = await getPublicKnowledgeArticles({
@@ -45,11 +40,7 @@ export default function VaccineKnowledge() {
           byCat[id] = items;
         });
 
-        // Hero: ưu tiên featured, nếu không có thì lấy bài mới nhất
-        const hero =
-          (featuredList && featuredList[0]) ||
-          (latestAll && latestAll[0]) ||
-          null;
+        const hero = (featuredList && featuredList[0]) || (latestAll && latestAll[0]) ||  null;
 
         setCategories(activeCats);
         setArticlesByCategory(byCat);
@@ -153,7 +144,6 @@ export default function VaccineKnowledge() {
               </div>
               <div className="tw-mt-4 tw-w-full">
                 <div className="tw-relative tw-w-full">
-                  {/* Icon search (bấm = áp dụng tìm kiếm) */}
                   <button type="button" onClick={applySearch}
                     className="tw-absolute tw-inset-y-0 tw-left-3 tw-flex tw-items-center tw-text-blue-500 hover:tw-text-blue-600 tw-transition">
                     <i className="fa-solid fa-magnifying-glass tw-text-[13px]"></i>
@@ -178,7 +168,6 @@ export default function VaccineKnowledge() {
           </header>
 
 
-          {/* FEATURED HERO CARD (như top post) */}
           {featured && (
             <div className="tw-relative tw-rounded-3xl tw-overflow-hidden tw-bg-slate-900 tw-text-white tw-p-4 md:tw-p-5 tw-flex tw-gap-4 
                 tw-items-stretch tw-shadow-md tw-border tw-border-slate-800/60">
@@ -231,7 +220,6 @@ export default function VaccineKnowledge() {
             </div>
           )}
 
-          {/* CATEGORY CHIPS (như IG stories filter) */}
           {categories.length > 0 && (
             <div className="tw-flex tw-overflow-x-auto tw-gap-2 tw-pt-1 tw-pb-2 tw-no-scrollbar">
               {categories.map((cat) => {
@@ -253,7 +241,6 @@ export default function VaccineKnowledge() {
             </div>
           )}
 
-          {/* GRID BÀI VIẾT: INSTAGRAM-STYLE CARD FEED */}
           {!loading && activeCatId && (
             <div className="tw-grid tw-grid-cols-2 md:tw-grid-cols-3 lg:tw-grid-cols-4 tw-gap-4 tw-mt-2">
              {filteredArticles.length === 0 ? (
@@ -286,7 +273,6 @@ export default function VaccineKnowledge() {
                       )}
                     </div>
 
-                    {/* Nội dung ngắn gọn */}
                     <div className="tw-px-3 tw-pt-2 tw-pb-3 tw-flex tw-flex-col tw-gap-1 tw-flex-1">
                       <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
                         <span className="tw-text-[8px] tw-text-slate-400">

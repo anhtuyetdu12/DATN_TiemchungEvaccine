@@ -3,11 +3,11 @@ import React from "react";
 
 export default function DeleteCustomerModal({
   show,
-  customer,                 // vẫn giữ để tương thích (dùng .name nếu không truyền text)
+  customer,            
   onClose,
   onConfirm,
   title = "Xác nhận",
-  description,              // nếu không truyền sẽ fallback theo customer?.name
+  description,           
   confirmText = "Đồng ý",
   cancelText = "Hủy",
 }) {

@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { v4 as uuidv4 } from "uuid";
-import VaccineForm from "./modal/vaccines/VaccineForm"
 import Dropdown from "../../components/Dropdown";
 import { getStockSummary } from "../../services/inventoryService";
 import Pagination from "../../components/Pagination";
 import {  toast } from "react-toastify";
 import ViewExpiryVCModal from "./modal/vaccines/ViewExpiryVCModal";
-import ConfirmModal from "../../components/ConfirmModal";
 import { getAllVaccines, exportVaccinesExcel } from "../../services/vaccineService";
 
 const WARNING_STYLE = {
@@ -49,29 +46,14 @@ export default function StaffVaccines() {
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState("");      
   const [appliedSearch, setAppliedSearch] = useState(""); 
-  const [showModal, setShowModal] = useState(false);
   const [currentVaccine, setCurrentVaccine] = useState(null);
-  const [confirmAction, setConfirmAction] = useState(null);
 
-  // khi đổi từ khóa tìm kiếm → quay về trang 1
   useEffect(() => { setPageManage(1); }, [appliedSearch]);
 
-  // Thêm hoặc sửa vắc xin
-  const handleSaveVaccine = (vaccine) => {
-    if (vaccine.id) {
-      setVaccines((vs) => vs.map((v) => (v.id === vaccine.id ? { ...vaccine } : v)));
-    } else {
-      setVaccines((vs) => [...vs, { ...vaccine, id: uuidv4() }]);
-    }
-    setShowModal(false);
-  };
-
-  //============ phân trang=====================
   const [pageManage, setPageManage] = useState(1);
   const [pageExpiry, setPageExpiry] = useState(1);
   const perPage = 10;
 
-  // lọc dữ liệu
   const term = appliedSearch.toLowerCase();
   const filteredVaccines = vaccines.filter(
     (v) => v.name?.toLowerCase().includes(term) ||
@@ -80,7 +62,6 @@ export default function StaffVaccines() {
     v.country?.toLowerCase().includes(term) 
   );
 
-  // slice dữ liệu theo trang
   const currentData = filteredVaccines.slice((pageManage - 1) * perPage, pageManage * perPage);
 
   useEffect(() => {
@@ -88,15 +69,12 @@ export default function StaffVaccines() {
      if (pageManage > maxPage) setPageManage(maxPage);
   }, [filteredVaccines.length, pageManage]);
   
-  // lấy ds vắc xin + tồn kho
   useEffect(() => {
     let mounted = true;
     (async () => {
       setLoading(true);
       try {
-        // 1) luôn lấy vaccine trước
         const list = await getAllVaccines();
-        // Chuẩn hóa sơ bộ trước khi có stock
         let normalized = (list || []).map((v) => ({
           id: v.id,
           name: v.name,
@@ -116,9 +94,8 @@ export default function StaffVaccines() {
           lots: [],
         }));
 
-        // 2) thử lấy stock-summary, nếu lỗi thì bỏ qua
         try {
-          const stock = await getStockSummary(); // OPTIONAL
+          const stock = await getStockSummary();
           const stockById = new Map(stock.map((s) => [s.vaccine_id, s]));
           normalized = normalized.map((v) => {
             const s = stockById.get(v.id);
@@ -147,23 +124,21 @@ export default function StaffVaccines() {
 
 
 
-  // ===========cảnh báo hết hạn sử dụng===============
   const [warningVaccines, setWarningVaccines] = useState([]);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [filterType, setFilterType] = useState(""); // lọc theo warningType
+  const [filterType, setFilterType] = useState(""); 
   const [searchTextInput, setSearchTextInput] = useState("");
   const [appliedExpirySearch, setAppliedExpirySearch] = useState("");
 
   const warningOptions = [
     { value: "", label: "Tất cả cảnh báo" },
-    { value: "Hàng & Hạn đã hết", label: "Hàng & Hạn đã hết" },
+    { value: "Hàng & Hạn sắp hết", label: "Hàng & Hạn sắp hết" },
     { value: "Hết hạn", label: "Hết hạn" },
     { value: "Hết hàng", label: "Hết hàng" },
     { value: "Hạn sử dụng sắp hết", label: "Hạn sử dụng sắp hết" },
     { value: "Số lượng sắp hết", label: "Số lượng sắp hết" },
   ];
 
-  // lọc theo filterType + searchText
   const kw = appliedExpirySearch.trim().toLowerCase();
   const filteredWarnings = warningVaccines.filter((v) => {
     const typeMatch = !filterType || v.warningType === filterType;
@@ -194,10 +169,8 @@ export default function StaffVaccines() {
     vaccines.forEach((v) => {
       const threshold = Number(v.low_stock_threshold ?? 20);
       (Array.isArray(v.lots) ? v.lots : []).forEach((lot) => {
-        // 1) tôn trọng is_active
         if (lot.is_active === false) return;
         const qty = Number(lot.quantity_available ?? 0);
-        // 2) parse date an toàn timezone
         const exp = lot.expiry_date ? new Date(`${lot.expiry_date}T00:00:00`) : null;
         const isOutOfStock = qty <= 0;
         const isLowStock = qty > 0 && qty <= threshold;   // qty=0 để riêng
@@ -227,7 +200,6 @@ export default function StaffVaccines() {
     setWarningVaccines(warnings);
   }, [vaccines]);
 
-  // Xuất excel
   const downloadBlob = (blob, filename) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -241,7 +213,6 @@ export default function StaffVaccines() {
 
   const handleExport = async () => {
     try {
-      // Nếu muốn export theo từ khóa hiện tại:
       const params = {};
       if (appliedSearch) {
         params.search = appliedSearch.trim();
@@ -337,17 +308,17 @@ export default function StaffVaccines() {
               <table className="tw-w-full tw-table-auto tw-border-collapse tw-text-left tw-mb-4">
                   <thead className="tw-bg-[#c4fffc] tw-text-xl">
                     <tr>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/13">Tên vắc xin</th>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/13">Phòng bệnh</th>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/13">Số lượng</th>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/13">Đơn vị</th>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/13">Hạn sử dụng</th>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/13">Nhà sản xuất</th>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/13">Quốc gia</th>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/13">Số lô</th>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/12">Giá</th>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/12">Trạng thái</th>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/8 tw-text-center">Thao tác</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/11">Tên vắc xin</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/11">Phòng bệnh</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/11">Số lượng</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/11">Đơn vị</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/11">Hạn sử dụng</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/12">Nhà sản xuất</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/11">Quốc gia</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/11">Số lô</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/11">Giá</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/11">Trạng thái</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/11 tw-text-center">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -376,15 +347,21 @@ export default function StaffVaccines() {
                               <span className="tw-bg-green-100 tw-text-green-600 tw-px-3 tw-py-2 tw-rounded-full"> Còn hàng  </span>
                             )}
                           </td>
-                          <td className="tw-px-4 tw-py-2 tw-flex tw-gap-3 tw-justify-center tw-items-center tw-text-lg">
-                              <button  onClick={() => {
+                          <td className="tw-px-4 tw-py-2 tw-text-center tw-align-middle">
+                            <div className="tw-inline-flex tw-items-center tw-gap-3">
+                              <button
+                                onClick={() => {
                                   setCurrentVaccine({ ...v });
                                   setShowDetailModal(true);
-                                }} className="tw-bg-blue-100 tw-text-blue-600 tw-text-lg tw-rounded-full tw-px-2 tw-py-2 tw-border tw-border-transparent hover:tw-border-blue-600"  >
+                                }}
+                                className="tw-bg-blue-100 tw-text-blue-600 tw-text-lg tw-rounded-full tw-px-3 tw-py-2 tw-border tw-border-transparent hover:tw-border-blue-600"
+                              >
                                 <i className="fa-solid fa-eye"></i>
                                 <span className="tw-ml-2">Xem</span>
                               </button>
+                            </div>
                           </td>
+
                       </tr>
                       );
                   })}
@@ -399,35 +376,6 @@ export default function StaffVaccines() {
                 onPageChange={setPageManage}
               />
             </div>
-
-            {/* Modal thêm vaccin- sửa vaccin */}
-            {showModal && (
-              <div className="tw-fixed tw-inset-0 tw-bg-black tw-bg-opacity-50 tw-flex tw-justify-center tw-items-center tw-mt-[100px]">
-                <div className="tw-bg-white tw-p-4  tw-rounded-xl tw-w-1/2 tw-relative ">
-                  <h2 className="tw-text-3xl tw-font-semibold  tw-text-blue-600">
-                    {currentVaccine ? "Sửa vắc xin" : "Thêm vắc xin"}
-                  </h2>
-                  <VaccineForm
-                    vaccine={currentVaccine}
-                    onSave={handleSaveVaccine}
-                    onCancel={() => setShowModal(false)}
-                  />
-                </div>
-              </div>
-            )}
-        
-            {/* Modal xác nhận xoá */}
-            <ConfirmModal show={!!confirmAction} title="Xác nhận xóa"
-              message={
-                confirmAction && (
-                  <>Bạn có chắc muốn xóa vắc xin “<b>{confirmAction.item.name}</b>” không?</>
-                )
-              } onCancel={() => setConfirmAction(null)}
-              onConfirm={() => {
-                setVaccines((prev) => prev.filter((v) => v.id !== confirmAction.item.id));
-                setConfirmAction(null);
-              }}
-            />
 
 
         </div>
@@ -473,18 +421,18 @@ export default function StaffVaccines() {
                 <table className="tw-w-full tw-table-auto tw-border-collapse tw-text-left tw-mb-4">                 
                     <thead className="tw-bg-purple-200 tw-text-xl">
                       <tr>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/13">Tên vắc xin</th>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/13">Phòng bệnh</th>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/13">Số lượng</th>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/13">Đơn vị</th>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/13">Hạn sử dụng</th>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/13">Nhà sản xuất</th>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/13">Quốc gia</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/12">Tên vắc xin</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/12">Phòng bệnh</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/12">Số lượng</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/12">Đơn vị</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/12">Hạn sử dụng</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/10">Nhà sản xuất</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/12">Quốc gia</th>
                         <th className="tw-px-4 tw-py-4 tw-w-1/12">Số lô</th>
                         <th className="tw-px-4 tw-py-4 tw-w-1/12">Giá</th>
                         <th className="tw-px-4 tw-py-4 tw-w-1/6">Cảnh báo</th>
                         <th className="tw-px-4 tw-py-4 tw-w-1/12">Trạng thái</th>
-                        <th className="tw-px-4 tw-py-4 tw-w-1/13 tw-text-center">Thao tác</th>
+                        <th className="tw-px-4 tw-py-4 tw-w-1/12 tw-text-center">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody className=" tw-text-xl">
@@ -535,15 +483,21 @@ export default function StaffVaccines() {
                               </span>
                             )}
                           </td>
-                          <td className="tw-px-4 tw-py-2 tw-flex tw-gap-3 tw-justify-center tw-items-center tw-mt-4">
-                            <button  onClick={() => {
-                                setCurrentVaccine({ ...v });
-                                setShowDetailModal(true);
-                              }} className="tw-bg-blue-100 tw-text-blue-600 tw-text-lg tw-rounded-full tw-px-3 tw-py-2 tw-border tw-border-transparent hover:tw-border-blue-600"  >
-                              <i className="fa-solid fa-eye"></i>
-                              <span className="tw-ml-2">Xem</span>
-                            </button>
+                          <td className="tw-px-4 tw-py-2 tw-text-center tw-align-middle">
+                            <div className="tw-inline-flex tw-items-center tw-justify-center">
+                              <button
+                                onClick={() => {
+                                  setCurrentVaccine({ ...v });
+                                  setShowDetailModal(true);
+                                }}
+                                className="tw-bg-blue-100 tw-text-blue-600 tw-text-lg tw-rounded-full tw-px-3 tw-py-2 tw-border tw-border-transparent hover:tw-border-blue-600"
+                              >
+                                <i className="fa-solid fa-eye"></i>
+                                <span className="tw-ml-2">Xem</span>
+                              </button>
+                            </div>
                           </td>
+
                         </tr>
                         );
                     })}
@@ -551,7 +505,6 @@ export default function StaffVaccines() {
                 </table>
               )}
 
-              {/* phân trang */}
               <Pagination
                 page={pageExpiry}  totalItems={filteredWarnings.length}
                 perPage={perPage} onPageChange={setPageExpiry}
@@ -559,18 +512,6 @@ export default function StaffVaccines() {
 
             </div>
             
-            {/* Modal xác nhận xoá */}
-            <ConfirmModal  show={!!confirmAction} title="Xác nhận xóa"
-              message={ confirmAction && ( <> Bạn có chắc muốn xóa thông báo “ <b>{confirmAction.item.name}</b>” không? </>
-                  )} onCancel={() => setConfirmAction(null)}
-                  onConfirm={() => {
-                    setVaccines((prev) =>
-                      prev.filter((v) => v.id !== confirmAction.item.id)
-                    );
-                    setConfirmAction(null);
-                  }} confirmText="Đồng ý" cancelText="Hủy"
-            />
-          
         </div>
       )}
       {/* Modal xem chi tiết */}

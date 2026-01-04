@@ -1,14 +1,12 @@
 // src/services/recordBookService.js
 import api from "./axios";
 
-// Helper trả luôn mảng
 const pickList = (data) => {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.results)) return data.results;
   return [];
 };
 
-// --- Adapters ---
 const adaptDisease = (d) => ({
   id: d.id,
   name: d.name,
@@ -43,7 +41,6 @@ const adaptRecord = (r) => ({
 });
 
 
-// --- Services ---
 export const getDiseases = async () => {
   const { data } = await api.get("/vaccines/diseases/");
   return pickList(data).map(adaptDisease);
@@ -129,7 +126,6 @@ export async function updateDiseaseHistory({ memberId, diseaseId, doses }) {
     })),
   };
   const res = await api.post("/records/me/history/by-disease/", payload);
-  // Chuẩn hóa results cho FE (nếu bạn dùng response này ở đâu đó)
   const raw = Array.isArray(res.data?.results) ? res.data.results : [];
   const normalizedResults = raw.map((d, idx) => ({
     id: d.id ?? idx + 1,

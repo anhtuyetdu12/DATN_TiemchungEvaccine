@@ -22,7 +22,6 @@ export default function ForgotPassword() {
       const res = await axios.post("http://127.0.0.1:8000/api/users/forgot-password/", { identifier });
 
       if (isPhone) {
-        // tuỳ bạn có muốn hiện mật khẩu tạm để test:
         if (res?.data?.temp_password) toast.info(`Mật khẩu tạm: ${res.data.temp_password}`);
         toast.success("Vui lòng đặt mật khẩu mới");
         navigate(`/reset-password?identifier=${encodeURIComponent(identifier)}`);
@@ -31,7 +30,7 @@ export default function ForgotPassword() {
 
       if (isEmail) {
         toast.success("Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư!");
-        return; // không navigate vì cần token từ email
+        return; 
       }
 
       toast.error("Định dạng không hợp lệ");
